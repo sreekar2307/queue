@@ -1,10 +1,10 @@
 package distributedQueue
 
 import (
-	"distributedQueue/internal/message"
-	"distributedQueue/internal/parition"
-	"distributedQueue/internal/parition/selection"
-	"distributedQueue/internal/topic"
+	"queue/internal/message"
+	"queue/internal/parition"
+	"queue/internal/parition/selection"
+	"queue/internal/topic"
 	"fmt"
 	"sync"
 )

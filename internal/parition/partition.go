@@ -1,7 +1,7 @@
 package parition
 
 import (
-	"distributedQueue/internal/message"
+	"queue/internal/message"
 	"fmt"
 	"sync"
 )

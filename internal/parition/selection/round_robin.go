@@ -1,8 +1,8 @@
 package selection
 
 import (
-	"distributedQueue/internal/message"
-	"distributedQueue/internal/parition"
+	"queue/internal/message"
+	"queue/internal/parition"
 	"sync"
 )
 

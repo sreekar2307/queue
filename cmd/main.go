@@ -1,9 +1,9 @@
 package main
 
 import (
-	"distributedQueue"
-	"distributedQueue/internal/message"
-	"distributedQueue/internal/topic"
+	"queue"
+	"queue/internal/message"
+	"queue/internal/topic"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"

@@ -1,8 +1,8 @@
 package topic
 
 import (
-	"distributedQueue/internal/message"
-	"distributedQueue/internal/parition"
+	"queue/internal/message"
+	"queue/internal/parition"
 	"errors"
 	"fmt"
 	"sync"

@@ -1,6 +1,6 @@
 package parition
 
-import "distributedQueue/internal/message"
+import "queue/internal/message"
 
 type PartitionSelectionStrategy interface {
 	SelectPartition() string
