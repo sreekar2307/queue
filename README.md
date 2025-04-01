@@ -1,0 +1,17 @@
+### Distributed Queue
+- System
+    - Topics
+    - CreateTopic()
+    - SendMessage(topic, Message)
+    - SendMessageToPartition(topic, partition-key, Message) 
+    - ReceiveMessage(topic, consumer-group)
+    - AckMessage(topic, consumerGroup, Message)
+- Message 
+  - MessageID 
+  - partition-key 
+  - Data 
+- Topics
+  - A topic will have multiple partitions
+- Partition
+  - messages within a partition are ordered in the sense they will be delivered in the way they are inserted
+- Partition allocation Strategies
