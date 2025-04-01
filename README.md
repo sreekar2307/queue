@@ -1,4 +1,4 @@
-### Distributed Queue
+### Queue
 - System
     - Topics
     - CreateTopic()
