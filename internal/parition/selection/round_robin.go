@@ -1,7 +1,7 @@
 package selection
 
 import (
-	"queue/internal/parition"
+	"context"
 	"queue/message"
 	"sync"
 )
@@ -13,14 +13,14 @@ type roundRobinPartitionSelectionStrategy struct {
 	mu sync.RWMutex
 }
 
-func NewRoundRobinPartitionSelectionStrategy() parition.PartitionSelectionStrategy {
+func NewRoundRobinPartitionSelectionStrategy() PartitionSelectionStrategy {
 	return &roundRobinPartitionSelectionStrategy{
 		currentPartitionIndex: 0,
 		partitionsKeys:        make([]string, 0),
 	}
 }
 
-func (r *roundRobinPartitionSelectionStrategy) SelectPartition() string {
+func (r *roundRobinPartitionSelectionStrategy) SelectPartition(context.Context) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.currentPartitionIndex >= len(r.partitionsKeys) {
@@ -31,14 +31,14 @@ func (r *roundRobinPartitionSelectionStrategy) SelectPartition() string {
 	return partitionKey
 }
 
-func (r *roundRobinPartitionSelectionStrategy) AddPartition(partitionKey string) {
+func (r *roundRobinPartitionSelectionStrategy) AddPartition(_ context.Context, partitionKey string) {
 	r.partitionsKeys = append(r.partitionsKeys, partitionKey)
 }
 
-func (r *roundRobinPartitionSelectionStrategy) WrittenMessage(string, *message.Message) {
+func (r *roundRobinPartitionSelectionStrategy) WrittenMessage(context.Context, string, *message.Message) {
 	return
 }
 
-func (r *roundRobinPartitionSelectionStrategy) ReadMessage(string, string, *message.Message) {
+func (r *roundRobinPartitionSelectionStrategy) ReadMessage(context.Context, string, string, *message.Message) {
 	return
 }

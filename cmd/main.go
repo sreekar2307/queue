@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
@@ -14,19 +15,20 @@ import (
 )
 
 func main() {
-	var c = make(chan os.Signal)
+	c := make(chan os.Signal)
 	signal.Notify(c, syscall.SIGKILL, syscall.SIGTERM)
 	queue := distributedQueue.NewQueue()
-	emailTopic, err := queue.CreateTopic("emailTopic")
+	ctx := context.TODO()
+	emailTopic, err := queue.CreateTopic(ctx, "emailTopic")
 	if err != nil {
 		panic(err.Error())
 	}
-	go receiveMessage(queue, emailTopic)
-	go sendMessage(queue, emailTopic)
+	go receiveMessage(ctx, queue, emailTopic)
+	go sendMessage(ctx, queue, emailTopic)
 	<-c
 }
 
-func sendMessage(queue *distributedQueue.Queue, topic *topic.Topic) {
+func sendMessage(ctx context.Context, queue *distributedQueue.Queue, topic *topic.Topic) {
 	i := 0
 	partitions := []string{
 		"userProfile",
@@ -36,7 +38,7 @@ func sendMessage(queue *distributedQueue.Queue, topic *topic.Topic) {
 	for {
 		partition := partitions[rand.IntN(len(partitions))]
 		msg := message.NewMessage([]byte(fmt.Sprintf("Hello World, %d", i)))
-		_, err := queue.SendMessageToPartition(topic.Name, partition, msg)
+		_, err := queue.SendMessageToPartition(ctx, topic.Name, partition, msg)
 		if err != nil {
 			panic(err.Error())
 		}
@@ -45,9 +47,9 @@ func sendMessage(queue *distributedQueue.Queue, topic *topic.Topic) {
 	}
 }
 
-func receiveMessage(queue *distributedQueue.Queue, topic *topic.Topic) {
+func receiveMessage(ctx context.Context, queue *distributedQueue.Queue, topic *topic.Topic) {
 	for {
-		msg, err := queue.ReceiveMessage(topic.Name, "workers")
+		msg, err := queue.ReceiveMessage(ctx, topic.Name, "workers")
 		if msg == nil {
 			continue
 		}
@@ -55,7 +57,7 @@ func receiveMessage(queue *distributedQueue.Queue, topic *topic.Topic) {
 		if err != nil {
 			panic(err.Error())
 		}
-		if err := queue.AckMessage(topic.Name, "workers", msg); err != nil {
+		if err := queue.AckMessage(ctx, topic.Name, "workers", msg); err != nil {
 			panic(err.Error())
 		}
 		time.Sleep(time.Second)
