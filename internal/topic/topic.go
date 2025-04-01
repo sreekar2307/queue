@@ -2,7 +2,6 @@ package topic
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"queue/internal/parition"
 	"queue/internal/parition/selection"
@@ -58,9 +57,6 @@ func (t *Topic) ReceiveMessage(ctx context.Context, consumerGroup string) (*mess
 		return nil, fmt.Errorf("partition '%s' does not exist", partitionKey)
 	}
 	msg, err := t.partitions[partitionKey].ReadMessage(ctx, consumerGroup)
-	if errors.Is(err, parition.NoNewMessageErr) {
-		return nil, nil
-	}
 	return msg, err
 }
 
