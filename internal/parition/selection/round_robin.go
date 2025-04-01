@@ -1,8 +1,8 @@
 package selection
 
 import (
-	"queue/internal/message"
 	"queue/internal/parition"
+	"queue/message"
 	"sync"
 )
 
@@ -35,10 +35,10 @@ func (r *roundRobinPartitionSelectionStrategy) AddPartition(partitionKey string)
 	r.partitionsKeys = append(r.partitionsKeys, partitionKey)
 }
 
-func (r *roundRobinPartitionSelectionStrategy) WrittenMessage(string, message.Message) {
+func (r *roundRobinPartitionSelectionStrategy) WrittenMessage(string, *message.Message) {
 	return
 }
 
-func (r *roundRobinPartitionSelectionStrategy) ReadMessage(string, string, message.Message) {
+func (r *roundRobinPartitionSelectionStrategy) ReadMessage(string, string, *message.Message) {
 	return
 }

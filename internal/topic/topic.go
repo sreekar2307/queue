@@ -1,10 +1,10 @@
 package topic
 
 import (
-	"queue/internal/message"
-	"queue/internal/parition"
 	"errors"
 	"fmt"
+	"queue/internal/parition"
+	"queue/message"
 	"sync"
 )
 
@@ -33,7 +33,7 @@ func (t *Topic) CreatePartition(key string) {
 	t.partitionSelectionStrategy.AddPartition(key)
 }
 
-func (t *Topic) SendMessage(partitionKey string, message message.Message) (message.Message, error) {
+func (t *Topic) SendMessage(partitionKey string, message *message.Message) (*message.Message, error) {
 	t.mu.RLock()
 	if _, ok := t.partitions[partitionKey]; !ok {
 		t.mu.RUnlock()
@@ -59,18 +59,18 @@ func (t *Topic) ReceiveMessage(consumerGroup string) (*message.Message, error) {
 	if errors.Is(err, parition.NoNewMessageErr) {
 		return nil, nil
 	}
-	return &msg, err
+	return msg, err
 }
 
 func (t *Topic) AckMessage(msg *message.Message, consumerGroup string) error {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	if _, ok := t.partitions[msg.PartitionKey]; !ok {
+	if _, ok := t.partitions[msg.PartitionKey()]; !ok {
 		return fmt.Errorf("partition '%s' does not exist", msg.PartitionKey)
 	}
-	err := t.partitions[msg.PartitionKey].AckMessage(msg, consumerGroup)
+	err := t.partitions[msg.PartitionKey()].AckMessage(msg, consumerGroup)
 	if err != nil {
-		t.partitionSelectionStrategy.ReadMessage(msg.PartitionKey, consumerGroup, *msg)
+		t.partitionSelectionStrategy.ReadMessage(msg.PartitionKey(), consumerGroup, msg)
 	}
 	return err
 }

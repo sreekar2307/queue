@@ -1,11 +1,11 @@
 package distributedQueue
 
 import (
-	"queue/internal/message"
+	"fmt"
 	"queue/internal/parition"
 	"queue/internal/parition/selection"
 	"queue/internal/topic"
-	"fmt"
+	"queue/message"
 	"sync"
 )
 
@@ -31,16 +31,16 @@ func (q *Queue) CreateTopic(name string) (*topic.Topic, error) {
 	return q.topics[name], nil
 }
 
-func (q *Queue) SendMessage(topic string, msg message.Message) (message.Message, error) {
+func (q *Queue) SendMessage(topic string, msg *message.Message) (*message.Message, error) {
 	if _, ok := q.topics[topic]; !ok {
-		return message.Message{}, fmt.Errorf("topic '%s' does not exist", topic)
+		return nil, fmt.Errorf("topic '%s' does not exist", topic)
 	}
 	return q.topics[topic].SendMessage(parition.DefaultPartition, msg)
 }
 
-func (q *Queue) SendMessageToPartition(topic, partition string, msg message.Message) (message.Message, error) {
+func (q *Queue) SendMessageToPartition(topic, partition string, msg *message.Message) (*message.Message, error) {
 	if _, ok := q.topics[topic]; !ok {
-		return message.Message{}, fmt.Errorf("topic '%s' does not exist", topic)
+		return nil, fmt.Errorf("topic '%s' does not exist", topic)
 	}
 	return q.topics[topic].SendMessage(partition, msg)
 }

@@ -1,14 +1,14 @@
 package main
 
 import (
-	"queue"
-	"queue/internal/message"
-	"queue/internal/topic"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"os"
 	"os/signal"
+	"queue"
+	"queue/internal/topic"
+	"queue/message"
 	"syscall"
 	"time"
 )
@@ -35,9 +35,8 @@ func sendMessage(queue *distributedQueue.Queue, topic *topic.Topic) {
 	}
 	for {
 		partition := partitions[rand.IntN(len(partitions))]
-		_, err := queue.SendMessageToPartition(topic.Name, partition, message.Message{
-			Data: []byte(fmt.Sprintf("Hello World: %d", i)),
-		})
+		msg := message.NewMessage([]byte(fmt.Sprintf("Hello World, %d", i)))
+		_, err := queue.SendMessageToPartition(topic.Name, partition, msg)
 		if err != nil {
 			panic(err.Error())
 		}

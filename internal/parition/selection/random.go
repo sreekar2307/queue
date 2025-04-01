@@ -1,9 +1,9 @@
 package selection
 
 import (
-	"queue/internal/message"
-	"queue/internal/parition"
 	"math/rand/v2"
+	"queue/internal/parition"
+	"queue/message"
 	"sync"
 )
 
@@ -31,10 +31,10 @@ func (r *randomSelectionStrategy) AddPartition(partitionKey string) {
 	r.partitionsKeys = append(r.partitionsKeys, partitionKey)
 }
 
-func (r *randomSelectionStrategy) WrittenMessage(partitionKey string, msg message.Message) {
+func (r *randomSelectionStrategy) WrittenMessage(partitionKey string, msg *message.Message) {
 	return
 }
 
-func (r *randomSelectionStrategy) ReadMessage(string, string, message.Message) {
+func (r *randomSelectionStrategy) ReadMessage(string, string, *message.Message) {
 	return
 }
