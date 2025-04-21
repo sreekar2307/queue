@@ -71,6 +71,10 @@ func (m *Bolt) CreateTopicInTx(_ context.Context, transaction storage.Transactio
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
+	// Check if the topic already exists
+	if bucket.Get([]byte(topic.Name)) != nil {
+		return errors.ErrTopicAlreadyExists
+	}
 	topicData, err := json.Marshal(topic)
 	if err != nil {
 		return fmt.Errorf("failed to marshal topic: %w", err)
@@ -206,7 +210,7 @@ func (m *Bolt) Partition(_ context.Context, s string) (*model.Partition, error) 
 		}
 		data := bucket.Get([]byte(s))
 		if data == nil {
-			return fmt.Errorf("partition not found")
+			return nil
 		}
 		if err := json.Unmarshal(data, &partition); err != nil {
 			return fmt.Errorf("failed to unmarshal partition: %w", err)
@@ -216,7 +220,80 @@ func (m *Bolt) Partition(_ context.Context, s string) (*model.Partition, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partition: %w", err)
 	}
+	if partition.ID == "" {
+		return nil, errors.ErrPartitionNotFound
+	}
 	return &partition, nil
+}
+
+func (m *Bolt) UpdatePartition(_ context.Context, partition *model.Partition) error {
+	boltTx, err := m.db.Begin(true)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
+	defer tx.BoltTx.Rollback()
+	err = m.UpdatePartitionInTx(context.Background(), tx, partition)
+	if err != nil {
+		return fmt.Errorf("failed to update partition: %w", err)
+	}
+	return tx.Commit()
+}
+
+func (m *Bolt) AllPartitions(ctx context.Context) ([]*model.Partition, error) {
+	boltTx, err := m.db.Begin(false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
+	defer tx.BoltTx.Rollback()
+	partitions, err := m.AllPartitionsInTx(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all partitions: %w", err)
+	}
+	return partitions, tx.Commit()
+}
+
+func (m *Bolt) AllPartitionsInTx(ctx context.Context, transaction storage.Transaction) ([]*model.Partition, error) {
+	var partitions []*model.Partition
+	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+	if !ok {
+		return nil, fmt.Errorf("invalid transaction type")
+	}
+	bucket := tx.BoltTx.Bucket([]byte(partitionsBucket))
+	if bucket == nil {
+		return nil, nil
+	}
+	cursor := bucket.Cursor()
+	for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+		var partition model.Partition
+		if err := json.Unmarshal(v, &partition); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal partition: %w", err)
+		}
+		partitions = append(partitions, &partition)
+	}
+	return partitions, nil
+}
+
+func (m *Bolt) UpdatePartitionInTx(_ context.Context, transaction storage.Transaction, partition *model.Partition) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+	if !ok {
+		return fmt.Errorf("invalid transaction type")
+	}
+	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(partitionsBucket))
+	if err != nil {
+		return fmt.Errorf("failed to create bucket: %w", err)
+	}
+	partitionData, err := json.Marshal(partition)
+	if err != nil {
+		return fmt.Errorf("failed to marshal partition: %w", err)
+	}
+	if err := bucket.Put([]byte(partition.ID), partitionData); err != nil {
+		return fmt.Errorf("failed to put partition: %w", err)
+	}
+	return nil
 }
 
 func (m *Bolt) Partitions(_ context.Context, topicName string) ([]*model.Partition, error) {

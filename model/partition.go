@@ -1,16 +1,10 @@
 package model
 
 type Partition struct {
-	ID             string
-	TopicName      string
-	LeaderBrokerID string
+	ID        string
+	TopicName string
+	ShardID   uint64
+	Members   map[uint64]string
 }
 
 const DefaultPartition = "default"
-
-func NewPartition(topicName, partitionID string) *Partition {
-	return &Partition{
-		TopicName: topicName,
-		ID:        partitionID,
-	}
-}

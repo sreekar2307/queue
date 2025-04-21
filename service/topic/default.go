@@ -2,12 +2,10 @@ package topic
 
 import (
 	"context"
-	stdErrors "errors"
 	"fmt"
 	"hash/crc32"
 	"queue/model"
 	"queue/storage"
-	"queue/storage/errors"
 )
 
 type DefaultTopicService struct {
@@ -24,23 +22,29 @@ func (d *DefaultTopicService) CreateTopic(
 	ctx context.Context,
 	topicName string,
 	numPartitions uint64,
+	offsetSharID uint64,
 ) (*model.Topic, error) {
-	topic, err := d.MetaDataStorage.Topic(ctx, topicName)
-	if err != nil && !stdErrors.Is(err, errors.ErrTopicNotFound) {
-		return nil, fmt.Errorf("failed to get topic: %w", err)
-	}
 	tx, err := d.MetaDataStorage.BeginTransaction(ctx, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	topic = &model.Topic{Name: topicName, NumberOfPartitions: numPartitions}
-	if err := d.MetaDataStorage.CreateTopicInTx(ctx, tx, topic); err != nil {
+	topic := &model.Topic{Name: topicName, NumberOfPartitions: numPartitions}
+	err = d.MetaDataStorage.CreateTopicInTx(ctx, tx, topic)
+	if err != nil {
 		return nil, fmt.Errorf("failed to create topic: %w", err)
+	}
+	allPartitions, err := d.MetaDataStorage.AllPartitionsInTx(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all partitions: %w", err)
 	}
 	var partitions []*model.Partition
 	for i := range int(numPartitions) {
-		partition := model.NewPartition(topicName, fmt.Sprintf("%s-%d", topicName, i))
+		partition := &model.Partition{
+			ID:        fmt.Sprintf("%s-%d", topicName, i),
+			TopicName: topicName,
+			ShardID:   uint64(len(allPartitions) + int(offsetSharID) + i),
+		}
 		partitions = append(partitions, partition)
 	}
 	if err := d.MetaDataStorage.CreatePartitionsInTx(ctx, tx, partitions); err != nil {
@@ -76,6 +80,16 @@ func (d *DefaultTopicService) AllTopics(
 	return topics, nil
 }
 
+func (d *DefaultTopicService) AllPartitions(
+	ctx context.Context,
+) ([]*model.Partition, error) {
+	partitions, err := d.MetaDataStorage.AllPartitions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get partitions: %w", err)
+	}
+	return partitions, nil
+}
+
 func (d *DefaultTopicService) GetPartitions(
 	ctx context.Context,
 	topicName string,
@@ -109,4 +123,29 @@ func (d *DefaultTopicService) PartitionID(
 	}
 	partitionID = fmt.Sprintf("%s-%d", msg.TopicName, uint64(hash.Sum32())%topic.NumberOfPartitions)
 	return partitionID, nil
+}
+
+func (d *DefaultTopicService) UpdatePartition(
+	ctx context.Context,
+	partitionID string,
+	partitionUpdates *model.Partition,
+) error {
+	if partitionUpdates == nil {
+		return fmt.Errorf("partition details are nil")
+	}
+	tx, err := d.MetaDataStorage.BeginTransaction(ctx, true)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+	partition, err := d.MetaDataStorage.Partition(ctx, partitionID)
+	if err != nil {
+		return fmt.Errorf("failed to get partition: %w", err)
+	}
+	partition.Members = partitionUpdates.Members
+	partition.ShardID = partitionUpdates.ShardID
+	if err := d.MetaDataStorage.UpdatePartitionInTx(ctx, tx, partition); err != nil {
+		return fmt.Errorf("failed to update partition: %w", err)
+	}
+	return tx.Commit()
 }

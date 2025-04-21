@@ -21,27 +21,34 @@ type MessageFSM struct {
 	ReplicaID      uint64
 	messageService MessageService
 	mdStorage      storage.MetadataStorage
+	broker         *model.Broker
+	config         Config
 }
 
-func NewMessageFSM(partitionsPath string, mdStorage storage.MetadataStorage) statemachine.CreateOnDiskStateMachineFunc {
-	return func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
-		partitionsStorePath := filepath.Join(
-			partitionsPath,
-			strconv.Itoa(int(shardID)),
-			strconv.Itoa(int(replicaID)),
-		)
-		return &MessageFSM{
-			messageService: messageServ.NewDefaultMessageService(
-				messageStorage.NewBolt(
-					partitionsStorePath,
-				),
-				mdStorage,
+func NewMessageFSM(
+	shardID, replicaID uint64,
+	config Config,
+	broker *model.Broker,
+	mdStorage storage.MetadataStorage,
+) statemachine.IOnDiskStateMachine {
+	partitionsStorePath := filepath.Join(
+		config.PartitionsPath,
+		strconv.Itoa(int(shardID)),
+		strconv.Itoa(int(replicaID)),
+	)
+	return &MessageFSM{
+		messageService: messageServ.NewDefaultMessageService(
+			messageStorage.NewBolt(
 				partitionsStorePath,
 			),
-			mdStorage: mdStorage,
-			ShardID:   shardID,
-			ReplicaID: replicaID,
-		}
+			mdStorage,
+			partitionsStorePath,
+		),
+		broker:    broker,
+		mdStorage: mdStorage,
+		config:    config,
+		ShardID:   shardID,
+		ReplicaID: replicaID,
 	}
 }
 

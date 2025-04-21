@@ -2,13 +2,17 @@ package service
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
+	stdErrors "errors"
 	"fmt"
 	"io"
+	"log"
 	"queue/model"
 	consumerServ "queue/service/consumer"
 	topicServ "queue/service/topic"
 	"queue/storage"
+	"queue/storage/errors"
 	"queue/util"
 	"slices"
 	"strconv"
@@ -27,26 +31,29 @@ type (
 		consumerService   ConsumerService
 		metaDataStorePath string
 		broker            *model.Broker
-		partitionsPath    string
+		config            Config
 	}
 )
 
-func NewBrokerFSM(partitionsPath string, broker *model.Broker, mdStorage storage.MetadataStorage) statemachine.CreateOnDiskStateMachineFunc {
-	return func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
-		return &BrokerFSM{
-			topicService: topicServ.NewDefaultTopicService(
-				mdStorage,
-			),
-			consumerService: consumerServ.NewDefaultConsumerService(
-				mdStorage,
-				nil,
-			),
-			ShardID:        shardID,
-			ReplicaID:      replicaID,
-			mdStorage:      mdStorage,
-			broker:         broker,
-			partitionsPath: partitionsPath,
-		}
+func NewBrokerFSM(
+	shardID, replicaID uint64,
+	config Config,
+	broker *model.Broker,
+	mdStorage storage.MetadataStorage,
+) statemachine.IOnDiskStateMachine {
+	return &BrokerFSM{
+		topicService: topicServ.NewDefaultTopicService(
+			mdStorage,
+		),
+		consumerService: consumerServ.NewDefaultConsumerService(
+			mdStorage,
+			nil,
+		),
+		ShardID:   shardID,
+		ReplicaID: replicaID,
+		mdStorage: mdStorage,
+		broker:    broker,
+		config:    config,
 	}
 }
 
@@ -61,43 +68,63 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 		if err := json.Unmarshal(entry.Cmd, &cmd); err != nil {
 			return nil, fmt.Errorf("unmarshing cmd: %w", err)
 		}
-		if cmd.CommandType == TopicCommands.Create {
+		if cmd.CommandType == TopicCommands.CreateTopic {
 			args := cmd.Args
-			if len(args) != 2 {
+			if len(args) != 3 {
 				return nil, fmt.Errorf("invalid command args")
 			}
-			arg2, err := strconv.ParseUint(string(args[1]), 10, 64)
+			topicName := string(args[0])
+			numOfPartitions, err := strconv.ParseUint(string(args[1]), 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("invalid command args: %w", err)
 			}
-			topic, err := f.topicService.CreateTopic(ctx, string(args[0]), arg2)
+			shardOffset, err := strconv.ParseUint(string(args[2]), 10, 64)
 			if err != nil {
+				return nil, fmt.Errorf("invalid command args: %w", err)
+			}
+			topic, err := f.topicService.CreateTopic(ctx, topicName, numOfPartitions, shardOffset)
+			result := make([]byte, 0)
+			if err != nil {
+				if stdErrors.Is(err, errors.ErrTopicAlreadyExists) {
+					result = binary.BigEndian.AppendUint64(result, 0)
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  result,
+						},
+					})
+					continue
+				}
 				return nil, fmt.Errorf("create topic: %w", err)
 			}
-
+			result = binary.BigEndian.AppendUint64(result, 1)
 			topicBytes, err := json.Marshal(topic)
 			if err != nil {
 				return nil, fmt.Errorf("marshal topic: %w", err)
 			}
+			result = append(result, topicBytes...)
 			results = append(results, statemachine.Entry{
 				Index: entry.Index,
 				Cmd:   slices.Clone(entry.Cmd),
 				Result: statemachine.Result{
 					Value: entry.Index,
-					Data:  topicBytes,
+					Data:  result,
 				},
 			})
 		} else if cmd.CommandType == PartitionsCommands.PartitionAdded {
 			args := cmd.Args
-			if len(args) != 2 {
+			if len(args) != 3 {
 				return nil, fmt.Errorf("invalid command args")
 			}
-			shardID, err := strconv.ParseUint(string(args[0]), 10, 64)
+			partitionID := string(args[0])
+			shardID, err := strconv.ParseUint(string(args[1]), 10, 64)
 			if err != nil {
 				return nil, fmt.Errorf("invalid command args: %w", err)
 			}
 			members := make(map[uint64]string)
-			if err := json.Unmarshal(args[1], &members); err != nil {
+			if err := json.Unmarshal(args[2], &members); err != nil {
 				return nil, fmt.Errorf("unmarshing cmd: %w", err)
 			}
 			_, ok := util.FirstMatch(util.Keys(members), func(k uint64) bool {
@@ -114,8 +141,25 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				})
 				continue
 			}
+			partitionUpdates := &model.Partition{
+				Members: members,
+				ShardID: shardID,
+			}
+			if err := f.topicService.UpdatePartition(ctx, partitionID, partitionUpdates); err != nil {
+				return nil, fmt.Errorf("create partition: %w", err)
+			}
 			nh := f.broker.NodeHost()
-			err = nh.StartOnDiskReplica(members, false, NewMessageFSM(f.partitionsPath, f.mdStorage), config.Config{
+			log.Println("Starting replica for partition", partitionID, "on shard", shardID,
+				"replicaID", f.broker.ID)
+			err = nh.StartOnDiskReplica(members, false, func(shardID, replicaID uint64) statemachine.IOnDiskStateMachine {
+				return NewMessageFSM(
+					shardID,
+					replicaID,
+					f.config,
+					f.broker,
+					f.mdStorage,
+				)
+			}, config.Config{
 				ReplicaID:          f.broker.ID,
 				ShardID:            shardID,
 				ElectionRTT:        10,
@@ -148,7 +192,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 	if err := json.Unmarshal(i.([]byte), &cmd); err != nil {
 		return nil, fmt.Errorf("unmarshing cmd: %w", err)
 	}
-	if cmd.CommandType == TopicCommands.Get {
+	if cmd.CommandType == TopicCommands.TopicForID {
 		args := cmd.Args
 		if len(args) != 1 {
 			return nil, fmt.Errorf("invalid command args")
@@ -162,7 +206,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("marshal topic: %w", err)
 		}
 		return topicBytes, nil
-	} else if cmd.CommandType == PartitionsCommands.GetPartitions {
+	} else if cmd.CommandType == PartitionsCommands.PartitionsForTopic {
 		args := cmd.Args
 		if len(args) != 1 {
 			return nil, fmt.Errorf("invalid command args")
@@ -176,7 +220,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("marshal partitions: %w", err)
 		}
 		return partitionsBytes, nil
-	} else if cmd.CommandType == PartitionsCommands.PartitionID {
+	} else if cmd.CommandType == PartitionsCommands.PartitionForID {
 
 		args := cmd.Args
 		if len(args) != 1 {
@@ -191,6 +235,16 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("get partitionID: %w", err)
 		}
 		return []byte(partitionID), nil
+	} else if cmd.CommandType == PartitionsCommands.Partitions {
+		partitions, err := f.topicService.AllPartitions(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get partitions: %w", err)
+		}
+		partitionsBytes, err := json.Marshal(partitions)
+		if err != nil {
+			return nil, fmt.Errorf("marshal partitions: %w", err)
+		}
+		return partitionsBytes, nil
 	}
 	return nil, fmt.Errorf("invalid command type")
 }

@@ -1,21 +1,23 @@
 package service
 
 var TopicCommands = struct {
-	Create string
-	Get    string
+	CreateTopic string
+	TopicForID  string
 }{
-	Create: "CreateTopic",
-	Get:    "GetTopic",
+	CreateTopic: "CreateTopic",
+	TopicForID:  "TopicForID",
 }
 
 var PartitionsCommands = struct {
-	GetPartitions  string
-	PartitionID    string
-	PartitionAdded string
+	PartitionsForTopic string
+	Partitions         string
+	PartitionForID     string
+	PartitionAdded     string
 }{
-	GetPartitions:  "GetPartitions",
-	PartitionID:    "PartitionID",
-	PartitionAdded: "PartitionAdded",
+	PartitionsForTopic: "PartitionsForTopic",
+	Partitions:         "Partitions",
+	PartitionForID:     "PartitionID",
+	PartitionAdded:     "PartitionAdded",
 }
 
 var MessageCommands = struct {

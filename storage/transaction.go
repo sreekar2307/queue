@@ -12,7 +12,10 @@ type BoltDbTransactionWrapper struct {
 }
 
 func (b *BoltDbTransactionWrapper) Commit() error {
-	return b.BoltTx.Commit()
+	if b.BoltTx.Writable() {
+		return b.BoltTx.Commit()
+	}
+	return nil
 }
 
 func (b *BoltDbTransactionWrapper) Rollback() error {

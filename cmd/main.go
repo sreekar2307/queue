@@ -45,25 +45,26 @@ func main() {
 		panic(err.Error())
 	}
 	if !*join {
-		topic, err := trans.CreateTopic(ctx, "facebookTopic", 3)
+		topic, err := trans.CreateTopic(ctx, "snapTopic", 3)
 		if err != nil {
-			panic(err.Error())
-		}
-		log.Println("Topic created:", "topic", topic)
-		for i := range 500 {
-			msg := &model.Message{
-				TopicName: topic.Name,
-				Data:      fmt.Appendf(nil, "Hello from world %d", i),
+			log.Println("Error creating topic:", err)
+		} else {
+			log.Println("Topic created:", "topic", topic)
+			for i := range 500 {
+				msg := &model.Message{
+					TopicName: topic.Name,
+					Data:      fmt.Appendf(nil, "Hello from world %d", i),
+				}
+				msg, err = trans.SendMessage(ctx, msg)
+				if err != nil {
+					panic(err.Error())
+				}
+				log.Println("Message sent:", "message", msg)
 			}
-			msg, err = trans.SendMessage(ctx, msg)
-			if err != nil {
-				panic(err.Error())
-			}
-			log.Println("Message sent:", "message", msg)
+			log.Println("all messages sent")
 		}
-		log.Println("all messages sent")
 	}
-	// listKeys()
+	//listKeys()
 	<-c
 	if err := trans.Close(ctx); err != nil {
 		log.Printf("failed to close transport %s\n", err.Error())
