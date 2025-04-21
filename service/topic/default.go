@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/crc32"
+	"io"
 	"queue/model"
 	"queue/storage"
 )
@@ -148,4 +149,18 @@ func (d *DefaultTopicService) UpdatePartition(
 		return fmt.Errorf("failed to update partition: %w", err)
 	}
 	return tx.Commit()
+}
+
+func (d *DefaultTopicService) Snapshot(ctx context.Context, writer io.Writer) error {
+	if err := d.MetaDataStorage.Snapshot(ctx, writer); err != nil {
+		return fmt.Errorf("failed to snapshot message storage: %w", err)
+	}
+	return nil
+}
+
+func (d *DefaultTopicService) RecoverFromSnapshot(ctx context.Context, reader io.Reader) error {
+	if err := d.MetaDataStorage.RecoverFromSnapshot(ctx, reader); err != nil {
+		return fmt.Errorf("failed to recover message storage: %w", err)
+	}
+	return nil
 }

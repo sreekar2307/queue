@@ -104,18 +104,41 @@ func (f MessageFSM) Sync() error {
 }
 
 func (f MessageFSM) PrepareSnapshot() (any, error) {
-	// TODO implement me
-	panic("implement me")
+	return nil, nil
 }
 
 func (f MessageFSM) SaveSnapshot(i any, writer io.Writer, i2 <-chan struct{}) error {
-	// TODO implement me
-	panic("implement me")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-i2:
+			cancel()
+		case <-done:
+			break
+		}
+	}()
+	err := f.messageService.Snapshot(ctx, writer)
+	close(done)
+	return err
 }
 
 func (f MessageFSM) RecoverFromSnapshot(reader io.Reader, i <-chan struct{}) error {
-	// TODO implement me
-	panic("implement me")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-i:
+			cancel()
+		case <-done:
+			break
+		}
+	}()
+	err := f.messageService.RecoverFromSnapshot(ctx, reader)
+	close(done)
+	return err
 }
 
 func (f MessageFSM) Close() error {

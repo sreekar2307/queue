@@ -45,7 +45,7 @@ func main() {
 		panic(err.Error())
 	}
 	if !*join {
-		topic, err := trans.CreateTopic(ctx, "snapTopic", 3)
+		topic, err := trans.CreateTopic(ctx, "gmailTopic", 3)
 		if err != nil {
 			log.Println("Error creating topic:", err)
 		} else {

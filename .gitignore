@@ -1,1 +1,5 @@
 /.idea
+
+raft-logs/
+metadata/
+partitions/

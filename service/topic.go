@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"io"
 	"queue/model"
 	"queue/service/topic"
 )
@@ -15,6 +16,8 @@ type (
 		GetPartitions(context.Context, string) ([]*model.Partition, error)
 		PartitionID(context.Context, *model.Message) (string, error)
 		UpdatePartition(context.Context, string, *model.Partition) error
+		Snapshot(context.Context, io.Writer) error
+		RecoverFromSnapshot(context.Context, io.Reader) error
 	}
 )
 

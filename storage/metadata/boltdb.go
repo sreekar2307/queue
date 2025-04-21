@@ -2,8 +2,12 @@ package metadata
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"queue/model"
 	"queue/storage"
 	"queue/storage/errors"
@@ -588,6 +592,72 @@ func (m *Bolt) DeleteConsumerInTx(_ context.Context, transaction storage.Transac
 	}
 	if err := bucket.Delete([]byte(consumer.ID)); err != nil {
 		return fmt.Errorf("failed to delete consumer: %w", err)
+	}
+	return nil
+}
+
+func (b *Bolt) Snapshot(ctx context.Context, w io.Writer) error {
+	writeBytes := func(w io.Writer, data []byte) error {
+		n, err := w.Write(data)
+		if err != nil {
+			return err
+		}
+		if n != len(data) {
+			return fmt.Errorf("short write: expected %d, got %d", len(data), n)
+		}
+		return nil
+	}
+
+	tx, err := b.db.Begin(false)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	dbSize := make([]byte, 8)
+	size := tx.Size()
+	binary.BigEndian.PutUint64(dbSize, uint64(size))
+
+	if err := writeBytes(w, dbSize); err != nil {
+		return fmt.Errorf("failed to write db size: %w", err)
+	}
+	if _, err := tx.WriteTo(w); err != nil {
+		return fmt.Errorf("failed to write db to snapshot: %w", err)
+	}
+
+	return nil
+}
+
+func (b *Bolt) RecoverFromSnapshot(ctx context.Context, r io.Reader) error {
+	dbSize := make([]byte, 8)
+	_, err := io.ReadFull(r, dbSize)
+	if err != nil {
+		return fmt.Errorf("failed to read size of db: %w", err)
+	}
+	dbFileSize := binary.BigEndian.Uint64(dbSize)
+
+	fileDir := filepath.Dir(b.dbPath)
+	tempDirPath := filepath.Join(os.TempDir(), "queue", "metadata", fileDir)
+	tempDbFilePath := filepath.Join(tempDirPath, "metadata.tmp")
+	if err := os.MkdirAll(tempDirPath, 0755); err != nil {
+		return fmt.Errorf("failed to create temp db file directory: %w", err)
+	}
+	file, err := os.Create(tempDbFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create temp db file: %w", err)
+	}
+
+	_, err = io.Copy(file, io.LimitReader(r, int64(dbFileSize)))
+	if err != nil {
+		file.Close()
+		return fmt.Errorf("failed to copy db file: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("failed to close temp db file: %w", err)
+	}
+
+	if err := os.Rename(tempDbFilePath, b.dbPath); err != nil {
+		return fmt.Errorf("failed to rename temp db file: %w", err)
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"queue/model"
 	"queue/storage"
@@ -183,6 +184,20 @@ func (d *DefaultMessageService) Close(ctx context.Context) error {
 func (d *DefaultMessageService) Open(ctx context.Context) error {
 	if err := os.MkdirAll(d.partitionsPath, 0777); err != nil {
 		return fmt.Errorf("create partitions path: %w", err)
+	}
+	return nil
+}
+
+func (d *DefaultMessageService) Snapshot(ctx context.Context, writer io.Writer) error {
+	if err := d.MessageStorage.Snapshot(ctx, writer); err != nil {
+		return fmt.Errorf("failed to snapshot message storage: %w", err)
+	}
+	return nil
+}
+
+func (d *DefaultMessageService) RecoverFromSnapshot(ctx context.Context, reader io.Reader) error {
+	if err := d.MessageStorage.RecoverFromSnapshot(ctx, reader); err != nil {
+		return fmt.Errorf("failed to recover message storage: %w", err)
 	}
 	return nil
 }

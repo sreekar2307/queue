@@ -264,8 +264,20 @@ func (f *BrokerFSM) SaveSnapshot(i any, writer io.Writer, i2 <-chan struct{}) er
 }
 
 func (f *BrokerFSM) RecoverFromSnapshot(reader io.Reader, i <-chan struct{}) error {
-	// TODO implement me
-	panic("implement me")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-i:
+			cancel()
+		case <-done:
+			break
+		}
+	}()
+	err := f.topicService.RecoverFromSnapshot(ctx, reader)
+	close(done)
+	return err
 }
 
 func (f *BrokerFSM) Close() error {

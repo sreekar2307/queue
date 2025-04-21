@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"io"
 	"queue/model"
 )
 
@@ -9,6 +10,8 @@ type MetadataStorage interface {
 	Open(context.Context) error
 	Close(context.Context) error
 	BeginTransaction(ctx context.Context, forWrite bool) (Transaction, error)
+	Snapshot(context.Context, io.Writer) error
+	RecoverFromSnapshot(context.Context, io.Reader) error
 
 	CreateTopicInTx(context.Context, Transaction, *model.Topic) error
 	Topic(context.Context, string) (*model.Topic, error)

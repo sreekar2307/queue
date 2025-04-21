@@ -2,8 +2,12 @@ package message
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
+	stdErrors "errors"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"queue/model"
 	"slices"
@@ -191,4 +195,111 @@ func (b *Bolt) NextUnAckedMessageID(_ context.Context, partition *model.Partitio
 		return nil
 	})
 	return nextMesssageID, nil
+}
+
+func (b *Bolt) Snapshot(ctx context.Context, w io.Writer) error {
+	writeBytes := func(w io.Writer, data []byte) error {
+		n, err := w.Write(data)
+		if err != nil {
+			return err
+		}
+		if n != len(data) {
+			return fmt.Errorf("short write: expected %d, got %d", len(data), n)
+		}
+		return nil
+	}
+
+	for partitionID, db := range b.dbs {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			partition := []byte(partitionID)
+			partitionIDSize := make([]byte, 8)
+			binary.BigEndian.PutUint64(partitionIDSize, uint64(len(partition)))
+
+			if err := writeBytes(w, partitionIDSize); err != nil {
+				return fmt.Errorf("failed to write partition ID size: %w", err)
+			}
+			if err := writeBytes(w, partition); err != nil {
+				return fmt.Errorf("failed to write partition ID: %w", err)
+			}
+
+			tx, err := db.Begin(false)
+			if err != nil {
+				return fmt.Errorf("failed to begin transaction: %w", err)
+			}
+			defer tx.Rollback()
+
+			dbSize := make([]byte, 8)
+			size := tx.Size()
+			binary.BigEndian.PutUint64(dbSize, uint64(size))
+
+			if err := writeBytes(w, dbSize); err != nil {
+				return fmt.Errorf("failed to write db size: %w", err)
+			}
+			if _, err := tx.WriteTo(w); err != nil {
+				return fmt.Errorf("failed to write db to snapshot: %w", err)
+			}
+
+		}
+	}
+	return nil
+}
+
+func (b *Bolt) RecoverFromSnapshot(ctx context.Context, r io.Reader) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			partitionIDNameSize := make([]byte, 8)
+			_, err := io.ReadFull(r, partitionIDNameSize)
+			if stdErrors.Is(err, io.EOF) {
+				return nil
+			}
+			if err != nil {
+				return fmt.Errorf("failed to read partition ID size from snapshot: %w", err)
+			}
+
+			partitionIDSize := binary.BigEndian.Uint64(partitionIDNameSize)
+			partitionID := make([]byte, int(partitionIDSize))
+			_, err = io.ReadFull(r, partitionID)
+			if err != nil {
+				return fmt.Errorf("failed to read partition ID from snapshot: %w", err)
+			}
+
+			dbSize := make([]byte, 8)
+			_, err = io.ReadFull(r, dbSize)
+			if err != nil {
+				return fmt.Errorf("failed to read size of db: %w", err)
+			}
+			dbFileSize := binary.BigEndian.Uint64(dbSize)
+
+			fileDir := filepath.Dir(b.PartitionsPath)
+			tempDirPath := filepath.Join(os.TempDir(), "queue", "messages", fileDir)
+			tempDbFilePath := filepath.Join(tempDirPath, string(partitionID)+".tmp")
+			if err := os.MkdirAll(tempDirPath, 0777); err != nil {
+				return fmt.Errorf("failed to create temp db file directory: %w", err)
+			}
+			file, err := os.Create(tempDbFilePath)
+			if err != nil {
+				return fmt.Errorf("failed to create temp db file: %w", err)
+			}
+
+			_, err = io.Copy(file, io.LimitReader(r, int64(dbFileSize)))
+			if err != nil {
+				file.Close()
+				return fmt.Errorf("failed to copy db file: %w", err)
+			}
+			if err := file.Close(); err != nil {
+				return fmt.Errorf("failed to close temp db file: %w", err)
+			}
+
+			dbFilePath := filepath.Join(b.PartitionsPath, string(partitionID))
+			if err := os.Rename(tempDbFilePath, dbFilePath); err != nil {
+				return fmt.Errorf("failed to rename temp db file: %w", err)
+			}
+		}
+	}
 }
