@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/lni/dragonboat/v4/config"
 	"io"
 	"queue/model"
 	consumerServ "queue/service/consumer"
@@ -13,6 +12,8 @@ import (
 	"queue/util"
 	"slices"
 	"strconv"
+
+	"github.com/lni/dragonboat/v4/config"
 
 	"github.com/lni/dragonboat/v4/statemachine"
 )
@@ -26,10 +27,11 @@ type (
 		consumerService   ConsumerService
 		metaDataStorePath string
 		broker            *model.Broker
+		partitionsPath    string
 	}
 )
 
-func NewBrokerFSM(broker *model.Broker, mdStorage storage.MetadataStorage) statemachine.CreateOnDiskStateMachineFunc {
+func NewBrokerFSM(partitionsPath string, broker *model.Broker, mdStorage storage.MetadataStorage) statemachine.CreateOnDiskStateMachineFunc {
 	return func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
 		return &BrokerFSM{
 			topicService: topicServ.NewDefaultTopicService(
@@ -39,10 +41,11 @@ func NewBrokerFSM(broker *model.Broker, mdStorage storage.MetadataStorage) state
 				mdStorage,
 				nil,
 			),
-			ShardID:   shardID,
-			ReplicaID: replicaID,
-			mdStorage: mdStorage,
-			broker:    broker,
+			ShardID:        shardID,
+			ReplicaID:      replicaID,
+			mdStorage:      mdStorage,
+			broker:         broker,
+			partitionsPath: partitionsPath,
 		}
 	}
 }
@@ -112,7 +115,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				continue
 			}
 			nh := f.broker.NodeHost()
-			err = nh.StartOnDiskReplica(members, false, NewMessageFSM(f.mdStorage), config.Config{
+			err = nh.StartOnDiskReplica(members, false, NewMessageFSM(f.partitionsPath, f.mdStorage), config.Config{
 				ReplicaID:          f.broker.ID,
 				ShardID:            shardID,
 				ElectionRTT:        10,

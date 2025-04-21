@@ -23,10 +23,10 @@ type MessageFSM struct {
 	mdStorage      storage.MetadataStorage
 }
 
-func NewMessageFSM(mdStorage storage.MetadataStorage) statemachine.CreateOnDiskStateMachineFunc {
+func NewMessageFSM(partitionsPath string, mdStorage storage.MetadataStorage) statemachine.CreateOnDiskStateMachineFunc {
 	return func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
 		partitionsStorePath := filepath.Join(
-			"partitions",
+			partitionsPath,
 			strconv.Itoa(int(shardID)),
 			strconv.Itoa(int(replicaID)),
 		)

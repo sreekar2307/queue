@@ -5,14 +5,16 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	bolt "go.etcd.io/bbolt"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"queue/model"
+	"queue/service"
 	"queue/transport/embedded"
 	"syscall"
+
+	bolt "go.etcd.io/bbolt"
 )
 
 func main() {
@@ -30,10 +32,14 @@ func main() {
 	}
 	trans, err := embedded.NewTransport(
 		ctx,
-		*addr,
-		uint64(*replicaID),
-		members,
-		"raft-logs",
+		service.Config{
+			RaftNodeAddr:    *addr,
+			ReplicaID:       uint64(*replicaID),
+			InviteMembers:   members,
+			RaftLogsDataDir: "raft-logs",
+			MetadataPath:    "metadata",
+			PartitionsPath:  "partitions",
+		},
 	)
 	if err != nil {
 		panic(err.Error())
@@ -57,7 +63,7 @@ func main() {
 		}
 		log.Println("all messages sent")
 	}
-	//listKeys()
+	// listKeys()
 	<-c
 	if err := trans.Close(ctx); err != nil {
 		log.Printf("failed to close transport %s\n", err.Error())
@@ -82,7 +88,7 @@ func listKeys() {
 		defer db.Close()
 		err = db.View(func(tx *bolt.Tx) error {
 			return tx.ForEach(func(bucketName []byte, b *bolt.Bucket) error {
-				//fmt.Printf("Bucket: %s\n", bucketName)
+				// fmt.Printf("Bucket: %s\n", bucketName)
 
 				err := b.ForEach(func(k, v []byte) error {
 					// If value is nil, it's a nested bucket
