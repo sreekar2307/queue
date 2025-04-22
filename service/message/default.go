@@ -101,7 +101,7 @@ func (d *DefaultMessageService) Poll(
 	if consumerGroup.RebalanceInProgress() {
 		return nil, RebalanceInProgress
 	}
-	assignedPartitions := consumer.Partitions()
+	assignedPartitions := consumer.Partitions
 	if len(assignedPartitions) == 0 {
 		return nil, fmt.Errorf("no assigned partitions for consumer %s", consumer.ID)
 	}
@@ -157,7 +157,7 @@ func (d *DefaultMessageService) AckMessage(
 	if consumerGroup.RebalanceInProgress() {
 		return RebalanceInProgress
 	}
-	assignedPartions := consumer.Partitions()
+	assignedPartions := consumer.Partitions
 	if len(assignedPartions) == 0 {
 		return fmt.Errorf("no assigned partitions for consumer %s", consumer.ID)
 	}

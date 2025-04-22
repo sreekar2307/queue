@@ -138,12 +138,12 @@ func (d *DefaultConsumerService) rebalanceAndUpdateConsumers(
 	if err != nil {
 		return fmt.Errorf("failed to rebalance partitions: %w", err)
 	}
-
-	for consumerID, consumerPartitions := range partitionsPerConsumer {
+	for consumerID := range consumerGroup.Consumers {
 		consumer, err := d.MetadataStorage.ConsumerInTx(ctx, tx, consumerID)
 		if err != nil {
 			return fmt.Errorf("failed to get consumer %s: %w", consumerID, err)
 		}
+		consumerPartitions := partitionsPerConsumer[consumerID]
 		partitionNames := make([]string, 0, len(consumerPartitions))
 		for _, partition := range consumerPartitions {
 			partitionNames = append(partitionNames, partition.ID)

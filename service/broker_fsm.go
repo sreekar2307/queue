@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"queue/assignor/sticky"
 	"queue/model"
 	consumerServ "queue/service/consumer"
 	topicServ "queue/service/topic"
@@ -47,7 +48,7 @@ func NewBrokerFSM(
 		),
 		consumerService: consumerServ.NewDefaultConsumerService(
 			mdStorage,
-			nil,
+			sticky.NewAssignor(mdStorage),
 		),
 		ShardID:   shardID,
 		ReplicaID: replicaID,

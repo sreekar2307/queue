@@ -23,13 +23,15 @@ type MetadataStorage interface {
 	Partition(context.Context, string) (*model.Partition, error)
 	UpdatePartition(context.Context, *model.Partition) error
 	UpdatePartitionInTx(context.Context, Transaction, *model.Partition) error
-	Partitions(context.Context, string) ([]*model.Partition, error)
+	PartitionsForTopic(context.Context, string) ([]*model.Partition, error)
+	PartitionsForTopics(context.Context, []string) ([]*model.Partition, error)
 	AllPartitions(context.Context) ([]*model.Partition, error)
 	AllPartitionsInTx(context.Context, Transaction) ([]*model.Partition, error)
 
 	CreateConsumerGroup(context.Context, *model.ConsumerGroup) error
 	CreateConsumerGroupInTx(context.Context, Transaction, *model.ConsumerGroup) error
 	ConsumerGroup(context.Context, string) (*model.ConsumerGroup, error)
+	PartitionAssignments(ctx context.Context, consumerGroupID string) (map[string][]string, error)
 	ConsumerGroupInTx(context.Context, Transaction, string) (*model.ConsumerGroup, error)
 	AddConsumerToGroupInTx(context.Context, Transaction, *model.ConsumerGroup, *model.Consumer) error
 	UpdateConsumerGroup(context.Context, *model.ConsumerGroup) error

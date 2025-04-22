@@ -11,6 +11,7 @@ import (
 	"queue/model"
 	"queue/storage"
 	"queue/storage/errors"
+	"queue/util"
 
 	boltDB "go.etcd.io/bbolt"
 )
@@ -98,7 +99,7 @@ func (m *Bolt) Topic(ctx context.Context, s string) (*model.Topic, error) {
 	if len(topic.Name) == 0 {
 		return nil, errors.ErrTopicNotFound
 	}
-	partitions, err := m.Partitions(ctx, topic.Name)
+	partitions, err := m.PartitionsForTopic(ctx, topic.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
@@ -123,7 +124,7 @@ func (m *Bolt) TopicInTx(ctx context.Context, tx storage.Transaction, s string) 
 	if err := json.Unmarshal(data, &topic); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal topic: %w", err)
 	}
-	partitions, err := m.PartitionsInTx(ctx, tx, topic.Name)
+	partitions, err := m.PartitionsInTx(ctx, tx, map[string]bool{topic.Name: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
@@ -147,7 +148,7 @@ func (m *Bolt) Topics(ctx context.Context, topicNames []string) ([]*model.Topic,
 			if err := json.Unmarshal(data, &topic); err != nil {
 				return fmt.Errorf("failed to unmarshal topic: %w", err)
 			}
-			partitions, err := m.Partitions(ctx, topic.Name)
+			partitions, err := m.PartitionsForTopic(ctx, topic.Name)
 			if err != nil {
 				return fmt.Errorf("failed to get partitions: %w", err)
 			}
@@ -175,7 +176,7 @@ func (m *Bolt) AllTopics(ctx context.Context) ([]*model.Topic, error) {
 			if err := json.Unmarshal(v, &topic); err != nil {
 				return fmt.Errorf("failed to unmarshal topic: %w", err)
 			}
-			partitions, err := m.Partitions(ctx, topic.Name)
+			partitions, err := m.PartitionsForTopic(ctx, topic.Name)
 			if err != nil {
 				return fmt.Errorf("failed to get partitions: %w", err)
 			}
@@ -312,14 +313,28 @@ func (m *Bolt) UpdatePartitionInTx(
 	return nil
 }
 
-func (m *Bolt) Partitions(ctx context.Context, topicName string) ([]*model.Partition, error) {
+func (m *Bolt) PartitionsForTopic(ctx context.Context, topicName string) ([]*model.Partition, error) {
 	boltTx, err := m.db.Begin(false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
 	defer tx.BoltTx.Rollback()
-	partitions, err := m.PartitionsInTx(ctx, tx, topicName)
+	partitions, err := m.PartitionsInTx(ctx, tx, map[string]bool{topicName: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get partitions: %w", err)
+	}
+	return partitions, tx.Commit()
+}
+
+func (m *Bolt) PartitionsForTopics(ctx context.Context, topicNames []string) ([]*model.Partition, error) {
+	boltTx, err := m.db.Begin(false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
+	defer tx.BoltTx.Rollback()
+	partitions, err := m.PartitionsInTx(ctx, tx, util.ToSet(topicNames))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
@@ -329,7 +344,7 @@ func (m *Bolt) Partitions(ctx context.Context, topicName string) ([]*model.Parti
 func (m *Bolt) PartitionsInTx(
 	_ context.Context,
 	tx storage.Transaction,
-	topicName string,
+	topicNames map[string]bool,
 ) ([]*model.Partition, error) {
 	var partitions []*model.Partition
 	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
@@ -346,7 +361,7 @@ func (m *Bolt) PartitionsInTx(
 		if err := json.Unmarshal(v, &partition); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal partition: %w", err)
 		}
-		if partition.TopicName == topicName {
+		if _, ok := topicNames[partition.TopicName]; ok {
 			partitions = append(partitions, &partition)
 		}
 	}
@@ -402,6 +417,52 @@ func (m *Bolt) ConsumerGroup(ctx context.Context, consumerGroupID string) (*mode
 		return nil, fmt.Errorf("failed to get consumer group: %w", err)
 	}
 	return consumerGroup, tx.Commit()
+}
+
+func (m *Bolt) PartitionAssignments(ctx context.Context, consumerGroupID string) (map[string][]string, error) {
+	boltTx, err := m.db.Begin(false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
+	defer tx.BoltTx.Rollback()
+	assignments, err := m.PartitionAssignmentsInTx(ctx, tx, consumerGroupID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get partition assignments: %w", err)
+	}
+	return assignments, tx.Commit()
+}
+
+func (m *Bolt) PartitionAssignmentsInTx(
+	_ context.Context,
+	tx storage.Transaction,
+	consumerGroupID string,
+) (map[string][]string, error) {
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
+	if !ok {
+		return nil, fmt.Errorf("invalid transaction type")
+	}
+	bucket := boltTx.BoltTx.Bucket([]byte(consumerGroupsBucket))
+	if bucket == nil {
+		return nil, fmt.Errorf("bucket not found")
+	}
+	data := bucket.Get([]byte(consumerGroupID))
+	if data == nil {
+		return nil, fmt.Errorf("consumer group not found")
+	}
+	var group model.ConsumerGroup
+	if err := json.Unmarshal(data, &group); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal consumer group: %w", err)
+	}
+	assignments := make(map[string][]string)
+	for _, consumerID := range util.Keys(group.Consumers) {
+		consumer, err := m.ConsumerInTx(context.Background(), tx, consumerID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get consumer %s: %w", consumerID, err)
+		}
+		assignments[consumerID] = consumer.Partitions
+	}
+	return assignments, nil
 }
 
 func (m *Bolt) ConsumerGroupInTx(

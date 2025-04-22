@@ -107,7 +107,7 @@ func (d *DefaultTopicService) GetPartitions(
 	ctx context.Context,
 	topicName string,
 ) ([]*model.Partition, error) {
-	partitions, err := d.MetaDataStorage.Partitions(ctx, topicName)
+	partitions, err := d.MetaDataStorage.PartitionsForTopic(ctx, topicName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
