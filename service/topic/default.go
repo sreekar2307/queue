@@ -2,11 +2,13 @@ package topic
 
 import (
 	"context"
+	stdErrors "errors"
 	"fmt"
 	"hash/crc32"
 	"io"
 	"queue/model"
 	"queue/storage"
+	"queue/storage/errors"
 )
 
 type DefaultTopicService struct {
@@ -30,10 +32,20 @@ func (d *DefaultTopicService) CreateTopic(
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	topic := &model.Topic{Name: topicName, NumberOfPartitions: numPartitions}
-	err = d.MetaDataStorage.CreateTopicInTx(ctx, tx, topic)
+	topic, err := d.MetaDataStorage.TopicInTx(ctx, tx, topicName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create topic: %w", err)
+		if stdErrors.Is(err, errors.ErrTopicNotFound) {
+			topic = &model.Topic{Name: topicName, NumberOfPartitions: numPartitions}
+			err = d.MetaDataStorage.CreateTopicInTx(ctx, tx, topic)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create topic: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to get topic: %w", err)
+		}
+	}
+	if topic != nil {
+		return nil, errors.ErrTopicAlreadyExists
 	}
 	allPartitions, err := d.MetaDataStorage.AllPartitionsInTx(ctx, tx)
 	if err != nil {

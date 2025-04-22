@@ -57,18 +57,14 @@ func (m *Bolt) BeginTransaction(_ context.Context, forWrite bool) (storage.Trans
 	return &storage.BoltDbTransactionWrapper{BoltTx: tx}, nil
 }
 
-func (m *Bolt) CreateTopicInTx(_ context.Context, transaction storage.Transaction, topic *model.Topic) error {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+func (m *Bolt) CreateTopicInTx(_ context.Context, tx storage.Transaction, topic *model.Topic) error {
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
 	}
-	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(topicsBucket))
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(topicsBucket))
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
-	}
-	// Check if the topic already exists
-	if bucket.Get([]byte(topic.Name)) != nil {
-		return errors.ErrTopicAlreadyExists
 	}
 	topicData, err := json.Marshal(topic)
 	if err != nil {
@@ -103,6 +99,31 @@ func (m *Bolt) Topic(ctx context.Context, s string) (*model.Topic, error) {
 		return nil, errors.ErrTopicNotFound
 	}
 	partitions, err := m.Partitions(ctx, topic.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get partitions: %w", err)
+	}
+	topic.NumberOfPartitions = uint64(len(partitions))
+	return &topic, nil
+}
+
+func (m *Bolt) TopicInTx(ctx context.Context, tx storage.Transaction, s string) (*model.Topic, error) {
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
+	if !ok {
+		return nil, fmt.Errorf("invalid transaction type")
+	}
+	bucket := boltTx.BoltTx.Bucket([]byte(topicsBucket))
+	if bucket == nil {
+		return nil, fmt.Errorf("bucket not found")
+	}
+	data := bucket.Get([]byte(s))
+	if data == nil {
+		return nil, errors.ErrTopicNotFound
+	}
+	var topic model.Topic
+	if err := json.Unmarshal(data, &topic); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal topic: %w", err)
+	}
+	partitions, err := m.PartitionsInTx(ctx, tx, topic.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
@@ -247,13 +268,13 @@ func (m *Bolt) AllPartitions(ctx context.Context) ([]*model.Partition, error) {
 	return partitions, tx.Commit()
 }
 
-func (m *Bolt) AllPartitionsInTx(ctx context.Context, transaction storage.Transaction) ([]*model.Partition, error) {
+func (m *Bolt) AllPartitionsInTx(ctx context.Context, tx storage.Transaction) ([]*model.Partition, error) {
 	var partitions []*model.Partition
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return nil, fmt.Errorf("invalid transaction type")
 	}
-	bucket := tx.BoltTx.Bucket([]byte(partitionsBucket))
+	bucket := boltTx.BoltTx.Bucket([]byte(partitionsBucket))
 	if bucket == nil {
 		return nil, nil
 	}
@@ -270,14 +291,14 @@ func (m *Bolt) AllPartitionsInTx(ctx context.Context, transaction storage.Transa
 
 func (m *Bolt) UpdatePartitionInTx(
 	_ context.Context,
-	transaction storage.Transaction,
+	tx storage.Transaction,
 	partition *model.Partition,
 ) error {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
 	}
-	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(partitionsBucket))
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(partitionsBucket))
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
@@ -291,27 +312,43 @@ func (m *Bolt) UpdatePartitionInTx(
 	return nil
 }
 
-func (m *Bolt) Partitions(_ context.Context, topicName string) ([]*model.Partition, error) {
-	var partitions []*model.Partition
-	err := m.db.View(func(tx *boltDB.Tx) error {
-		bucket := tx.Bucket([]byte(partitionsBucket))
-		if bucket == nil {
-			return nil
-		}
-		cursor := bucket.Cursor()
-		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			var partition model.Partition
-			if err := json.Unmarshal(v, &partition); err != nil {
-				return fmt.Errorf("failed to unmarshal partition: %w", err)
-			}
-			if partition.TopicName == topicName {
-				partitions = append(partitions, &partition)
-			}
-		}
-		return nil
-	})
+func (m *Bolt) Partitions(ctx context.Context, topicName string) ([]*model.Partition, error) {
+	boltTx, err := m.db.Begin(false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
+	defer tx.BoltTx.Rollback()
+	partitions, err := m.PartitionsInTx(ctx, tx, topicName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
+	}
+	return partitions, tx.Commit()
+}
+
+func (m *Bolt) PartitionsInTx(
+	_ context.Context,
+	tx storage.Transaction,
+	topicName string,
+) ([]*model.Partition, error) {
+	var partitions []*model.Partition
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
+	if !ok {
+		return nil, fmt.Errorf("invalid transaction type")
+	}
+	bucket := boltTx.BoltTx.Bucket([]byte(partitionsBucket))
+	if bucket == nil {
+		return nil, fmt.Errorf("bucket not found")
+	}
+	cursor := bucket.Cursor()
+	for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+		var partition model.Partition
+		if err := json.Unmarshal(v, &partition); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal partition: %w", err)
+		}
+		if partition.TopicName == topicName {
+			partitions = append(partitions, &partition)
+		}
 	}
 	return partitions, nil
 }
@@ -332,24 +369,20 @@ func (m *Bolt) CreateConsumerGroup(ctx context.Context, group *model.ConsumerGro
 
 func (m *Bolt) CreateConsumerGroupInTx(
 	_ context.Context,
-	transaction storage.Transaction,
+	tx storage.Transaction,
 	group *model.ConsumerGroup,
 ) error {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
 	}
-	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucket))
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucket))
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 	groupData, err := json.Marshal(group)
 	if err != nil {
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
-	}
-	// Check if the consumer group already exists
-	if bucket.Get([]byte(group.ID)) != nil {
-		return errors.ErrConsumerGroupAlreadyExists
 	}
 	if err := bucket.Put([]byte(group.ID), groupData); err != nil {
 		return fmt.Errorf("failed to put consumer group: %w", err)
@@ -373,21 +406,21 @@ func (m *Bolt) ConsumerGroup(ctx context.Context, consumerGroupID string) (*mode
 
 func (m *Bolt) ConsumerGroupInTx(
 	_ context.Context,
-	transaction storage.Transaction,
+	tx storage.Transaction,
 	consumerGroupID string,
 ) (*model.ConsumerGroup, error) {
 	var group model.ConsumerGroup
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return nil, fmt.Errorf("invalid transaction type")
 	}
-	bucket := tx.BoltTx.Bucket([]byte(consumerGroupsBucket))
+	bucket := boltTx.BoltTx.Bucket([]byte(consumerGroupsBucket))
 	if bucket == nil {
-		return nil, fmt.Errorf("bucket not found")
+		return nil, errors.ErrConsumerGroupNotFound
 	}
 	data := bucket.Get([]byte(consumerGroupID))
 	if data == nil {
-		return nil, fmt.Errorf("consumer group not found")
+		return nil, errors.ErrConsumerGroupNotFound
 	}
 	if err := json.Unmarshal(data, &group); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal consumer group: %w", err)
@@ -397,15 +430,15 @@ func (m *Bolt) ConsumerGroupInTx(
 
 func (m *Bolt) AddConsumerToGroupInTx(
 	_ context.Context,
-	transaction storage.Transaction,
+	tx storage.Transaction,
 	group *model.ConsumerGroup,
 	consumer *model.Consumer,
 ) error {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
 	}
-	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucket))
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucket))
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
@@ -436,14 +469,14 @@ func (m *Bolt) UpdateConsumerGroup(ctx context.Context, group *model.ConsumerGro
 
 func (m *Bolt) UpdateConsumerGroupInTx(
 	_ context.Context,
-	transaction storage.Transaction,
+	tx storage.Transaction,
 	group *model.ConsumerGroup,
 ) error {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
 	}
-	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucket))
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucket))
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
@@ -459,15 +492,15 @@ func (m *Bolt) UpdateConsumerGroupInTx(
 
 func (m *Bolt) RemoveConsumerFromGroupInTx(
 	_ context.Context,
-	transaction storage.Transaction,
+	tx storage.Transaction,
 	group *model.ConsumerGroup,
 	consumer *model.Consumer,
 ) error {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
 	}
-	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucket))
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucket))
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
@@ -496,12 +529,12 @@ func (m *Bolt) UpdateConsumer(ctx context.Context, consumer *model.Consumer) err
 	return tx.Commit()
 }
 
-func (m *Bolt) UpdateConsumerInTx(_ context.Context, transaction storage.Transaction, consumer *model.Consumer) error {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+func (m *Bolt) UpdateConsumerInTx(_ context.Context, tx storage.Transaction, consumer *model.Consumer) error {
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
 	}
-	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(consumersBucket))
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumersBucket))
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
@@ -529,12 +562,12 @@ func (m *Bolt) CreateConsumer(ctx context.Context, consumer *model.Consumer) err
 	return tx.Commit()
 }
 
-func (m *Bolt) CreateConsumerInTx(_ context.Context, transaction storage.Transaction, consumer *model.Consumer) error {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+func (m *Bolt) CreateConsumerInTx(_ context.Context, tx storage.Transaction, consumer *model.Consumer) error {
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
 	}
-	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(consumersBucket))
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumersBucket))
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
@@ -562,12 +595,12 @@ func (m *Bolt) Consumer(ctx context.Context, s string) (*model.Consumer, error) 
 	return consumer, tx.Commit()
 }
 
-func (m *Bolt) ConsumerInTx(_ context.Context, transaction storage.Transaction, s string) (*model.Consumer, error) {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+func (m *Bolt) ConsumerInTx(_ context.Context, tx storage.Transaction, s string) (*model.Consumer, error) {
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return nil, fmt.Errorf("invalid transaction type")
 	}
-	bucket := tx.BoltTx.Bucket([]byte(consumersBucket))
+	bucket := boltTx.BoltTx.Bucket([]byte(consumersBucket))
 	if bucket == nil {
 		return nil, fmt.Errorf("bucket not found")
 	}
@@ -582,12 +615,12 @@ func (m *Bolt) ConsumerInTx(_ context.Context, transaction storage.Transaction, 
 	return &consumer, nil
 }
 
-func (m *Bolt) DeleteConsumerInTx(_ context.Context, transaction storage.Transaction, consumer *model.Consumer) error {
-	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
+func (m *Bolt) DeleteConsumerInTx(_ context.Context, tx storage.Transaction, consumer *model.Consumer) error {
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
 	}
-	bucket, err := tx.BoltTx.CreateBucketIfNotExists([]byte(consumersBucket))
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumersBucket))
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}

@@ -47,33 +47,34 @@ func (d *DefaultConsumerService) Connect(
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	consumerGroup := &model.ConsumerGroup{
-		ID:     consumerGroupID,
-		Topics: util.ToSet(topicNames),
-	}
-	err = d.MetadataStorage.CreateConsumerGroupInTx(ctx, tx, consumerGroup)
+	consumerGroup, err := d.MetadataStorage.ConsumerGroupInTx(ctx, tx, consumerGroupID)
 	if err != nil {
-		if stdErrors.Is(err, errors.ErrConsumerGroupAlreadyExists) {
-			consumerGroup, err = d.MetadataStorage.ConsumerGroupInTx(ctx, tx, consumerGroupID)
+		if stdErrors.Is(err, errors.ErrConsumerGroupNotFound) {
+			consumerGroup = &model.ConsumerGroup{
+				ID:     consumerGroupID,
+				Topics: util.ToSet(topicNames),
+			}
+			err = d.MetadataStorage.CreateConsumerGroupInTx(ctx, tx, consumerGroup)
 			if err != nil {
-				return fmt.Errorf("failed to get consumer group: %w", err)
+				return fmt.Errorf("failed to create consumer group: %w", err)
 			}
 		} else {
-			return fmt.Errorf("failed to create consumer group: %w", err)
+			return fmt.Errorf("failed to get consumer group: %w", err)
 		}
 	}
 	connectedConsumer, err := d.MetadataStorage.ConsumerInTx(ctx, tx, consumerBrokerID)
 	if err != nil {
-		return fmt.Errorf("failed to get consumer: %w", err)
-	}
-	if connectedConsumer == nil {
-		connectedConsumer = &model.Consumer{
-			ID:            consumerBrokerID,
-			ConsumerGroup: consumerGroupID,
-		}
-		err = d.MetadataStorage.CreateConsumerInTx(ctx, tx, connectedConsumer)
-		if err != nil {
-			return fmt.Errorf("failed to create consumer: %w", err)
+		if stdErrors.Is(err, errors.ErrConsumerNotFound) {
+			connectedConsumer = &model.Consumer{
+				ID:            consumerBrokerID,
+				ConsumerGroup: consumerGroupID,
+			}
+			err = d.MetadataStorage.CreateConsumerInTx(ctx, tx, connectedConsumer)
+			if err != nil {
+				return fmt.Errorf("failed to create consumer: %w", err)
+			}
+		} else {
+			return fmt.Errorf("failed to get consumer: %w", err)
 		}
 	}
 	err = d.MetadataStorage.AddConsumerToGroupInTx(ctx, tx, consumerGroup, connectedConsumer)

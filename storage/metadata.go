@@ -15,6 +15,7 @@ type MetadataStorage interface {
 
 	CreateTopicInTx(context.Context, Transaction, *model.Topic) error
 	Topic(context.Context, string) (*model.Topic, error)
+	TopicInTx(context.Context, Transaction, string) (*model.Topic, error)
 	Topics(context.Context, []string) ([]*model.Topic, error)
 	AllTopics(context.Context) ([]*model.Topic, error)
 	CreatePartitionsInTx(context.Context, Transaction, []*model.Partition) error
