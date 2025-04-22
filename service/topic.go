@@ -14,6 +14,7 @@ type (
 		AllTopics(context.Context) ([]*model.Topic, error)
 		AllPartitions(context.Context) ([]*model.Partition, error)
 		GetPartitions(context.Context, string) ([]*model.Partition, error)
+		GetPartition(context.Context, string) (*model.Partition, error)
 		PartitionID(context.Context, *model.Message) (string, error)
 		UpdatePartition(context.Context, string, *model.Partition) error
 		Snapshot(context.Context, io.Writer) error

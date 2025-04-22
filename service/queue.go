@@ -9,12 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"queue/model"
+	"queue/service/topic"
 	"queue/storage"
 	"queue/storage/errors"
 	"queue/storage/metadata"
 	"queue/util"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/lni/dragonboat/v4/statemachine"
@@ -30,11 +30,9 @@ const (
 type Queue struct {
 	broker *model.Broker
 
-	mdStorage storage.MetadataStorage
-	config    Config
-
-	mu                 sync.RWMutex
-	partitionToShardID map[string]uint64
+	mdStorage    storage.MetadataStorage
+	config       Config
+	topicService TopicService
 }
 
 func NewQueue(
@@ -71,10 +69,10 @@ func NewQueue(
 	broker.SetNodeHost(nh)
 	broker.SetBrokerShardId(brokerSharID)
 	e := &Queue{
-		broker:             broker,
-		partitionToShardID: make(map[string]uint64),
-		mdStorage:          mdStorage,
-		config:             config,
+		broker:       broker,
+		mdStorage:    mdStorage,
+		config:       config,
+		topicService: topic.NewDefaultTopicService(mdStorage),
 	}
 	factory := func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
 		if shardID == brokerSharID {
@@ -164,10 +162,6 @@ func (q *Queue) CreateTopic(pCtx context.Context, name string, numberOfPartition
 		return nil, fmt.Errorf("get shard membership: %w", err)
 	}
 	for _, partition := range partitions {
-		q.mu.Lock()
-		q.partitionToShardID[partition.ID] = partition.ShardID
-		shardID := q.partitionToShardID[partition.ID]
-		q.mu.Unlock()
 		brokers := util.Sample(util.Keys(membership.Nodes), min(3, len(membership.Nodes)))
 		brokerTargets := make(map[uint64]string)
 		for _, broker := range brokers {
@@ -181,7 +175,7 @@ func (q *Queue) CreateTopic(pCtx context.Context, name string, numberOfPartition
 			CommandType: PartitionsCommands.PartitionAdded,
 			Args: [][]byte{
 				[]byte(partition.ID),
-				[]byte(strconv.FormatUint(shardID, 10)),
+				[]byte(strconv.FormatUint(partition.ShardID, 10)),
 				members,
 			},
 		}
@@ -192,7 +186,7 @@ func (q *Queue) CreateTopic(pCtx context.Context, name string, numberOfPartition
 		if err != nil {
 			return nil, fmt.Errorf("propose partition added: %w", err)
 		}
-		if err := q.blockTillLeaderSet(pCtx, shardID); err != nil {
+		if err := q.blockTillLeaderSet(pCtx, partition.ShardID); err != nil {
 			return nil, err
 		}
 	}
@@ -206,8 +200,28 @@ func (q *Queue) SendMessage(pCtx context.Context, msg *model.Message) (*model.Me
 	if err != nil {
 		return nil, fmt.Errorf("marshal message: %w", err)
 	}
+	partitionID, err := q.topicService.PartitionID(pCtx, msg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get partitionID: %w", err)
+	}
+	partition, err := q.topicService.GetPartition(pCtx, partitionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get partition: %w", err)
+	}
+	msg.PartitionID = partitionID
+	msgBytes, err = json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("marshal message: %w", err)
+	}
+	shardID, ok := q.broker.ShardForPartition(partitionID)
+	if !ok {
+		return nil, fmt.Errorf("failed to get shardID for partition: %w", err)
+	}
+	if partition.ShardID != shardID {
+		return nil, fmt.Errorf("shardID mismatch: %d != %d", partition.ShardID, shardID)
+	}
 	cmd := Cmd{
-		CommandType: PartitionsCommands.PartitionForID,
+		CommandType: MessageCommands.Append,
 		Args:        [][]byte{msgBytes},
 	}
 	cmdBytes, err := json.Marshal(cmd)
@@ -216,29 +230,7 @@ func (q *Queue) SendMessage(pCtx context.Context, msg *model.Message) (*model.Me
 	}
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
-	partitionIDBytes, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
-	if err != nil {
-		return nil, fmt.Errorf("sync read partitionID: %w", err)
-	}
-	msg.PartitionID = string(partitionIDBytes.([]byte))
-	msgBytes, err = json.Marshal(msg)
-	if err != nil {
-		return nil, fmt.Errorf("marshal message: %w", err)
-	}
-	cmd = Cmd{
-		CommandType: MessageCommands.Append,
-		Args:        [][]byte{msgBytes},
-	}
-	cmdBytes, err = json.Marshal(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("marshal cmd: %w", err)
-	}
-	ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
-	defer cancelFunc()
-	q.mu.RLock()
-	shardID := q.partitionToShardID[msg.PartitionID]
-	q.mu.RUnlock()
-	res, err := nh.SyncPropose(ctx, nh.GetNoOPSession(shardID), cmdBytes)
+	res, err := nh.SyncPropose(ctx, nh.GetNoOPSession(partition.ShardID), cmdBytes)
 	if err != nil {
 		return nil, fmt.Errorf("propose append messages: %w", err)
 	}
@@ -292,14 +284,12 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 		if partition.ShardID == 0 || len(partition.Members) == 0 {
 			continue
 		}
-		q.mu.Lock()
 		shardID := partition.ShardID
-		q.partitionToShardID[partition.ID] = shardID
-		q.mu.Unlock()
 		if _, ok := partition.Members[q.broker.ID]; !ok {
 			// current broker is not a member of the partition
 			continue
 		}
+		q.broker.AddPartitionShards(partition.ID, shardID)
 		if !nh.HasNodeInfo(shardID, q.broker.ID) {
 			log.Println(
 				"Starting partition: ",

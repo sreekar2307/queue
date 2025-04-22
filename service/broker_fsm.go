@@ -142,6 +142,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				})
 				continue
 			}
+			f.broker.AddPartitionShards(partitionID, shardID)
 			partitionUpdates := &model.Partition{
 				Members: members,
 				ShardID: shardID,

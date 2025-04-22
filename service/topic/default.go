@@ -43,8 +43,7 @@ func (d *DefaultTopicService) CreateTopic(
 		} else {
 			return nil, fmt.Errorf("failed to get topic: %w", err)
 		}
-	}
-	if topic != nil {
+	} else {
 		return nil, errors.ErrTopicAlreadyExists
 	}
 	allPartitions, err := d.MetaDataStorage.AllPartitionsInTx(ctx, tx)
@@ -115,6 +114,13 @@ func (d *DefaultTopicService) GetPartitions(
 		return nil, fmt.Errorf("no partitions found")
 	}
 	return partitions, nil
+}
+
+func (d *DefaultTopicService) GetPartition(
+	ctx context.Context,
+	partitionID string,
+) (*model.Partition, error) {
+	return d.MetaDataStorage.Partition(ctx, partitionID)
 }
 
 func (d *DefaultTopicService) PartitionID(

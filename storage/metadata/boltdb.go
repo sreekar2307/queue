@@ -114,7 +114,7 @@ func (m *Bolt) TopicInTx(ctx context.Context, tx storage.Transaction, s string) 
 	}
 	bucket := boltTx.BoltTx.Bucket([]byte(topicsBucket))
 	if bucket == nil {
-		return nil, fmt.Errorf("bucket not found")
+		return nil, errors.ErrTopicNotFound
 	}
 	data := bucket.Get([]byte(s))
 	if data == nil {
