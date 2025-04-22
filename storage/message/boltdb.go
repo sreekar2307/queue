@@ -36,8 +36,8 @@ const (
 )
 
 func (b *Bolt) Close(context.Context) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.mu.RLock()
+	defer b.mu.RUnlock()
 	for _, db := range b.dbs {
 		if err := db.Close(); err != nil {
 			return fmt.Errorf("failed to close database: %w", err)
@@ -118,8 +118,6 @@ func (b *Bolt) getDBForPartition(partitionKey string) (*boltDB.DB, error) {
 }
 
 func (b *Bolt) AckMessage(_ context.Context, message *model.Message, group *model.ConsumerGroup) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
 	db, err := b.getDBForPartition(message.PartitionID)
 	if err != nil {
 		return fmt.Errorf("failed to get database for partition: %w", err)
@@ -164,8 +162,6 @@ func (b *Bolt) LastMessageID(_ context.Context, partitionKey string) ([]byte, er
 }
 
 func (b *Bolt) NextUnAckedMessageID(_ context.Context, partition *model.Partition, group *model.ConsumerGroup) ([]byte, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
 	db, err := b.getDBForPartition(partition.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database for partition: %w", err)

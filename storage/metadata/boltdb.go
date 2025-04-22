@@ -11,7 +11,6 @@ import (
 	"queue/model"
 	"queue/storage"
 	"queue/storage/errors"
-	"sync"
 
 	boltDB "go.etcd.io/bbolt"
 )
@@ -19,8 +18,6 @@ import (
 type Bolt struct {
 	db     *boltDB.DB
 	dbPath string
-
-	mu sync.RWMutex
 }
 
 func NewBolt(dbPath string) *Bolt {
@@ -37,8 +34,6 @@ const (
 )
 
 func (m *Bolt) Open(_ context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	newDB, err := boltDB.Open(m.dbPath, 0777, nil)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
@@ -48,8 +43,6 @@ func (m *Bolt) Open(_ context.Context) error {
 }
 
 func (m *Bolt) Close(_ context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	if err := m.db.Close(); err != nil {
 		return fmt.Errorf("failed to close database: %w", err)
 	}
@@ -65,8 +58,6 @@ func (m *Bolt) BeginTransaction(_ context.Context, forWrite bool) (storage.Trans
 }
 
 func (m *Bolt) CreateTopicInTx(_ context.Context, transaction storage.Transaction, topic *model.Topic) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
@@ -183,8 +174,6 @@ func (m *Bolt) CreatePartitionsInTx(
 	transaction storage.Transaction,
 	partitions []*model.Partition,
 ) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
@@ -279,9 +268,11 @@ func (m *Bolt) AllPartitionsInTx(ctx context.Context, transaction storage.Transa
 	return partitions, nil
 }
 
-func (m *Bolt) UpdatePartitionInTx(_ context.Context, transaction storage.Transaction, partition *model.Partition) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *Bolt) UpdatePartitionInTx(
+	_ context.Context,
+	transaction storage.Transaction,
+	partition *model.Partition,
+) error {
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
@@ -339,9 +330,11 @@ func (m *Bolt) CreateConsumerGroup(ctx context.Context, group *model.ConsumerGro
 	return tx.Commit()
 }
 
-func (m *Bolt) CreateConsumerGroupInTx(_ context.Context, transaction storage.Transaction, group *model.ConsumerGroup) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *Bolt) CreateConsumerGroupInTx(
+	_ context.Context,
+	transaction storage.Transaction,
+	group *model.ConsumerGroup,
+) error {
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
@@ -353,6 +346,10 @@ func (m *Bolt) CreateConsumerGroupInTx(_ context.Context, transaction storage.Tr
 	groupData, err := json.Marshal(group)
 	if err != nil {
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
+	}
+	// Check if the consumer group already exists
+	if bucket.Get([]byte(group.ID)) != nil {
+		return errors.ErrConsumerGroupAlreadyExists
 	}
 	if err := bucket.Put([]byte(group.ID), groupData); err != nil {
 		return fmt.Errorf("failed to put consumer group: %w", err)
@@ -374,7 +371,11 @@ func (m *Bolt) ConsumerGroup(ctx context.Context, consumerGroupID string) (*mode
 	return consumerGroup, tx.Commit()
 }
 
-func (m *Bolt) ConsumerGroupInTx(_ context.Context, transaction storage.Transaction, consumerGroupID string) (*model.ConsumerGroup, error) {
+func (m *Bolt) ConsumerGroupInTx(
+	_ context.Context,
+	transaction storage.Transaction,
+	consumerGroupID string,
+) (*model.ConsumerGroup, error) {
 	var group model.ConsumerGroup
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
@@ -394,9 +395,12 @@ func (m *Bolt) ConsumerGroupInTx(_ context.Context, transaction storage.Transact
 	return &group, nil
 }
 
-func (m *Bolt) AddConsumerToGroupInTx(_ context.Context, transaction storage.Transaction, group *model.ConsumerGroup, consumer *model.Consumer) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *Bolt) AddConsumerToGroupInTx(
+	_ context.Context,
+	transaction storage.Transaction,
+	group *model.ConsumerGroup,
+	consumer *model.Consumer,
+) error {
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
@@ -430,9 +434,11 @@ func (m *Bolt) UpdateConsumerGroup(ctx context.Context, group *model.ConsumerGro
 	return tx.Commit()
 }
 
-func (m *Bolt) UpdateConsumerGroupInTx(_ context.Context, transaction storage.Transaction, group *model.ConsumerGroup) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *Bolt) UpdateConsumerGroupInTx(
+	_ context.Context,
+	transaction storage.Transaction,
+	group *model.ConsumerGroup,
+) error {
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
@@ -451,9 +457,12 @@ func (m *Bolt) UpdateConsumerGroupInTx(_ context.Context, transaction storage.Tr
 	return nil
 }
 
-func (m *Bolt) RemoveConsumerFromGroupInTx(_ context.Context, transaction storage.Transaction, group *model.ConsumerGroup, consumer *model.Consumer) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *Bolt) RemoveConsumerFromGroupInTx(
+	_ context.Context,
+	transaction storage.Transaction,
+	group *model.ConsumerGroup,
+	consumer *model.Consumer,
+) error {
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
@@ -488,8 +497,6 @@ func (m *Bolt) UpdateConsumer(ctx context.Context, consumer *model.Consumer) err
 }
 
 func (m *Bolt) UpdateConsumerInTx(_ context.Context, transaction storage.Transaction, consumer *model.Consumer) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
@@ -523,8 +530,6 @@ func (m *Bolt) CreateConsumer(ctx context.Context, consumer *model.Consumer) err
 }
 
 func (m *Bolt) CreateConsumerInTx(_ context.Context, transaction storage.Transaction, consumer *model.Consumer) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")
@@ -558,8 +563,6 @@ func (m *Bolt) Consumer(ctx context.Context, s string) (*model.Consumer, error) 
 }
 
 func (m *Bolt) ConsumerInTx(_ context.Context, transaction storage.Transaction, s string) (*model.Consumer, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return nil, fmt.Errorf("invalid transaction type")
@@ -580,8 +583,6 @@ func (m *Bolt) ConsumerInTx(_ context.Context, transaction storage.Transaction, 
 }
 
 func (m *Bolt) DeleteConsumerInTx(_ context.Context, transaction storage.Transaction, consumer *model.Consumer) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	tx, ok := transaction.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return fmt.Errorf("invalid transaction type")

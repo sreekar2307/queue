@@ -2,10 +2,12 @@ package consumer
 
 import (
 	"context"
+	stdErrors "errors"
 	"fmt"
 	"queue/assignor"
 	"queue/model"
 	"queue/storage"
+	"queue/storage/errors"
 	"queue/util"
 	"sync"
 )
@@ -40,23 +42,23 @@ func (d *DefaultConsumerService) Connect(
 	if len(topics) != len(topicNames) {
 		return fmt.Errorf("not all topics exist")
 	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
 	tx, err := d.MetadataStorage.BeginTransaction(ctx, true)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	consumerGroup, err := d.MetadataStorage.ConsumerGroupInTx(ctx, tx, consumerGroupID)
-	if err != nil {
-		return fmt.Errorf("failed to get consumer group: %w", err)
+	consumerGroup := &model.ConsumerGroup{
+		ID:     consumerGroupID,
+		Topics: util.ToSet(topicNames),
 	}
-	if consumerGroup == nil {
-		err = d.MetadataStorage.CreateConsumerGroupInTx(ctx, tx, &model.ConsumerGroup{
-			ID:     consumerGroupID,
-			Topics: util.ToSet(topicNames),
-		})
-		if err != nil {
+	err = d.MetadataStorage.CreateConsumerGroupInTx(ctx, tx, consumerGroup)
+	if err != nil {
+		if stdErrors.Is(err, errors.ErrConsumerGroupAlreadyExists) {
+			consumerGroup, err = d.MetadataStorage.ConsumerGroupInTx(ctx, tx, consumerGroupID)
+			if err != nil {
+				return fmt.Errorf("failed to get consumer group: %w", err)
+			}
+		} else {
 			return fmt.Errorf("failed to create consumer group: %w", err)
 		}
 	}
