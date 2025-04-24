@@ -9,10 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"queue/model"
-	"queue/service/topic"
+	topicServ "queue/service/topic"
 	"queue/storage"
 	"queue/storage/errors"
-	"queue/storage/metadata"
+	metadataStorage "queue/storage/metadata"
 	"queue/util"
 	"strconv"
 	"time"
@@ -59,7 +59,7 @@ func NewQueue(
 	if err := os.MkdirAll(metadataPath, 0777); err != nil {
 		return nil, fmt.Errorf("failed to create metadata path: %w", err)
 	}
-	mdStorage := metadata.NewBolt(filepath.Join(metadataPath, "metadata.db"))
+	mdStorage := metadataStorage.NewBolt(filepath.Join(metadataPath, "metadata.db"))
 	if err := mdStorage.Open(ctx); err != nil {
 		return nil, fmt.Errorf("failed to open metadata storage: %w", err)
 	}
@@ -72,7 +72,7 @@ func NewQueue(
 		broker:       broker,
 		mdStorage:    mdStorage,
 		config:       config,
-		topicService: topic.NewDefaultTopicService(mdStorage),
+		topicService: topicServ.NewDefaultTopicService(mdStorage),
 	}
 	factory := func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
 		if shardID == brokerSharID {
