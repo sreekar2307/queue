@@ -20,7 +20,11 @@ func NewAssignor(metadata storage.MetadataStorage) *Sticky {
 	}
 }
 
-func (s *Sticky) Rebalance(ctx context.Context, consumerGroup *model.ConsumerGroup) (map[string][]*model.Partition, error) {
+func (s *Sticky) Rebalance(
+	ctx context.Context,
+	consumerGroup *model.ConsumerGroup,
+	prevAssignments map[string][]string,
+) (map[string][]*model.Partition, error) {
 	partitions, err := s.metadata.PartitionsForTopics(ctx, util.Keys(consumerGroup.Topics))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
@@ -34,11 +38,6 @@ func (s *Sticky) Rebalance(ctx context.Context, consumerGroup *model.ConsumerGro
 
 	assignments := make(map[string][]*model.Partition, len(consumers))
 	assignedPartitions := make(map[string]bool)
-
-	prevAssignments, err := s.metadata.PartitionAssignments(ctx, consumerGroup.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get previous assignments: %w", err)
-	}
 
 	partitionMap := make(map[string]*model.Partition, len(partitions))
 	for _, p := range partitions {

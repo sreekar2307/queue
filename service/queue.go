@@ -327,3 +327,52 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 
 	return nil
 }
+
+func (q *Queue) Connect(pCtx context.Context, consumerID, consumerGroupID string, topics []string) error {
+	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	defer cancelFunc()
+	nh := q.broker.NodeHost()
+	topicsBytes, err := json.Marshal(topics)
+	if err != nil {
+		return fmt.Errorf("marshal topics: %w", err)
+	}
+	cmd := Cmd{
+		CommandType: ConsumerCommands.Connect,
+		Args: [][]byte{
+			[]byte(consumerID),
+			[]byte(consumerGroupID),
+			topicsBytes,
+		},
+	}
+	cmdBytes, err := json.Marshal(cmd)
+	if err != nil {
+		return fmt.Errorf("marshal cmd: %w", err)
+	}
+	_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	if err != nil {
+		return fmt.Errorf("propose connect consumer: %w", err)
+	}
+	return nil
+}
+
+func (q *Queue) Disconnect(pCtx context.Context, consumerID string) error {
+	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	defer cancelFunc()
+	nh := q.broker.NodeHost()
+
+	cmd := Cmd{
+		CommandType: ConsumerCommands.Disconnected,
+		Args: [][]byte{
+			[]byte(consumerID),
+		},
+	}
+	cmdBytes, err := json.Marshal(cmd)
+	if err != nil {
+		return fmt.Errorf("marshal cmd: %w", err)
+	}
+	_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	if err != nil {
+		return fmt.Errorf("propose disconnect consumer: %w", err)
+	}
+	return nil
+}

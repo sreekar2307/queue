@@ -503,7 +503,7 @@ func (m *Bolt) AddConsumerToGroupInTx(
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
-	group.Consumers[consumer.ID] = true
+	group.AddConsumer(consumer.ID)
 	groupData, err := json.Marshal(group)
 	if err != nil {
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
@@ -663,11 +663,11 @@ func (m *Bolt) ConsumerInTx(_ context.Context, tx storage.Transaction, s string)
 	}
 	bucket := boltTx.BoltTx.Bucket([]byte(consumersBucket))
 	if bucket == nil {
-		return nil, fmt.Errorf("bucket not found")
+		return nil, errors.ErrConsumerNotFound
 	}
 	data := bucket.Get([]byte(s))
 	if data == nil {
-		return nil, fmt.Errorf("consumer not found")
+		return nil, errors.ErrConsumerNotFound
 	}
 	var consumer model.Consumer
 	if err := json.Unmarshal(data, &consumer); err != nil {

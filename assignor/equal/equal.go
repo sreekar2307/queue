@@ -20,7 +20,11 @@ func NewAssignor(metadata storage.MetadataStorage) *Equal {
 	}
 }
 
-func (e *Equal) Rebalance(ctx context.Context, consumerGroup *model.ConsumerGroup) (map[string][]*model.Partition, error) {
+func (e *Equal) Rebalance(
+	ctx context.Context,
+	consumerGroup *model.ConsumerGroup,
+	_ map[string][]string,
+) (map[string][]*model.Partition, error) {
 	partitions, err := e.metadata.PartitionsForTopics(ctx, util.Keys(consumerGroup.Topics))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)

@@ -8,6 +8,14 @@ var TopicCommands = struct {
 	TopicForID:  "TopicForID",
 }
 
+var ConsumerCommands = struct {
+	Connect      string
+	Disconnected string
+}{
+	Connect:      "Connect",
+	Disconnected: "Disconnected",
+}
+
 var PartitionsCommands = struct {
 	PartitionsForTopic string
 	Partitions         string

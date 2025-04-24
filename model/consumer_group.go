@@ -14,3 +14,10 @@ func (c *ConsumerGroup) RebalanceInProgress() bool {
 func (c *ConsumerGroup) SetRebalanceInProgress(inProgress bool) {
 	c.rebalanceInProgress = inProgress
 }
+
+func (c *ConsumerGroup) AddConsumer(consumerID string) {
+	if c.Consumers == nil {
+		c.Consumers = make(map[string]bool)
+	}
+	c.Consumers[consumerID] = true
+}

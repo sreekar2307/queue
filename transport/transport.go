@@ -6,7 +6,8 @@ import (
 )
 
 type Transport interface {
-	Connect(ctx context.Context, consumerID string, consumerGroup string) error
+	Connect(ctx context.Context, consumerID string, consumerGroup string, topics []string) error
+	Disconnect(ctx context.Context, consumerID string) error
 	Close(ctx context.Context) error
 	CreateTopic(ctx context.Context, name string, numerOfParititions uint64) (*model.Topic, error)
 	SendMessage(ctx context.Context, msg *model.Message) (*model.Message, error)

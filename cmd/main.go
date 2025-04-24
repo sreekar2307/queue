@@ -63,8 +63,18 @@ func main() {
 			}
 			log.Println("all messages sent")
 		}
+
+		var (
+			consumerID    = "consumer1"
+			consumerGroup = "group1"
+			topics        = []string{"snapTopic"}
+		)
+		if err := trans.Connect(ctx, consumerID, consumerGroup, topics); err != nil {
+			log.Println("Error connecting:", err)
+		}
+
 	}
-	//listKeys()
+	// listKeys()
 	<-c
 	if err := trans.Close(ctx); err != nil {
 		log.Printf("failed to close transport %s\n", err.Error())

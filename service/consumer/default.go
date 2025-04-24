@@ -134,7 +134,12 @@ func (d *DefaultConsumerService) rebalanceAndUpdateConsumers(
 		return fmt.Errorf("failed to set rebalance in progress: %w", err)
 	}
 
-	partitionsPerConsumer, err := d.PartitionAssignor.Rebalance(ctx, consumerGroup)
+	prevAssignments, err := d.MetadataStorage.PartitionAssignmentsInTx(ctx, tx, consumerGroup.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get previous assignments: %w", err)
+	}
+
+	partitionsPerConsumer, err := d.PartitionAssignor.Rebalance(ctx, consumerGroup, prevAssignments)
 	if err != nil {
 		return fmt.Errorf("failed to rebalance partitions: %w", err)
 	}

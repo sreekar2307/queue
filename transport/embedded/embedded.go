@@ -28,9 +28,20 @@ func NewTransport(
 	return transport, nil
 }
 
-func (t *Transport) Connect(ctx context.Context, consumerID string, consumerGroup string) error {
-	// TODO implement me
-	panic("implement me")
+func (t *Transport) Connect(ctx context.Context, consumerID string, consumerGroup string, topics []string) error {
+	err := t.Queue.Connect(ctx, consumerID, consumerGroup, topics)
+	if err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+	return nil
+}
+
+func (t *Transport) Disconnect(ctx context.Context, consumerID string) error {
+	err := t.Queue.Disconnect(ctx, consumerID)
+	if err != nil {
+		return fmt.Errorf("failed to disconnect: %w", err)
+	}
+	return nil
 }
 
 func (t *Transport) Close(ctx context.Context) error {

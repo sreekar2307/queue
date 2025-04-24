@@ -32,6 +32,7 @@ type MetadataStorage interface {
 	CreateConsumerGroupInTx(context.Context, Transaction, *model.ConsumerGroup) error
 	ConsumerGroup(context.Context, string) (*model.ConsumerGroup, error)
 	PartitionAssignments(ctx context.Context, consumerGroupID string) (map[string][]string, error)
+	PartitionAssignmentsInTx(ctx context.Context, tx Transaction, consumerGroupID string) (map[string][]string, error)
 	ConsumerGroupInTx(context.Context, Transaction, string) (*model.ConsumerGroup, error)
 	AddConsumerToGroupInTx(context.Context, Transaction, *model.ConsumerGroup, *model.Consumer) error
 	UpdateConsumerGroup(context.Context, *model.ConsumerGroup) error

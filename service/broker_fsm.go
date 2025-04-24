@@ -181,6 +181,49 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					Data:  nil,
 				},
 			})
+		} else if cmd.CommandType == ConsumerCommands.Connect {
+			args := cmd.Args
+			if len(args) != 3 {
+				return nil, fmt.Errorf("invalid command args")
+			}
+			consumerID := string(args[0])
+			consumerGroupID := string(args[1])
+			topics := make([]string, 0)
+			if err := json.Unmarshal(args[2], &topics); err != nil {
+				return nil, fmt.Errorf("unmarshing cmd: %w", err)
+			}
+			err := f.consumerService.Connect(ctx, consumerID, consumerGroupID, topics)
+			if err != nil {
+				return nil, fmt.Errorf("create consumer: %w", err)
+			}
+			results = append(results, statemachine.Entry{
+				Index: entry.Index,
+				Cmd:   slices.Clone(entry.Cmd),
+				Result: statemachine.Result{
+					Value: entry.Index,
+					Data:  nil,
+				},
+			})
+		} else if cmd.CommandType == ConsumerCommands.Disconnected {
+			args := cmd.Args
+			if len(args) != 1 {
+				return nil, fmt.Errorf("invalid command args")
+			}
+			consumerID := string(args[0])
+			err := f.consumerService.Disconnect(ctx, consumerID)
+			if err != nil {
+				return nil, fmt.Errorf("create consumer: %w", err)
+			}
+			results = append(results, statemachine.Entry{
+				Index: entry.Index,
+				Cmd:   slices.Clone(entry.Cmd),
+				Result: statemachine.Result{
+					Value: entry.Index,
+					Data:  nil,
+				},
+			})
+		} else {
+			return nil, fmt.Errorf("invalid command type")
 		}
 	}
 	return results, nil
