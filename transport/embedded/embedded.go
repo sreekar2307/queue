@@ -28,7 +28,12 @@ func NewTransport(
 	return transport, nil
 }
 
-func (t *Transport) Connect(ctx context.Context, consumerID string, consumerGroup string, topics []string) (*model.Consumer, *model.ConsumerGroup, error) {
+func (t *Transport) Connect(
+	ctx context.Context,
+	consumerID string,
+	consumerGroup string,
+	topics []string,
+) (*model.Consumer, *model.ConsumerGroup, error) {
 	consumer, group, err := t.Queue.Connect(ctx, consumerID, consumerGroup, topics)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect: %w", err)
@@ -56,12 +61,10 @@ func (t *Transport) SendMessage(rCtx context.Context, msg *model.Message) (*mode
 	return t.Queue.SendMessage(rCtx, msg)
 }
 
-func (t *Transport) ReceiveMessage(ctx context.Context, topic, consumerGroup string) (*model.Message, error) {
-	// TODO implement me
-	panic("implement me")
+func (t *Transport) ReceiveMessage(ctx context.Context, consumerGroup string) (*model.Message, error) {
+	return t.Queue.ReceiveMessage(ctx, consumerGroup)
 }
 
-func (t *Transport) AckMessage(ctx context.Context, topic, consumerGroup string, message *model.Message) error {
-	// TODO implement me
-	panic("implement me")
+func (t *Transport) AckMessage(ctx context.Context, consumerID string, message *model.Message) error {
+	return t.Queue.AckMessage(ctx, consumerID, message)
 }

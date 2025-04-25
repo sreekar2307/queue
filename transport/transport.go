@@ -11,6 +11,6 @@ type Transport interface {
 	Close(ctx context.Context) error
 	CreateTopic(ctx context.Context, name string, numerOfParititions uint64) (*model.Topic, error)
 	SendMessage(ctx context.Context, msg *model.Message) (*model.Message, error)
-	ReceiveMessage(ctx context.Context, topic, consumerGroup string) (*model.Message, error)
-	AckMessage(ctx context.Context, topic, consumerGroup string, message *model.Message) error
+	ReceiveMessage(ctx context.Context, consumerGroup string) (*model.Message, error)
+	AckMessage(ctx context.Context, cosumerID string, message *model.Message) error
 }
