@@ -192,16 +192,33 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			if err := json.Unmarshal(args[2], &topics); err != nil {
 				return nil, fmt.Errorf("unmarshing cmd: %w", err)
 			}
-			err := f.consumerService.Connect(ctx, consumerID, consumerGroupID, topics)
+			consumer, consumerGroup, err := f.consumerService.Connect(
+				ctx,
+				consumerID,
+				consumerGroupID,
+				topics,
+			)
 			if err != nil {
 				return nil, fmt.Errorf("create consumer: %w", err)
 			}
+			res := struct {
+				Consumer *model.Consumer
+				Group    *model.ConsumerGroup
+			}{
+				Consumer: consumer,
+				Group:    consumerGroup,
+			}
+			resultBytes, err := json.Marshal(res)
+			if err != nil {
+				return nil, fmt.Errorf("marshal consumer: %w", err)
+			}
+
 			results = append(results, statemachine.Entry{
 				Index: entry.Index,
 				Cmd:   slices.Clone(entry.Cmd),
 				Result: statemachine.Result{
 					Value: entry.Index,
-					Data:  nil,
+					Data:  resultBytes,
 				},
 			})
 		} else if cmd.CommandType == ConsumerCommands.Disconnected {
@@ -290,6 +307,20 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("marshal partitions: %w", err)
 		}
 		return partitionsBytes, nil
+	} else if cmd.CommandType == ConsumerCommands.ConsumerForID {
+		if len(cmd.Args) != 1 {
+			return nil, fmt.Errorf("invalid command args")
+		}
+		consumer, err := f.consumerService.GetConsumer(ctx, string(cmd.Args[0]))
+		if err != nil {
+			return nil, fmt.Errorf("get consumer: %w", err)
+		}
+		consumerBytes, err := json.Marshal(consumer)
+		if err != nil {
+			return nil, fmt.Errorf("marshal consumer: %w", err)
+		}
+		return consumerBytes, nil
+
 	}
 	return nil, fmt.Errorf("invalid command type")
 }

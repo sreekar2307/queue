@@ -28,12 +28,12 @@ func NewTransport(
 	return transport, nil
 }
 
-func (t *Transport) Connect(ctx context.Context, consumerID string, consumerGroup string, topics []string) error {
-	err := t.Queue.Connect(ctx, consumerID, consumerGroup, topics)
+func (t *Transport) Connect(ctx context.Context, consumerID string, consumerGroup string, topics []string) (*model.Consumer, *model.ConsumerGroup, error) {
+	consumer, group, err := t.Queue.Connect(ctx, consumerID, consumerGroup, topics)
 	if err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
+		return nil, nil, fmt.Errorf("failed to connect: %w", err)
 	}
-	return nil
+	return consumer, group, nil
 }
 
 func (t *Transport) Disconnect(ctx context.Context, consumerID string) error {

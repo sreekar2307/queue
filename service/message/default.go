@@ -88,9 +88,9 @@ func (d *DefaultMessageService) AppendMessage(ctx context.Context, message *mode
 
 func (d *DefaultMessageService) Poll(
 	ctx context.Context,
-	consumerBrokerID string,
+	consumerID string,
 ) (_ *model.Message, err error) {
-	consumer, err := d.MetadataStorage.Consumer(ctx, consumerBrokerID)
+	consumer, err := d.MetadataStorage.Consumer(ctx, consumerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get consumer: %w", err)
 	}

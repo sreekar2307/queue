@@ -9,11 +9,13 @@ var TopicCommands = struct {
 }
 
 var ConsumerCommands = struct {
-	Connect      string
-	Disconnected string
+	Connect       string
+	Disconnected  string
+	ConsumerForID string
 }{
-	Connect:      "Connect",
-	Disconnected: "Disconnected",
+	Connect:       "Connect",
+	Disconnected:  "Disconnected",
+	ConsumerForID: "ConsumerForID",
 }
 
 var PartitionsCommands = struct {
@@ -30,8 +32,12 @@ var PartitionsCommands = struct {
 
 var MessageCommands = struct {
 	Append string
+	Poll   string
+	Ack    string
 }{
 	Append: "Append",
+	Poll:   "Poll",
+	Ack:    "Ack",
 }
 
 type Cmd struct {

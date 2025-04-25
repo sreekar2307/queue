@@ -29,6 +29,13 @@ func (c *Consumer) PartitionIndex() int {
 	return c.partitionIndex
 }
 
+func (c *Consumer) GetCurrentPartition() string {
+	if len(c.Partitions) == 0 {
+		panic("no partitions assigned to consumer")
+	}
+	return c.Partitions[c.partitionIndex]
+}
+
 func (c *Consumer) SetPartitions(partitions []string) {
 	c.Partitions = partitions
 }

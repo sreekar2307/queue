@@ -90,13 +90,58 @@ func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine
 					Data:  msgBytes,
 				},
 			})
+		} else if cmd.CommandType == MessageCommands.Ack {
+			args := cmd.Args
+			if len(args) != 2 {
+				return nil, fmt.Errorf("invalid command args")
+			}
+			var msg model.Message
+			if err := json.Unmarshal(args[1], &msg); err != nil {
+				return nil, fmt.Errorf("unmarshing message: %w", err)
+			}
+			err := f.messageService.AckMessage(ctx, string(args[0]), &msg)
+			if err != nil {
+				return nil, fmt.Errorf("ack msg: %w", err)
+			}
+			results = append(results, statemachine.Entry{
+				Index: entry.Index,
+				Cmd:   slices.Clone(entry.Cmd),
+				Result: statemachine.Result{
+					Value: 1,
+					Data:  []byte{},
+				},
+			})
+		} else {
+			return nil, fmt.Errorf("invalid command type")
 		}
 	}
 	return results, nil
 }
 
 func (f MessageFSM) Lookup(i any) (any, error) {
-	return nil, nil
+	var (
+		cmd Cmd
+		ctx = context.Background()
+	)
+	if err := json.Unmarshal(i.([]byte), &cmd); err != nil {
+		return nil, fmt.Errorf("unmarshing cmd: %w", err)
+	}
+	if cmd.CommandType == MessageCommands.Poll {
+		args := cmd.Args
+		if len(args) != 1 {
+			return nil, fmt.Errorf("invalid command args")
+		}
+		msg, err := f.messageService.Poll(ctx, string(args[0]))
+		if err != nil {
+			return nil, fmt.Errorf("get topic: %w", err)
+		}
+		msgBytes, err := json.Marshal(msg)
+		if err != nil {
+			return nil, fmt.Errorf("marshal message: %w", err)
+		}
+		return msgBytes, nil
+	}
+	return nil, fmt.Errorf("invalid command type")
 }
 
 func (f MessageFSM) Sync() error {

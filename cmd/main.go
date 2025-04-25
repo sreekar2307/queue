@@ -69,8 +69,10 @@ func main() {
 			consumerGroup = "group1"
 			topics        = []string{"snapTopic"}
 		)
-		if err := trans.Connect(ctx, consumerID, consumerGroup, topics); err != nil {
+		if consumer, group, err := trans.Connect(ctx, consumerID, consumerGroup, topics); err != nil {
 			log.Println("Error connecting:", err)
+		} else {
+			log.Println("Connected:", "consumer", consumer, "group", group)
 		}
 
 	}

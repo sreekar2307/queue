@@ -29,22 +29,29 @@ func NewDefaultConsumerService(
 	}
 }
 
+func (d *DefaultConsumerService) GetConsumer(
+	ctx context.Context,
+	consumerID string,
+) (*model.Consumer, error) {
+	return d.MetadataStorage.Consumer(ctx, consumerID)
+}
+
 func (d *DefaultConsumerService) Connect(
 	ctx context.Context,
 	consumerGroupID string,
 	consumerBrokerID string,
 	topicNames []string,
-) error {
+) (*model.Consumer, *model.ConsumerGroup, error) {
 	topics, err := d.MetadataStorage.Topics(ctx, topicNames)
 	if err != nil {
-		return fmt.Errorf("failed to get topics: %w", err)
+		return nil, nil, fmt.Errorf("failed to get topics: %w", err)
 	}
 	if len(topics) != len(topicNames) {
-		return fmt.Errorf("not all topics exist")
+		return nil, nil, fmt.Errorf("not all topics exist")
 	}
 	tx, err := d.MetadataStorage.BeginTransaction(ctx, true)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 	consumerGroup, err := d.MetadataStorage.ConsumerGroupInTx(ctx, tx, consumerGroupID)
@@ -56,10 +63,10 @@ func (d *DefaultConsumerService) Connect(
 			}
 			err = d.MetadataStorage.CreateConsumerGroupInTx(ctx, tx, consumerGroup)
 			if err != nil {
-				return fmt.Errorf("failed to create consumer group: %w", err)
+				return nil, nil, fmt.Errorf("failed to create consumer group: %w", err)
 			}
 		} else {
-			return fmt.Errorf("failed to get consumer group: %w", err)
+			return nil, nil, fmt.Errorf("failed to get consumer group: %w", err)
 		}
 	}
 	connectedConsumer, err := d.MetadataStorage.ConsumerInTx(ctx, tx, consumerBrokerID)
@@ -71,20 +78,20 @@ func (d *DefaultConsumerService) Connect(
 			}
 			err = d.MetadataStorage.CreateConsumerInTx(ctx, tx, connectedConsumer)
 			if err != nil {
-				return fmt.Errorf("failed to create consumer: %w", err)
+				return nil, nil, fmt.Errorf("failed to create consumer: %w", err)
 			}
 		} else {
-			return fmt.Errorf("failed to get consumer: %w", err)
+			return nil, nil, fmt.Errorf("failed to get consumer: %w", err)
 		}
 	}
 	err = d.MetadataStorage.AddConsumerToGroupInTx(ctx, tx, consumerGroup, connectedConsumer)
 	if err != nil {
-		return fmt.Errorf("failed to add consumer to group: %w", err)
+		return nil, nil, fmt.Errorf("failed to add consumer to group: %w", err)
 	}
 	if err := d.rebalanceAndUpdateConsumers(ctx, tx, consumerGroup); err != nil {
-		return fmt.Errorf("failed to rebalance and update consumers: %w", err)
+		return nil, nil, fmt.Errorf("failed to rebalance and update consumers: %w", err)
 	}
-	return tx.Commit()
+	return connectedConsumer, consumerGroup, tx.Commit()
 }
 
 func (d *DefaultConsumerService) Disconnect(
