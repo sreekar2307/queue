@@ -472,7 +472,7 @@ func (q *Queue) AckMessage(rCtx context.Context, consumerID string, msg *model.M
 	cmd = Cmd{
 		CommandType: MessageCommands.Ack,
 		Args: [][]byte{
-			[]byte(consumer.ID),
+			[]byte(consumer.ConsumerGroup),
 			msgBytes,
 		},
 	}

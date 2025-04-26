@@ -9,7 +9,6 @@ import (
 	"os"
 	"queue/model"
 	"queue/storage"
-	"queue/util"
 	"sync"
 )
 
@@ -143,29 +142,15 @@ func (d *DefaultMessageService) Poll(
 
 func (d *DefaultMessageService) AckMessage(
 	ctx context.Context,
-	consumerBrokerID string,
+	consumerGroupID string,
 	message *model.Message,
 ) (err error) {
-	consumer, err := d.MetadataStorage.Consumer(ctx, consumerBrokerID)
-	if err != nil {
-		return fmt.Errorf("failed to get consumer: %w", err)
-	}
-	consumerGroup, err := d.MetadataStorage.ConsumerGroup(ctx, consumer.ConsumerGroup)
+	consumerGroup, err := d.MetadataStorage.ConsumerGroup(ctx, consumerGroupID)
 	if err != nil {
 		return fmt.Errorf("failed to get consumer group: %w", err)
 	}
 	if consumerGroup.RebalanceInProgress() {
 		return RebalanceInProgress
-	}
-	assignedPartions := consumer.Partitions
-	if len(assignedPartions) == 0 {
-		return fmt.Errorf("no assigned partitions for consumer %s", consumer.ID)
-	}
-	_, ok := util.FirstMatch(assignedPartions, func(partitionID string) bool {
-		return message.PartitionID == partitionID
-	})
-	if !ok {
-		return fmt.Errorf("message %s is not assigned to consumer %s", message.ID, consumer.ID)
 	}
 	err = d.MessageStorage.AckMessage(ctx, message, consumerGroup)
 	if err != nil {
