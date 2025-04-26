@@ -345,7 +345,7 @@ func (q *Queue) Connect(
 		CommandType: ConsumerCommands.Connect,
 		Args: [][]byte{
 			[]byte(consumerGroupID),
-			[]byte(fmt.Sprintf("%s-%s", consumerID, consumerGroupID)),
+			[]byte(consumerID),
 			topicsBytes,
 		},
 	}
