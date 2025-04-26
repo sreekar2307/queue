@@ -112,7 +112,7 @@ func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine
 				},
 			})
 		} else {
-			return nil, fmt.Errorf("invalid command type")
+			return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
 		}
 	}
 	return results, nil
@@ -141,7 +141,7 @@ func (f MessageFSM) Lookup(i any) (any, error) {
 		}
 		return msgBytes, nil
 	}
-	return nil, fmt.Errorf("invalid command type")
+	return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
 }
 
 func (f MessageFSM) Sync() error {

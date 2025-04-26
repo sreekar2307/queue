@@ -344,8 +344,8 @@ func (q *Queue) Connect(
 	cmd := Cmd{
 		CommandType: ConsumerCommands.Connect,
 		Args: [][]byte{
-			[]byte(consumerID),
 			[]byte(consumerGroupID),
+			[]byte(fmt.Sprintf("%s-%s", consumerID, consumerGroupID)),
 			topicsBytes,
 		},
 	}
@@ -403,12 +403,12 @@ func (q *Queue) ReceiveMessage(rCtx context.Context, consumerID string) (*model.
 	if err != nil {
 		return nil, fmt.Errorf("marshal cmd: %w", err)
 	}
-	res, err := nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
 	if err != nil {
 		return nil, fmt.Errorf("propose get consumer for ID: %w", err)
 	}
 	var consumer model.Consumer
-	if err := json.Unmarshal(res.Data, &consumer); err != nil {
+	if err := json.Unmarshal(res.([]byte), &consumer); err != nil {
 		return nil, fmt.Errorf("un marshall result: %w", err)
 	}
 	partitionId := consumer.GetCurrentPartition()
@@ -452,16 +452,16 @@ func (q *Queue) AckMessage(rCtx context.Context, consumerID string, msg *model.M
 	if err != nil {
 		return fmt.Errorf("marshal cmd: %w", err)
 	}
-	res, err := nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
 	if err != nil {
 		return fmt.Errorf("propose get consumer for ID: %w", err)
 	}
 	var consumer model.Consumer
-	if err := json.Unmarshal(res.Data, &consumer); err != nil {
+	if err := json.Unmarshal(res.([]byte), &consumer); err != nil {
 		return fmt.Errorf("un marshall result: %w", err)
 	}
 	partitionId := consumer.GetCurrentPartition()
-	_, ok := q.broker.ShardForPartition(partitionId)
+	shardID, ok := q.broker.ShardForPartition(partitionId)
 	if !ok {
 		return fmt.Errorf("broker does not have partition: %s", partitionId)
 	}
@@ -480,7 +480,7 @@ func (q *Queue) AckMessage(rCtx context.Context, consumerID string, msg *model.M
 	if err != nil {
 		return fmt.Errorf("marshal cmd: %w", err)
 	}
-	_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(shardID), cmdBytes)
 	if err != nil {
 		return fmt.Errorf("sync read get message: %w", err)
 	}

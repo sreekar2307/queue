@@ -1,5 +1,7 @@
 package model
 
+import "fmt"
+
 type ConsumerGroup struct {
 	ID                  string
 	Topics              map[string]bool
@@ -20,4 +22,7 @@ func (c *ConsumerGroup) AddConsumer(consumerID string) {
 		c.Consumers = make(map[string]bool)
 	}
 	c.Consumers[consumerID] = true
+}
+func (c *ConsumerGroup) String() string {
+	return fmt.Sprintf("id: %s, topics: %v, consumers: %v", c.ID, c.Topics, c.Consumers)
 }

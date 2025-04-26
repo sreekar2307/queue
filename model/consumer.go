@@ -1,11 +1,17 @@
 package model
 
+import "fmt"
+
 type Consumer struct {
 	ID            string
 	Partitions    []string
 	ConsumerGroup string
 
 	partitionIndex int
+}
+
+func (c *Consumer) String() string {
+	return fmt.Sprintf("id: %s, partitions: %v, consumerGroup: %s", c.ID, c.Partitions, c.ConsumerGroup)
 }
 
 func (c *Consumer) IncPartitionIndex() int {

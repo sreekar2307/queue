@@ -27,8 +27,8 @@ func main() {
 	flag.Parse()
 	members := map[uint64]string{
 		1: "localhost:63001",
-		2: "localhost:63002",
-		3: "localhost:63003",
+		//2: "localhost:63002",
+		//3: "localhost:63003",
 	}
 	trans, err := embedded.NewTransport(
 		ctx,
@@ -50,7 +50,7 @@ func main() {
 			log.Println("Error creating topic:", err)
 		} else {
 			log.Println("Topic created:", "topic", topic)
-			for i := range 500 {
+			for i := range 50 {
 				msg := &model.Message{
 					TopicName: topic.Name,
 					Data:      fmt.Appendf(nil, "Hello from world %d", i),
@@ -65,14 +65,28 @@ func main() {
 		}
 
 		var (
-			consumerID    = "consumer1"
-			consumerGroup = "group1"
+			consumerID    = "consumer"
+			consumerGroup = "group2"
 			topics        = []string{"snapTopic"}
 		)
-		if consumer, group, err := trans.Connect(ctx, consumerID, consumerGroup, topics); err != nil {
+		consumer, group, err := trans.Connect(ctx, consumerID, consumerGroup, topics)
+		if err != nil {
 			log.Println("Error connecting:", err)
 		} else {
 			log.Println("Connected:", "consumer", consumer, "group", group)
+			msg, err := trans.ReceiveMessage(ctx, consumer.ID)
+			if err != nil {
+				log.Println("Error receiving message:", err)
+			} else {
+				log.Println("Message received:", "message", msg)
+				if err := trans.AckMessage(ctx, consumer.ID, msg); err != nil {
+					log.Println("Error ack message:", err)
+				}
+			}
+			err = trans.Disconnect(ctx, consumer.ID)
+			if err != nil {
+				log.Println("Error disconnect consumer:", err)
+			}
 		}
 
 	}

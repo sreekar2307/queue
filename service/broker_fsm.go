@@ -186,16 +186,16 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			if len(args) != 3 {
 				return nil, fmt.Errorf("invalid command args")
 			}
-			consumerID := string(args[0])
-			consumerGroupID := string(args[1])
+			consumerGroupID := string(args[0])
+			consumerID := string(args[1])
 			topics := make([]string, 0)
 			if err := json.Unmarshal(args[2], &topics); err != nil {
 				return nil, fmt.Errorf("unmarshing cmd: %w", err)
 			}
 			consumer, consumerGroup, err := f.consumerService.Connect(
 				ctx,
-				consumerID,
 				consumerGroupID,
+				consumerID,
 				topics,
 			)
 			if err != nil {
@@ -240,7 +240,8 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				},
 			})
 		} else {
-			return nil, fmt.Errorf("invalid command type")
+			return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
+
 		}
 	}
 	return results, nil
@@ -283,7 +284,6 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 		}
 		return partitionsBytes, nil
 	} else if cmd.CommandType == PartitionsCommands.PartitionForID {
-
 		args := cmd.Args
 		if len(args) != 1 {
 			return nil, fmt.Errorf("invalid command args")
@@ -322,7 +322,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 		return consumerBytes, nil
 
 	}
-	return nil, fmt.Errorf("invalid command type")
+	return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
 }
 
 func (f *BrokerFSM) Sync() error {

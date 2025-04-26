@@ -61,8 +61,8 @@ func (t *Transport) SendMessage(rCtx context.Context, msg *model.Message) (*mode
 	return t.Queue.SendMessage(rCtx, msg)
 }
 
-func (t *Transport) ReceiveMessage(ctx context.Context, consumerGroup string) (*model.Message, error) {
-	return t.Queue.ReceiveMessage(ctx, consumerGroup)
+func (t *Transport) ReceiveMessage(ctx context.Context, consumerID string) (*model.Message, error) {
+	return t.Queue.ReceiveMessage(ctx, consumerID)
 }
 
 func (t *Transport) AckMessage(ctx context.Context, consumerID string, message *model.Message) error {

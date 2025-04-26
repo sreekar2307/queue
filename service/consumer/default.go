@@ -112,10 +112,6 @@ func (d *DefaultConsumerService) Disconnect(
 	if disconnectedConsumer == nil {
 		return fmt.Errorf("consumer not found")
 	}
-	err = d.MetadataStorage.DeleteConsumerInTx(ctx, tx, disconnectedConsumer)
-	if err != nil {
-		return fmt.Errorf("failed to delete consumer: %w", err)
-	}
 	consumerGroup, err := d.MetadataStorage.ConsumerGroupInTx(ctx, tx, disconnectedConsumer.ConsumerGroup)
 	if err != nil {
 		return fmt.Errorf("failed to get consumer group: %w", err)

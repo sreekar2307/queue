@@ -167,7 +167,7 @@ func (b *Bolt) NextUnAckedMessageID(_ context.Context, partition *model.Partitio
 		return nil, fmt.Errorf("failed to get database for partition: %w", err)
 	}
 	var nextMesssageID []byte
-	err = db.View(func(tx *boltDB.Tx) error {
+	err = db.Update(func(tx *boltDB.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(messageStatsBucket))
 		if err != nil {
 			return fmt.Errorf("failed to create bucket: %w", err)
@@ -187,7 +187,7 @@ func (b *Bolt) NextUnAckedMessageID(_ context.Context, partition *model.Partitio
 			return nil
 		}
 		cursor.Seek(lastAckedMsgId)
-		_, nextMesssageID = cursor.Next()
+		nextMesssageID, _ = cursor.Next()
 		return nil
 	})
 	return nextMesssageID, nil
