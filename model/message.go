@@ -7,7 +7,7 @@ import (
 )
 
 type Message struct {
-	TopicName    string
+	Topic        string
 	PartitionKey string
 	PartitionID  string
 	Data         []byte
@@ -16,8 +16,8 @@ type Message struct {
 
 func (m *Message) String() string {
 	return fmt.Sprintf(
-		"Message{TopicName: %s, PartitionKey: %s, PartitionID: %s, Data: %s, ID: %d}",
-		m.TopicName, m.PartitionKey, m.PartitionID, base64.StdEncoding.EncodeToString(m.Data),
+		"Message{Topic: %s, PartitionKey: %s, PartitionID: %s, Data: %s, ID: %d}",
+		m.Topic, m.PartitionKey, m.PartitionID, base64.StdEncoding.EncodeToString(m.Data),
 		binary.BigEndian.Uint64(m.ID),
 	)
 }

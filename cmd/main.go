@@ -2,27 +2,20 @@ package main
 
 import (
 	"context"
-	"encoding/binary"
 	"flag"
-	"fmt"
 	"log"
-	"log/slog"
-	"os"
 	"os/signal"
-	"queue/model"
 	"queue/service"
-	"queue/transport/embedded"
+	"queue/transport/http"
 	"syscall"
-
-	bolt "go.etcd.io/bbolt"
+	"time"
 )
 
 func main() {
 	ctx := context.Background()
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGKILL, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGKILL, syscall.SIGTERM)
+	defer cancel()
 	replicaID := flag.Int("replica_id", 1, "ReplicaID to use")
-	join := flag.Bool("join", false, "Joining a new node")
 	addr := flag.String("addr", "", "Nodehost address")
 	flag.Parse()
 	members := map[uint64]string{
@@ -30,7 +23,7 @@ func main() {
 		//2: "localhost:63002",
 		//3: "localhost:63003",
 	}
-	trans, err := embedded.NewTransport(
+	trans, err := http.NewTransport(
 		ctx,
 		service.Config{
 			RaftNodeAddr:    *addr,
@@ -42,98 +35,15 @@ func main() {
 		},
 	)
 	if err != nil {
-		panic(err.Error())
+		log.Fatalf("failed to create transport: %v", err)
 	}
-	if !*join {
-		topic, err := trans.CreateTopic(ctx, "snapTopic", 3)
-		if err != nil {
-			log.Println("Error creating topic:", err)
-		} else {
-			log.Println("Topic created:", "topic", topic)
-			for i := range 50 {
-				msg := &model.Message{
-					TopicName: topic.Name,
-					Data:      fmt.Appendf(nil, "Hello from world %d", i),
-				}
-				msg, err = trans.SendMessage(ctx, msg)
-				if err != nil {
-					panic(err.Error())
-				}
-				log.Println("Message sent:", "message", msg)
-			}
-			log.Println("all messages sent")
-		}
-
-		var (
-			consumerID    = "consumer"
-			consumerGroup = "group2"
-			topics        = []string{"snapTopic"}
-		)
-		consumer, group, err := trans.Connect(ctx, consumerID, consumerGroup, topics)
-		if err != nil {
-			log.Println("Error connecting:", err)
-		} else {
-			log.Println("Connected:", "consumer", consumer, "group", group)
-			msg, err := trans.ReceiveMessage(ctx, consumer.ID)
-			if err != nil {
-				log.Println("Error receiving message:", err)
-			} else {
-				log.Println("Message received:", "message", msg)
-				if err := trans.AckMessage(ctx, consumer.ID, msg); err != nil {
-					log.Println("Error ack message:", err)
-				}
-			}
-			err = trans.Disconnect(ctx, consumer.ID)
-			if err != nil {
-				log.Println("Error disconnect consumer:", err)
-			}
-		}
-
+	if err := trans.Start(ctx); err != nil {
+		log.Fatalf("failed to start transport: %v", err)
 	}
-	// listKeys()
-	<-c
+	<-ctx.Done()
+	ctx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 	if err := trans.Close(ctx); err != nil {
-		log.Printf("failed to close transport %s\n", err.Error())
-	}
-}
-
-func listKeys() {
-	// Replace with the path to your BoltDB file
-	dbPaths := []string{
-		"partitions/2/1/facebookTopic-0",
-		"partitions/3/1/facebookTopic-1",
-		"partitions/4/1/facebookTopic-2",
-	}
-
-	for _, dbPath := range dbPaths {
-		db, err := bolt.Open(dbPath, 0600, &bolt.Options{
-			ReadOnly: true,
-		})
-		if err != nil {
-			log.Fatalf("Failed to open BoltDB file: %v", err)
-		}
-		defer db.Close()
-		err = db.View(func(tx *bolt.Tx) error {
-			return tx.ForEach(func(bucketName []byte, b *bolt.Bucket) error {
-				// fmt.Printf("Bucket: %s\n", bucketName)
-
-				err := b.ForEach(func(k, v []byte) error {
-					// If value is nil, it's a nested bucket
-					if v == nil {
-						log.Println("Nested Bucket", "key", k)
-					} else {
-						log.Println("key, value", "key", binary.BigEndian.Uint64(k), "value", string(v))
-					}
-					return nil
-				})
-				if err != nil {
-					return fmt.Errorf("error iterating bucket %s: %v", bucketName, err)
-				}
-				return nil
-			})
-		})
-		if err != nil {
-			slog.Error("error reading BoltDB", "error", err)
-		}
+		log.Fatalf("failed to close transport: %v", err)
 	}
 }

@@ -127,7 +127,7 @@ func (d *DefaultTopicService) PartitionID(
 	ctx context.Context,
 	msg *model.Message,
 ) (string, error) {
-	topic, err := d.MetaDataStorage.Topic(ctx, msg.TopicName)
+	topic, err := d.MetaDataStorage.Topic(ctx, msg.Topic)
 	if err != nil {
 		return "", fmt.Errorf("failed to get topic: %w", err)
 	}
@@ -140,7 +140,7 @@ func (d *DefaultTopicService) PartitionID(
 	} else {
 		hash.Write(msg.Data)
 	}
-	partitionID = fmt.Sprintf("%s-%d", msg.TopicName, uint64(hash.Sum32())%topic.NumberOfPartitions)
+	partitionID = fmt.Sprintf("%s-%d", msg.Topic, uint64(hash.Sum32())%topic.NumberOfPartitions)
 	return partitionID, nil
 }
 

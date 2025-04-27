@@ -6,6 +6,7 @@ import (
 )
 
 type Transport interface {
+	Start(ctx context.Context) error
 	Connect(ctx context.Context, consumerID string, consumerGroup string, topics []string) (*model.Consumer, *model.ConsumerGroup, error)
 	Disconnect(ctx context.Context, consumerID string) error
 	Close(ctx context.Context) error
