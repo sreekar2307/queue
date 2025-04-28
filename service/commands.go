@@ -12,10 +12,14 @@ var ConsumerCommands = struct {
 	Connect       string
 	Disconnected  string
 	ConsumerForID string
+	Consumers     string
+	HealthCheck   string
 }{
 	Connect:       "Connect",
 	Disconnected:  "Disconnected",
 	ConsumerForID: "ConsumerForID",
+	Consumers:     "Consumers",
+	HealthCheck:   "HealthCheck",
 }
 
 var PartitionsCommands = struct {

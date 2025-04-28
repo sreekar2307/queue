@@ -8,7 +8,9 @@ import (
 
 type ConsumerService interface {
 	Connect(_ context.Context, groupID string, brokerID string, topics []string) (*model.Consumer, *model.ConsumerGroup, error)
+	HealthCheck(context.Context, string, int64) (*model.Consumer, error)
 	GetConsumer(context.Context, string) (*model.Consumer, error)
+	AllConsumers(context.Context) ([]*model.Consumer, error)
 	Disconnect(context.Context, string) error
 }
 

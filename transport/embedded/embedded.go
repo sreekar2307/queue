@@ -45,14 +45,6 @@ func (e *Embedded) Connect(
 	return consumer, group, nil
 }
 
-func (e *Embedded) Disconnect(ctx context.Context, consumerID string) error {
-	err := e.queue.Disconnect(ctx, consumerID)
-	if err != nil {
-		return fmt.Errorf("failed to disconnect: %w", err)
-	}
-	return nil
-}
-
 func (e *Embedded) Close(ctx context.Context) error {
 	return e.queue.Close(ctx)
 }

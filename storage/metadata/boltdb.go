@@ -642,6 +642,31 @@ func (m *Bolt) CreateConsumerInTx(_ context.Context, tx storage.Transaction, con
 	return nil
 }
 
+func (m *Bolt) AllConsumers(ctx context.Context) ([]*model.Consumer, error) {
+	var consumers []*model.Consumer
+	err := m.db.View(func(tx *boltDB.Tx) error {
+		bucket := tx.Bucket([]byte(consumersBucket))
+		if bucket == nil {
+			return nil
+		}
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			var consumer model.Consumer
+			if err := json.Unmarshal(v, &consumer); err != nil {
+				return fmt.Errorf("failed to unmarshal consumer: %w", err)
+			}
+			if consumer.IsActive {
+				consumers = append(consumers, &consumer)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get consumers: %w", err)
+	}
+	return consumers, nil
+}
+
 func (m *Bolt) Consumer(ctx context.Context, s string) (*model.Consumer, error) {
 	boltTx, err := m.db.Begin(true)
 	if err != nil {

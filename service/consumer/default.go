@@ -10,6 +10,7 @@ import (
 	"queue/storage/errors"
 	"queue/util"
 	"sync"
+	"time"
 )
 
 type DefaultConsumerService struct {
@@ -34,6 +35,12 @@ func (d *DefaultConsumerService) GetConsumer(
 	consumerID string,
 ) (*model.Consumer, error) {
 	return d.MetadataStorage.Consumer(ctx, consumerID)
+}
+
+func (d *DefaultConsumerService) AllConsumers(
+	ctx context.Context,
+) ([]*model.Consumer, error) {
+	return d.MetadataStorage.AllConsumers(ctx)
 }
 
 func (d *DefaultConsumerService) Connect(
@@ -73,8 +80,10 @@ func (d *DefaultConsumerService) Connect(
 	if err != nil {
 		if stdErrors.Is(err, errors.ErrConsumerNotFound) {
 			connectedConsumer = &model.Consumer{
-				ID:            consumerBrokerID,
-				ConsumerGroup: consumerGroupID,
+				ID:                consumerBrokerID,
+				ConsumerGroup:     consumerGroupID,
+				LastHealthCheckAt: time.Now().Unix(),
+				IsActive:          true,
 			}
 			err = d.MetadataStorage.CreateConsumerInTx(ctx, tx, connectedConsumer)
 			if err != nil {
@@ -82,6 +91,13 @@ func (d *DefaultConsumerService) Connect(
 			}
 		} else {
 			return nil, nil, fmt.Errorf("failed to get consumer: %w", err)
+		}
+	} else {
+		connectedConsumer.IsActive = true
+		connectedConsumer.LastHealthCheckAt = time.Now().Unix()
+		err = d.MetadataStorage.UpdateConsumerInTx(ctx, tx, connectedConsumer)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to update consumer: %w", err)
 		}
 	}
 	err = d.MetadataStorage.AddConsumerToGroupInTx(ctx, tx, consumerGroup, connectedConsumer)
@@ -92,6 +108,22 @@ func (d *DefaultConsumerService) Connect(
 		return nil, nil, fmt.Errorf("failed to rebalance and update consumers: %w", err)
 	}
 	return connectedConsumer, consumerGroup, tx.Commit()
+}
+
+func (d *DefaultConsumerService) HealthCheck(
+	ctx context.Context,
+	consumerID string,
+	pingAt int64,
+) (*model.Consumer, error) {
+	consumer, err := d.MetadataStorage.Consumer(ctx, consumerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get consumer: %w", err)
+	}
+	consumer.LastHealthCheckAt = pingAt
+	if err := d.MetadataStorage.UpdateConsumer(ctx, consumer); err != nil {
+		return nil, fmt.Errorf("failed to update consumer: %w", err)
+	}
+	return consumer, nil
 }
 
 func (d *DefaultConsumerService) Disconnect(
@@ -117,6 +149,11 @@ func (d *DefaultConsumerService) Disconnect(
 		return fmt.Errorf("failed to get consumer group: %w", err)
 	}
 	defer tx.Rollback()
+	disconnectedConsumer.IsActive = false
+	err = d.MetadataStorage.UpdateConsumerInTx(ctx, tx, disconnectedConsumer)
+	if err != nil {
+		return fmt.Errorf("failed to update consumer: %w", err)
+	}
 	err = d.MetadataStorage.RemoveConsumerFromGroupInTx(ctx, tx, consumerGroup, disconnectedConsumer)
 	if err != nil {
 		return fmt.Errorf("failed to remove consumer from group: %w", err)

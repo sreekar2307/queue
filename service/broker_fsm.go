@@ -239,9 +239,34 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					Data:  nil,
 				},
 			})
+		} else if cmd.CommandType == ConsumerCommands.HealthCheck {
+			args := cmd.Args
+			if len(args) != 2 {
+				return nil, fmt.Errorf("invalid command args")
+			}
+			consumerID := string(args[0])
+			lastHealthCheckAt, err := strconv.ParseInt(string(args[1]), 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid command args: %w", err)
+			}
+			consumer, err := f.consumerService.HealthCheck(ctx, consumerID, lastHealthCheckAt)
+			if err != nil {
+				return nil, fmt.Errorf("create consumer: %w", err)
+			}
+			consumerBytes, err := json.Marshal(consumer)
+			if err != nil {
+				return nil, fmt.Errorf("marshal consumer: %w", err)
+			}
+			results = append(results, statemachine.Entry{
+				Index: entry.Index,
+				Cmd:   slices.Clone(entry.Cmd),
+				Result: statemachine.Result{
+					Value: entry.Index,
+					Data:  consumerBytes,
+				},
+			})
 		} else {
 			return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
-
 		}
 	}
 	return results, nil
@@ -321,6 +346,19 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 		}
 		return consumerBytes, nil
 
+	} else if cmd.CommandType == ConsumerCommands.Consumers {
+		if len(cmd.Args) != 0 {
+			return nil, fmt.Errorf("invalid command args")
+		}
+		consumers, err := f.consumerService.AllConsumers(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get consumers: %w", err)
+		}
+		consumersBytes, err := json.Marshal(consumers)
+		if err != nil {
+			return nil, fmt.Errorf("marshal consumers: %w", err)
+		}
+		return consumersBytes, nil
 	}
 	return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
 }

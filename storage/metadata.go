@@ -44,6 +44,7 @@ type MetadataStorage interface {
 	CreateConsumer(context.Context, *model.Consumer) error
 	CreateConsumerInTx(context.Context, Transaction, *model.Consumer) error
 	Consumer(context.Context, string) (*model.Consumer, error)
+	AllConsumers(context.Context) ([]*model.Consumer, error)
 	ConsumerInTx(context.Context, Transaction, string) (*model.Consumer, error)
 	DeleteConsumerInTx(context.Context, Transaction, *model.Consumer) error
 }

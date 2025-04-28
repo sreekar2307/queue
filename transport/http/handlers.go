@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"queue/model"
+	"time"
 )
 
 type createTopicReqBody struct {
@@ -117,25 +118,6 @@ type disconnectReqBody struct {
 	Topics        []string `json:"topics"`
 }
 
-func (h *Http) disconnect(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	defer r.Body.Close()
-	var reqBody disconnectReqBody
-	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err := h.Disconnect(
-		ctx,
-		reqBody.ConsumerID,
-	)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-}
-
 func (h *Http) sendMessage(w http.ResponseWriter, r *http.Request) {
 	var (
 		ctx     = r.Context()
@@ -237,4 +219,46 @@ func (h *Http) ackMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+type healthCheckReqBody struct {
+	ConsumerID string    `json:"consumerID"`
+	PingAt     time.Time `json:"pingAt"`
+}
+
+func (h *Http) healthCheck(w http.ResponseWriter, r *http.Request) {
+	var (
+		ctx     = r.Context()
+		reqBody healthCheckReqBody
+	)
+	defer r.Body.Close()
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if reqBody.ConsumerID == "" {
+		http.Error(w, "consumerID is required", http.StatusBadRequest)
+		return
+	}
+	if reqBody.PingAt.IsZero() {
+		http.Error(w, "pingAt is required", http.StatusBadRequest)
+		return
+	}
+	consumer, err := h.HealthCheck(
+		ctx,
+		reqBody.ConsumerID,
+		reqBody.PingAt,
+	)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	responseBody, err := json.Marshal(consumer)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(responseBody)
 }

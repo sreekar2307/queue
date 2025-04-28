@@ -1,13 +1,17 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Consumer struct {
 	ID            string
 	Partitions    []string
 	ConsumerGroup string
+	IsActive      bool
 
-	partitionIndex int
+	partitionIndex    int
+	LastHealthCheckAt int64
 }
 
 func (c *Consumer) String() string {

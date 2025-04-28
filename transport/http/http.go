@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"queue/model"
 	"queue/service"
+	"time"
 )
 
 type Http struct {
@@ -31,10 +32,10 @@ func NewTransport(
 	serverMux := http.NewServeMux()
 	serverMux.HandleFunc("POST /topics", transport.createTopic)
 	serverMux.HandleFunc("POST /connect", transport.connect)
-	serverMux.HandleFunc("POST /disconnect", transport.disconnect)
 	serverMux.HandleFunc("POST /sendMessage", transport.sendMessage)
 	serverMux.HandleFunc("GET /receiveMessage", transport.receiveMessage)
 	serverMux.HandleFunc("POST /ackMessage", transport.ackMessage)
+	serverMux.HandleFunc("POST /healthCheck", transport.healthCheck)
 	server := http.Server{
 		Addr:    ":8000",
 		Handler: serverMux,
@@ -60,14 +61,6 @@ func (h *Http) Connect(
 	return consumer, group, nil
 }
 
-func (h *Http) Disconnect(ctx context.Context, consumerID string) error {
-	err := h.queue.Disconnect(ctx, consumerID)
-	if err != nil {
-		return fmt.Errorf("failed to disconnect: %w", err)
-	}
-	return nil
-}
-
 func (h *Http) Close(ctx context.Context) error {
 	if err := h.server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("failed to shutdown server: %w", err)
@@ -89,4 +82,8 @@ func (h *Http) ReceiveMessage(ctx context.Context, consumerID string) (*model.Me
 
 func (h *Http) AckMessage(ctx context.Context, consumerID string, message *model.Message) error {
 	return h.queue.AckMessage(ctx, consumerID, message)
+}
+
+func (h *Http) HealthCheck(ctx context.Context, consumerID string, pingAt time.Time) (*model.Consumer, error) {
+	return h.queue.HealthCheck(ctx, consumerID, pingAt)
 }
