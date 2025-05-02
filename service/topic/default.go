@@ -78,7 +78,8 @@ func (d *DefaultTopicService) CreateTopic(
 	return topic, tx.Commit()
 }
 
-func (d *DefaultTopicService) LastAppliedCommandID(ctx context.Context) (uint64, error) {
+func (d *DefaultTopicService) LastAppliedCommandID(ctx context.Context, _ uint64) (uint64, error) {
+	// as metadata is maintained in a single shard, we can ignore shardID
 	lastAppliedCommandID, err := d.MetaDataStorage.LastAppliedCommandID(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get last applied command ID: %w", err)

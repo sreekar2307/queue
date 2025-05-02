@@ -6,7 +6,7 @@ import (
 	"log"
 	"os/signal"
 	"queue/service"
-	"queue/transport/embedded"
+	"queue/transport"
 	"queue/transport/grpc"
 	"syscall"
 	"time"
@@ -22,8 +22,8 @@ func main() {
 	flag.Parse()
 	members := map[uint64]string{
 		1: "localhost:63001",
-		//2: "localhost:63002",
-		//3: "localhost:63003",
+		2: "localhost:63002",
+		3: "localhost:63003",
 	}
 	config := service.Config{
 		RaftNodeAddr:    *addr,
@@ -33,10 +33,15 @@ func main() {
 		MetadataPath:    "metadata",
 		PartitionsPath:  "partitions",
 	}
+	queue, err := service.NewQueue(ctx, config)
+	if err != nil {
+		log.Fatalf("failed to create queue: %v", err)
+	}
+	var trans transport.Transport
 	if *startGRPC {
-		trans, err := grpc.NewTransport(
+		trans, err = grpc.NewTransport(
 			ctx,
-			config,
+			queue,
 		)
 		if err != nil {
 			log.Fatalf("failed to create transport: %v", err)
@@ -44,24 +49,9 @@ func main() {
 		if err := trans.Start(ctx); err != nil {
 			log.Fatalf("failed to start transport: %v", err)
 		}
-		<-ctx.Done()
-		ctx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		if err := trans.Close(ctx); err != nil {
-			log.Fatalf("failed to close transport: %v", err)
-		}
-	} else {
-		trans, err := embedded.NewTransport(
-			ctx,
-			config,
-		)
-		if err != nil {
-			log.Fatalf("failed to create transport: %v", err)
-		}
-		if err := trans.Start(ctx); err != nil {
-			log.Fatalf("failed to start transport: %v", err)
-		}
-		<-ctx.Done()
+	}
+	<-ctx.Done()
+	if trans != nil {
 		ctx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := trans.Close(ctx); err != nil {

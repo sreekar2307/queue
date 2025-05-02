@@ -162,7 +162,9 @@ func (b *Bolt) getDBForPartition(partitionKey string) (*boltDB.DB, error) {
 	if db, ok := b.dbs[partitionKey]; ok {
 		return db, nil
 	}
-	newDB, err := boltDB.Open(filepath.Join(b.PartitionsPath, partitionKey), 0777, nil)
+	path := filepath.Join(b.PartitionsPath, partitionKey)
+	log.Println("opening database ", path)
+	newDB, err := boltDB.Open(path, 0777, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -259,8 +261,6 @@ func (b *Bolt) NextUnAckedMessageID(_ context.Context, partition *model.Partitio
 			nextMesssageID, _ = cursor.First()
 			return nil
 		}
-		log.Println("lastAckedMsgId", lastAckedMsgId, "partitionID", partition.ID,
-			"lastMsgID", lastMsgId)
 		if !bytes.Equal(lastAckedMsgId, lastMsgId) {
 			cursor.Seek(lastAckedMsgId)
 			nextMesssageID, _ = cursor.Next()

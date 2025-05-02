@@ -14,16 +14,9 @@ type Http struct {
 }
 
 func NewTransport(
-	ctx context.Context,
-	config service.Config,
+	_ context.Context,
+	queue *service.Queue,
 ) (*Http, error) {
-	queue, err := service.NewQueue(
-		ctx,
-		config,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create queue: %w", err)
-	}
 	transport := &Http{
 		queue: queue,
 	}

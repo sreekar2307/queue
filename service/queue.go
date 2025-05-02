@@ -402,7 +402,7 @@ func (q *Queue) ReceiveMessage(
 		cmd = Cmd{
 			CommandType: MessageCommands.Poll,
 			Args: [][]byte{
-				[]byte(consumer.ID),
+				[]byte(consumer.ConsumerGroup),
 				[]byte(partitionId),
 			},
 		}
@@ -476,15 +476,15 @@ func (q *Queue) AckMessage(
 	if err := json.Unmarshal(res.([]byte), &consumer); err != nil {
 		return fmt.Errorf("un marshall result: %w", err)
 	}
-	partitionId := consumer.GetCurrentPartition()
-	shardID, ok := q.broker.ShardForPartition(partitionId)
+	shardID, ok := q.broker.ShardForPartition(msg.PartitionID)
 	if !ok {
-		return fmt.Errorf("broker does not have partition: %s", partitionId)
+		return fmt.Errorf("broker does not have partition: %s", msg.PartitionID)
 	}
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshal message: %w", err)
 	}
+	log.Println("sending ACK command to shardID", shardID, " for partition ID ", msg.PartitionID)
 	cmd = Cmd{
 		CommandType: MessageCommands.Ack,
 		Args: [][]byte{
@@ -646,12 +646,6 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 		}
 		if err := q.blockTillLeaderSet(pCtx, shardID); err != nil {
 			return fmt.Errorf("block till leader set: %w, for shardID: %d", err, shardID)
-		}
-		ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
-		_, err = nh.SyncRequestSnapshot(ctx, shardID, dragonboat.SnapshotOption{})
-		cancelFunc()
-		if err != nil {
-			return fmt.Errorf("failed to request snapshot: %w", err)
 		}
 	}
 

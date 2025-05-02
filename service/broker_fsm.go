@@ -59,7 +59,7 @@ func NewBrokerFSM(
 
 func (f *BrokerFSM) Open(_ <-chan struct{}) (uint64, error) {
 	ctx := context.Background()
-	commandID, err := f.topicService.LastAppliedCommandID(ctx)
+	commandID, err := f.topicService.LastAppliedCommandID(ctx, f.ShardID)
 	if err != nil {
 		return 0, fmt.Errorf("get last applied command ID: %w", err)
 	}
@@ -179,14 +179,17 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			nh := f.broker.NodeHost()
 			log.Println("Starting replica for partition", partitionID, "on shard", shardID,
 				"replicaID", f.broker.ID)
-			err = nh.StartOnDiskReplica(members, false, func(shardID, replicaID uint64) statemachine.IOnDiskStateMachine {
-				return NewMessageFSM(
-					shardID,
-					replicaID,
-					f.config,
-					f.broker,
-					f.mdStorage,
-				)
+			err = nh.StartOnDiskReplica(members, false, func(_shardID, _replicaID uint64) statemachine.IOnDiskStateMachine {
+				if shardID == _shardID && f.broker.ID == _replicaID {
+					return NewMessageFSM(
+						_shardID,
+						_replicaID,
+						f.config,
+						f.broker,
+						f.mdStorage,
+					)
+				}
+				return nil
 			}, config.Config{
 				ReplicaID:       f.broker.ID,
 				ShardID:         shardID,

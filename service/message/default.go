@@ -15,25 +15,28 @@ import (
 )
 
 type DefaultMessageService struct {
-	MessageStorage storage.MessageStorage
+	messageStorage storage.MessageStorage
 	// Only read operations are allowed on metadata storage when using from message service
-	MetadataStorage storage.MetadataStorage
+	metadataStorage storage.MetadataStorage
 
 	partitionsMutex sync.RWMutex
 	partitionsLocks map[string]*sync.Mutex
 	partitionsPath  string
+	broker          *model.Broker
 }
 
 func NewDefaultMessageService(
 	messageStorage storage.MessageStorage,
 	metadata storage.MetadataStorage,
 	partitionsPath string,
+	broker *model.Broker,
 ) *DefaultMessageService {
 	return &DefaultMessageService{
-		MessageStorage:  messageStorage,
-		MetadataStorage: metadata,
+		messageStorage:  messageStorage,
+		metadataStorage: metadata,
 		partitionsLocks: make(map[string]*sync.Mutex),
 		partitionsPath:  partitionsPath,
+		broker:          broker,
 	}
 }
 
@@ -43,16 +46,18 @@ var (
 	ErrDuplicateCommand    = errors.New("duplicate command")
 )
 
-func (d *DefaultMessageService) LastAppliedCommandID(ctx context.Context) (uint64, error) {
+func (d *DefaultMessageService) LastAppliedCommandID(ctx context.Context, shardID uint64) (uint64, error) {
 	partitionIDs := make([]string, 0)
-	partitions, err := d.MetadataStorage.AllPartitions(ctx)
+	partitions, err := d.metadataStorage.AllPartitions(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get partitions: %w", err)
 	}
 	for _, partition := range partitions {
-		partitionIDs = append(partitionIDs, partition.ID)
+		if partition.ShardID == shardID {
+			partitionIDs = append(partitionIDs, partition.ID)
+		}
 	}
-	lastAppliedCommandID, err := d.MessageStorage.LastAppliedCommandID(ctx, partitionIDs)
+	lastAppliedCommandID, err := d.messageStorage.LastAppliedCommandID(ctx, partitionIDs)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get last applied command ID: %w", err)
 	}
@@ -68,7 +73,7 @@ func (d *DefaultMessageService) AppendMessage(ctx context.Context, commandID uin
 		return fmt.Errorf("failed to get next msgID: %w", err)
 	}
 	message.ID = msgID
-	if err := d.MessageStorage.AppendMessage(ctx, commandID, message); err != nil {
+	if err := d.messageStorage.AppendMessage(ctx, commandID, message); err != nil {
 		if errors.Is(err, storageErrors.ErrDuplicateCommand) {
 			return errors.Join(err, ErrDuplicateCommand)
 		}
@@ -82,14 +87,14 @@ func (d *DefaultMessageService) AppendMessage(ctx context.Context, commandID uin
 
 func (d *DefaultMessageService) Poll(
 	ctx context.Context,
-	consumerID string,
+	consumerGroupID string,
 	partitionID string,
 ) (_ *model.Message, err error) {
-	consumer, err := d.MetadataStorage.Consumer(ctx, consumerID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get consumer: %w", err)
-	}
-	consumerGroup, err := d.MetadataStorage.ConsumerGroup(ctx, consumer.ConsumerGroup)
+	//consumer, err := d.metadataStorage.Consumer(ctx, consumerID)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to get consumer: %w", err)
+	//}
+	consumerGroup, err := d.metadataStorage.ConsumerGroup(ctx, consumerGroupID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get consumer group: %w", err)
 	}
@@ -97,11 +102,11 @@ func (d *DefaultMessageService) Poll(
 		return nil, ErrRebalanceInProgress
 	}
 
-	selectedPartition, err := d.MetadataStorage.Partition(ctx, partitionID)
+	selectedPartition, err := d.metadataStorage.Partition(ctx, partitionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partition: %w", err)
 	}
-	msgId, err := d.MessageStorage.NextUnAckedMessageID(ctx, selectedPartition, consumerGroup)
+	msgId, err := d.messageStorage.NextUnAckedMessageID(ctx, selectedPartition, consumerGroup)
 	if err != nil {
 		if errors.Is(err, storageErrors.ErrNoMessageFound) {
 			return nil, errors.Join(err, ErrNoNewMessages)
@@ -109,7 +114,7 @@ func (d *DefaultMessageService) Poll(
 		return nil, fmt.Errorf("failed to get next message ID: %w", err)
 	}
 	log.Println("receiving  messageID ", msgId, " from partition ", partitionID)
-	message, err := d.MessageStorage.MessageAtIndex(ctx, selectedPartition, msgId)
+	message, err := d.messageStorage.MessageAtIndex(ctx, selectedPartition, msgId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get message: %w", err)
 	}
@@ -122,14 +127,14 @@ func (d *DefaultMessageService) AckMessage(
 	consumerGroupID string,
 	message *model.Message,
 ) (err error) {
-	consumerGroup, err := d.MetadataStorage.ConsumerGroup(ctx, consumerGroupID)
+	consumerGroup, err := d.metadataStorage.ConsumerGroup(ctx, consumerGroupID)
 	if err != nil {
 		return fmt.Errorf("failed to get consumer group: %w", err)
 	}
 	if consumerGroup.RebalanceInProgress() {
 		return ErrRebalanceInProgress
 	}
-	err = d.MessageStorage.AckMessage(ctx, commandID, message, consumerGroup)
+	err = d.messageStorage.AckMessage(ctx, commandID, message, consumerGroup)
 	if err != nil {
 		if errors.Is(err, storageErrors.ErrDuplicateCommand) {
 			return errors.Join(err, ErrDuplicateCommand)
@@ -140,7 +145,7 @@ func (d *DefaultMessageService) AckMessage(
 }
 
 func (d *DefaultMessageService) Close(ctx context.Context) error {
-	if err := d.MessageStorage.Close(ctx); err != nil {
+	if err := d.messageStorage.Close(ctx); err != nil {
 		return fmt.Errorf("failed to close message storage: %w", err)
 	}
 	return nil
@@ -155,7 +160,7 @@ func (d *DefaultMessageService) Open(_ context.Context) error {
 
 func (d *DefaultMessageService) Snapshot(ctx context.Context, writer io.Writer) error {
 	log.Println("taking snapshot of message storage")
-	if err := d.MessageStorage.Snapshot(ctx, writer); err != nil {
+	if err := d.messageStorage.Snapshot(ctx, writer); err != nil {
 		return fmt.Errorf("failed to snapshot message storage: %w", err)
 	}
 	log.Println("snapshot of message storage taken")
@@ -163,7 +168,7 @@ func (d *DefaultMessageService) Snapshot(ctx context.Context, writer io.Writer) 
 }
 
 func (d *DefaultMessageService) RecoverFromSnapshot(ctx context.Context, reader io.Reader) error {
-	if err := d.MessageStorage.RecoverFromSnapshot(ctx, reader); err != nil {
+	if err := d.messageStorage.RecoverFromSnapshot(ctx, reader); err != nil {
 		return fmt.Errorf("failed to recover message storage: %w", err)
 	}
 	return nil
@@ -184,7 +189,7 @@ func (d *DefaultMessageService) nextMessageID(ctx context.Context, partitionKey 
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	lastMsgID, err := d.MessageStorage.LastMessageID(ctx, partitionKey)
+	lastMsgID, err := d.messageStorage.LastMessageID(ctx, partitionKey)
 	if err != nil {
 		return nil, err
 	}

@@ -12,16 +12,9 @@ type Embedded struct {
 }
 
 func NewTransport(
-	ctx context.Context,
-	config service.Config,
+	_ context.Context,
+	queue *service.Queue,
 ) (*Embedded, error) {
-	queue, err := service.NewQueue(
-		ctx,
-		config,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create queue: %w", err)
-	}
 	transport := &Embedded{
 		queue: queue,
 	}

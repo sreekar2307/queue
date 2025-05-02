@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"path/filepath"
 	"queue/model"
 	messageServ "queue/service/message"
@@ -43,6 +44,7 @@ func NewMessageFSM(
 			),
 			mdStorage,
 			partitionsStorePath,
+			broker,
 		),
 		broker:    broker,
 		config:    config,
@@ -56,7 +58,7 @@ func (f MessageFSM) Open(_ <-chan struct{}) (uint64, error) {
 	if err := f.messageService.Open(ctx); err != nil {
 		return 0, fmt.Errorf("open message service: %w", err)
 	}
-	commandID, err := f.messageService.LastAppliedCommandID(ctx)
+	commandID, err := f.messageService.LastAppliedCommandID(ctx, f.ShardID)
 	if err != nil {
 		return 0, fmt.Errorf("get last applied command ID: %w", err)
 	}
@@ -129,6 +131,8 @@ func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine
 				}
 				return nil, fmt.Errorf("append msg: %w", err)
 			}
+			log.Println("acknowledging message", msg.ID, " to consumer group", string(args[0]),
+				" of partition ", msg.PartitionID)
 			results = append(results, statemachine.Entry{
 				Index: entry.Index,
 				Cmd:   slices.Clone(entry.Cmd),
@@ -159,10 +163,13 @@ func (f MessageFSM) Lookup(i any) (any, error) {
 		msg, err := f.messageService.Poll(ctx, string(args[0]), string(args[1]))
 		if err != nil {
 			if errors.Is(err, messageServ.ErrNoNewMessages) {
+				log.Println("no messages for consumer group",
+					string(args[0]), " and partition ", string(args[1]))
 				return nil, nil
 			}
 			return nil, fmt.Errorf("get topic: %w", err)
 		}
+		log.Println("sending message", msg.ID, " to consumer group", string(args[0]), " of partition ", string(args[1]))
 		msgBytes, err := json.Marshal(msg)
 		if err != nil {
 			return nil, fmt.Errorf("marshal message: %w", err)

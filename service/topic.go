@@ -10,7 +10,7 @@ import (
 type (
 	TopicService interface {
 		CreateTopic(context.Context, uint64, string, uint64, uint64) (*model.Topic, error)
-		LastAppliedCommandID(context.Context) (uint64, error)
+		LastAppliedCommandID(context.Context, uint64) (uint64, error)
 		GetTopic(context.Context, string) (*model.Topic, error)
 		AllTopics(context.Context) ([]*model.Topic, error)
 		AllPartitions(context.Context) ([]*model.Partition, error)

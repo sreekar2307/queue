@@ -7,13 +7,14 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	pb "queue/transport/grpc/transportpb"
+	"strconv"
 	"time"
 )
 
 func main() {
 	ctx := context.Background()
-	writeSomeMessages(ctx)
-	//readAllMessages(ctx)
+	//writeSomeMessages(ctx)
+	readSomeMessages(ctx)
 }
 
 func writeSomeMessages(ctx context.Context) {
@@ -26,11 +27,12 @@ func writeSomeMessages(ctx context.Context) {
 
 	// Create a Transport client
 	client := pb.NewTransportClient(conn)
-	for i := range 500 {
+	for i := range 10 {
 		// Prepare the request
 		req := &pb.SendMessageRequest{
-			Topic: "facebook",
-			Data:  []byte(fmt.Sprintf("sreekar bollam %d", i)),
+			Topic:        "facebook",
+			Data:         []byte(fmt.Sprintf("sreekar bollam %d", i)),
+			PartitionKey: strconv.Itoa(i),
 		}
 
 		// Set a context with timeout
@@ -44,7 +46,7 @@ func writeSomeMessages(ctx context.Context) {
 	}
 }
 
-func readAllMessages(pCtx context.Context) {
+func readSomeMessages(pCtx context.Context) {
 	conn, err := grpc.NewClient("localhost:8000", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)
@@ -64,7 +66,7 @@ func readAllMessages(pCtx context.Context) {
 	cancel()
 
 	// Create a Transport client
-	for range 25 {
+	for range 5 {
 		// Prepare the request
 		recvReq := &pb.ReceiveMessageRequest{
 			ConsumerId: "node-1",
