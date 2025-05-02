@@ -27,7 +27,7 @@ func writeSomeMessages(ctx context.Context) {
 
 	// Create a Transport client
 	client := pb.NewTransportClient(conn)
-	for i := range 10 {
+	for i := range 100 {
 		// Prepare the request
 		req := &pb.SendMessageRequest{
 			Topic:        "facebook",
@@ -66,7 +66,7 @@ func readSomeMessages(pCtx context.Context) {
 	cancel()
 
 	// Create a Transport client
-	for range 5 {
+	for range 10 {
 		// Prepare the request
 		recvReq := &pb.ReceiveMessageRequest{
 			ConsumerId: "node-1",
@@ -79,16 +79,18 @@ func readSomeMessages(pCtx context.Context) {
 			log.Fatalf("SendMessage failed: %v", err)
 		}
 		log.Println(string(recvRes.GetData()), recvRes.PartitionId, recvRes.MessageId)
-		ackReq := &pb.AckMessageRequest{
-			ConsumerId:  "node-1",
-			PartitionId: recvRes.PartitionId,
-			MessageId:   recvRes.MessageId,
-		}
-		ctx, cancel = context.WithTimeout(pCtx, 5*time.Hour)
-		_, err = client.AckMessage(ctx, ackReq)
-		cancel()
-		if err != nil {
-			log.Fatalf("AckMessage failed: %v", err)
+		if recvRes.MessageId != nil {
+			ackReq := &pb.AckMessageRequest{
+				ConsumerId:  "node-1",
+				PartitionId: recvRes.PartitionId,
+				MessageId:   recvRes.MessageId,
+			}
+			ctx, cancel = context.WithTimeout(pCtx, 5*time.Hour)
+			_, err = client.AckMessage(ctx, ackReq)
+			cancel()
+			if err != nil {
+				log.Fatalf("AckMessage failed: %v", err)
+			}
 		}
 	}
 }
