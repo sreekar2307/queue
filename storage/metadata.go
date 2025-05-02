@@ -13,6 +13,9 @@ type MetadataStorage interface {
 	Snapshot(context.Context, io.Writer) error
 	RecoverFromSnapshot(context.Context, io.Reader) error
 
+	CheckCommandAppliedInTx(context.Context, Transaction, uint64) error
+	UpdateCommandAppliedInTx(context.Context, Transaction, uint64) error
+
 	CreateTopicInTx(context.Context, Transaction, *model.Topic) error
 	Topic(context.Context, string) (*model.Topic, error)
 	TopicInTx(context.Context, Transaction, string) (*model.Topic, error)
@@ -21,30 +24,24 @@ type MetadataStorage interface {
 	CreatePartitionsInTx(context.Context, Transaction, []*model.Partition) error
 
 	Partition(context.Context, string) (*model.Partition, error)
-	UpdatePartition(context.Context, *model.Partition) error
 	UpdatePartitionInTx(context.Context, Transaction, *model.Partition) error
 	PartitionsForTopic(context.Context, string) ([]*model.Partition, error)
 	PartitionsForTopics(context.Context, []string) ([]*model.Partition, error)
 	AllPartitions(context.Context) ([]*model.Partition, error)
 	AllPartitionsInTx(context.Context, Transaction) ([]*model.Partition, error)
 
-	CreateConsumerGroup(context.Context, *model.ConsumerGroup) error
 	CreateConsumerGroupInTx(context.Context, Transaction, *model.ConsumerGroup) error
 	ConsumerGroup(context.Context, string) (*model.ConsumerGroup, error)
-	PartitionAssignments(ctx context.Context, consumerGroupID string) (map[string][]string, error)
 	PartitionAssignmentsInTx(ctx context.Context, tx Transaction, consumerGroupID string) (map[string][]string, error)
 	ConsumerGroupInTx(context.Context, Transaction, string) (*model.ConsumerGroup, error)
 	AddConsumerToGroupInTx(context.Context, Transaction, *model.ConsumerGroup, *model.Consumer) error
-	UpdateConsumerGroup(context.Context, *model.ConsumerGroup) error
 	UpdateConsumerGroupInTx(context.Context, Transaction, *model.ConsumerGroup) error
 	RemoveConsumerFromGroupInTx(context.Context, Transaction, *model.ConsumerGroup, *model.Consumer) error
 
-	UpdateConsumer(context.Context, *model.Consumer) error
+	UpdateConsumer(context.Context, uint64, *model.Consumer) error
 	UpdateConsumerInTx(context.Context, Transaction, *model.Consumer) error
-	CreateConsumer(context.Context, *model.Consumer) error
 	CreateConsumerInTx(context.Context, Transaction, *model.Consumer) error
 	Consumer(context.Context, string) (*model.Consumer, error)
 	AllConsumers(context.Context) ([]*model.Consumer, error)
 	ConsumerInTx(context.Context, Transaction, string) (*model.Consumer, error)
-	DeleteConsumerInTx(context.Context, Transaction, *model.Consumer) error
 }

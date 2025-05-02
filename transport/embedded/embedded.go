@@ -28,7 +28,7 @@ func NewTransport(
 	return transport, nil
 }
 
-func (e *Embedded) Start(ctx context.Context) error {
+func (e *Embedded) Start(_ context.Context) error {
 	return nil
 }
 
@@ -49,12 +49,12 @@ func (e *Embedded) Close(ctx context.Context) error {
 	return e.queue.Close(ctx)
 }
 
-func (e *Embedded) CreateTopic(rCtx context.Context, name string, numberOfPartitions uint64) (*model.Topic, error) {
-	return e.queue.CreateTopic(rCtx, name, numberOfPartitions)
+func (e *Embedded) CreateTopic(pCtx context.Context, name string, numberOfPartitions uint64) (*model.Topic, error) {
+	return e.queue.CreateTopic(pCtx, name, numberOfPartitions)
 }
 
-func (e *Embedded) SendMessage(rCtx context.Context, msg *model.Message) (*model.Message, error) {
-	return e.queue.SendMessage(rCtx, msg)
+func (e *Embedded) SendMessage(pCtx context.Context, msg *model.Message) (*model.Message, error) {
+	return e.queue.SendMessage(pCtx, msg)
 }
 
 func (e *Embedded) ReceiveMessage(ctx context.Context, consumerID string) (*model.Message, error) {

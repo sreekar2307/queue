@@ -120,7 +120,11 @@ func (q *Queue) Close(ctx context.Context) error {
 	return nil
 }
 
-func (q *Queue) CreateTopic(pCtx context.Context, name string, numberOfPartitions uint64) (*model.Topic, error) {
+func (q *Queue) CreateTopic(
+	pCtx context.Context,
+	name string,
+	numberOfPartitions uint64,
+) (*model.Topic, error) {
 	nh := q.broker.NodeHost()
 	cmd := Cmd{
 		CommandType: TopicCommands.CreateTopic,
@@ -236,7 +240,7 @@ func (q *Queue) disconnectInActiveConsumers(pCtx context.Context, stopCtx contex
 					return
 				}
 				for _, consumer := range consumers {
-					if consumer.LastHealthCheckAt < time.Now().Add(-30*time.Second).Unix() {
+					if consumer.LastHealthCheckAt < time.Now().Add(-30*time.Hour).Unix() {
 						if err := q.disconnect(pCtx, consumer.ID); err != nil {
 							log.Println("failed to disconnect consumer: ", consumer.ID)
 						} else {
@@ -278,6 +282,7 @@ func (q *Queue) SendMessage(
 	if partition.ShardID != shardID {
 		return nil, fmt.Errorf("shardID mismatch: %d != %d", partition.ShardID, shardID)
 	}
+	log.Println("selected shard", shardID, " for partition ", partitionID)
 	cmd := Cmd{
 		CommandType: MessageCommands.Append,
 		Args:        [][]byte{msgBytes},
@@ -363,10 +368,10 @@ func (q *Queue) disconnect(
 }
 
 func (q *Queue) ReceiveMessage(
-	rCtx context.Context,
+	pCtx context.Context,
 	consumerID string,
 ) (*model.Message, error) {
-	ctx, cancelFunc := context.WithTimeout(rCtx, 15*time.Second)
+	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
 	cmd := Cmd{
@@ -387,39 +392,71 @@ func (q *Queue) ReceiveMessage(
 	if err := json.Unmarshal(res.([]byte), &consumer); err != nil {
 		return nil, fmt.Errorf("un marshall result: %w", err)
 	}
-	partitionId := consumer.GetCurrentPartition()
-	shardID, ok := q.broker.ShardForPartition(partitionId)
-	if !ok {
-		return nil, fmt.Errorf("broker does not have partition: %s", partitionId)
+	var msg model.Message
+	for range len(consumer.Partitions) {
+		partitionId := consumer.GetCurrentPartition()
+		shardID, ok := q.broker.ShardForPartition(partitionId)
+		if !ok {
+			return nil, fmt.Errorf("broker does not have partition: %s", partitionId)
+		}
+		log.Println("consumer polling shardID", shardID, " for partition ID ", partitionId)
+		cmd = Cmd{
+			CommandType: MessageCommands.Poll,
+			Args: [][]byte{
+				[]byte(consumer.ID),
+				[]byte(partitionId),
+			},
+		}
+		cmdBytes, err = json.Marshal(cmd)
+		if err != nil {
+			return nil, fmt.Errorf("marshal cmd: %w", err)
+		}
+		result, err := nh.SyncRead(ctx, shardID, cmdBytes)
+		if err != nil {
+			return nil, fmt.Errorf("sync read get message: %w", err)
+		}
+		if result == nil {
+			// no message available
+			consumer.IncPartitionIndex()
+			continue
+		}
+		if err := json.Unmarshal(result.([]byte), &msg); err != nil {
+			return nil, fmt.Errorf("un marshall result: %w", err)
+		}
+		break
 	}
-
+	consumerBytes, err := json.Marshal(consumer)
+	if err != nil {
+		return nil, fmt.Errorf("marshal consumer: %w", err)
+	}
 	cmd = Cmd{
-		CommandType: MessageCommands.Poll,
+		CommandType: ConsumerCommands.UpdateConsumer,
 		Args: [][]byte{
-			[]byte(consumer.ID),
+			consumerBytes,
 		},
 	}
 	cmdBytes, err = json.Marshal(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("marshal cmd: %w", err)
 	}
-	result, err := nh.SyncRead(ctx, shardID, cmdBytes)
+	ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
+	defer cancelFunc()
+	_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 	if err != nil {
-		return nil, fmt.Errorf("sync read get message: %w", err)
+		return nil, fmt.Errorf("propose update consumer: %w", err)
 	}
-	var msg model.Message
-	if err := json.Unmarshal(result.([]byte), &msg); err != nil {
-		return nil, fmt.Errorf("un marshall result: %w", err)
+	if msg.ID == nil {
+		return nil, nil
 	}
 	return &msg, nil
 }
 
 func (q *Queue) AckMessage(
-	rCtx context.Context,
+	pCtx context.Context,
 	consumerID string,
 	msg *model.Message,
 ) error {
-	ctx, cancelFunc := context.WithTimeout(rCtx, 15*time.Second)
+	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
 	cmd := Cmd{
@@ -581,40 +618,38 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 			// current broker is not a member of the partition
 			continue
 		}
-		q.broker.AddPartitionShards(partition.ID, shardID)
-		if !nh.HasNodeInfo(shardID, q.broker.ID) {
-			log.Println(
-				"Starting partition: ",
-				partition.ID,
-				" with shardID: ",
-				shardID,
-				"replicaID: ",
-				q.broker.ID,
-			)
+		q.broker.AddShardIDForPartitionID(partition.ID, shardID)
+		log.Println(
+			"Starting partition: ",
+			partition.ID,
+			" with shardID: ",
+			shardID,
+			"replicaID: ",
+			q.broker.ID,
+		)
 
-			if err := nh.StartOnDiskReplica(
-				partition.Members,
-				false,
-				func(shardID, replicdID uint64) statemachine.IOnDiskStateMachine {
-					return NewMessageFSM(shardID, replicdID, q.config, q.broker, q.mdStorage)
-				},
-				drConfig.Config{
-					ReplicaID:          q.broker.ID,
-					ShardID:            shardID,
-					ElectionRTT:        10,
-					HeartbeatRTT:       1,
-					CheckQuorum:        true,
-					SnapshotEntries:    1000,
-					CompactionOverhead: 50,
-				},
-			); err != nil {
-				return fmt.Errorf("failed to start replica: %w", err)
-			}
+		if err := nh.StartOnDiskReplica(
+			partition.Members,
+			false,
+			func(shardID, replicdID uint64) statemachine.IOnDiskStateMachine {
+				return NewMessageFSM(shardID, replicdID, q.config, q.broker, q.mdStorage)
+			},
+			drConfig.Config{
+				ReplicaID:          q.broker.ID,
+				ShardID:            shardID,
+				ElectionRTT:        10,
+				HeartbeatRTT:       1,
+				CheckQuorum:        true,
+				SnapshotEntries:    1000,
+				CompactionOverhead: 50,
+			},
+		); err != nil {
+			return fmt.Errorf("failed to start replica: %w", err)
 		}
-
 		if err := q.blockTillLeaderSet(pCtx, shardID); err != nil {
 			return fmt.Errorf("block till leader set: %w, for shardID: %d", err, shardID)
 		}
+
 	}
 
 	return nil

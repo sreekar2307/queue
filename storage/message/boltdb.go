@@ -1,15 +1,18 @@
 package message
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
 	stdErrors "errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"queue/model"
+	"queue/storage/errors"
 	"slices"
 	"sync"
 
@@ -30,9 +33,11 @@ func NewBolt(partitionPath string) *Bolt {
 }
 
 const (
-	messagesBucket               = "messages"
-	messageStatsBucket           = "messages_stats"
-	messageStatsPartitionsBucket = "partitions"
+	messagesBucketKey               = "messages"
+	messageStatsBucketKey           = "messages_stats"
+	messageStatsPartitionsBucketKey = "partitions"
+	commandsBucketKey               = "commands"
+	appliedCommandKey               = "applied_command"
 )
 
 func (b *Bolt) Close(context.Context) error {
@@ -46,7 +51,11 @@ func (b *Bolt) Close(context.Context) error {
 	return nil
 }
 
-func (b *Bolt) AppendMessage(_ context.Context, message *model.Message) error {
+func (b *Bolt) AppendMessage(
+	_ context.Context,
+	commandID uint64,
+	message *model.Message,
+) error {
 	db, err := b.getDBForPartition(message.PartitionID)
 	if err != nil {
 		return fmt.Errorf("failed to get database for partition: %w", err)
@@ -55,7 +64,21 @@ func (b *Bolt) AppendMessage(_ context.Context, message *model.Message) error {
 		return fmt.Errorf("message id is not set")
 	}
 	return db.Update(func(tx *boltDB.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(messagesBucket))
+		commandsBucket, err := tx.CreateBucketIfNotExists([]byte(commandsBucketKey))
+		if err != nil {
+			return fmt.Errorf("failed to create commands bucket: %w", err)
+		}
+		lastAppliedCommand := commandsBucket.Get([]byte(appliedCommandKey))
+		if lastAppliedCommand != nil {
+			lastAppliedCommandID := binary.BigEndian.Uint64(lastAppliedCommand)
+			if lastAppliedCommandID >= commandID {
+				return errors.ErrDuplicateCommand
+			}
+		}
+		if err := commandsBucket.Put([]byte(appliedCommandKey), binary.BigEndian.AppendUint64(nil, commandID)); err != nil {
+			return fmt.Errorf("storing command id: %w", err)
+		}
+		bucket, err := tx.CreateBucketIfNotExists([]byte(messagesBucketKey))
 		if err != nil {
 			return fmt.Errorf("failed to create bucket: %w", err)
 		}
@@ -77,7 +100,7 @@ func (b *Bolt) MessageAtIndex(_ context.Context, partition *model.Partition, mes
 	}
 	var message model.Message
 	err = db.View(func(tx *boltDB.Tx) error {
-		bucket := tx.Bucket([]byte(messagesBucket))
+		bucket := tx.Bucket([]byte(messagesBucketKey))
 		if bucket == nil {
 			return fmt.Errorf("bucket not found")
 		}
@@ -98,10 +121,10 @@ func (b *Bolt) MessageAtIndex(_ context.Context, partition *model.Partition, mes
 
 func (b *Bolt) getDBForPartition(partitionKey string) (*boltDB.DB, error) {
 	b.mu.RLock()
-	db, ok := b.dbs[partitionKey]
+	messagesDB, ok := b.dbs[partitionKey]
 	b.mu.RUnlock()
 	if ok {
-		return db, nil
+		return messagesDB, nil
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -117,28 +140,47 @@ func (b *Bolt) getDBForPartition(partitionKey string) (*boltDB.DB, error) {
 	return newDB, nil
 }
 
-func (b *Bolt) AckMessage(_ context.Context, message *model.Message, group *model.ConsumerGroup) error {
+func (b *Bolt) AckMessage(
+	_ context.Context,
+	commandID uint64,
+	message *model.Message,
+	group *model.ConsumerGroup,
+) error {
 	db, err := b.getDBForPartition(message.PartitionID)
 	if err != nil {
 		return fmt.Errorf("failed to get database for partition: %w", err)
 	}
-	tx, err := db.Begin(true)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-	bucket, err := tx.CreateBucketIfNotExists([]byte(messageStatsBucket))
-	if err != nil {
-		return fmt.Errorf("failed to create bucket: %w", err)
-	}
-	partitionBucket, err := bucket.CreateBucketIfNotExists([]byte(messageStatsPartitionsBucket))
-	if err != nil {
-		return fmt.Errorf("failed to create partition bucket: %w", err)
-	}
-	if err := partitionBucket.Put([]byte(group.ID), message.ID); err != nil {
-		return fmt.Errorf("failed to put acked message: %w", err)
-	}
-	return tx.Commit()
+	return db.Update(func(tx *boltDB.Tx) error {
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction: %w", err)
+		}
+		commandsBucket, err := tx.CreateBucketIfNotExists([]byte(commandsBucketKey))
+		if err != nil {
+			return fmt.Errorf("failed to create commands bucket: %w", err)
+		}
+		lastAppliedCommand := commandsBucket.Get([]byte(appliedCommandKey))
+		if lastAppliedCommand != nil {
+			lastAppliedCommandID := binary.BigEndian.Uint64(lastAppliedCommand)
+			if lastAppliedCommandID >= commandID {
+				return errors.ErrDuplicateCommand
+			}
+		}
+		if err := commandsBucket.Put([]byte(appliedCommandKey), binary.BigEndian.AppendUint64(nil, commandID)); err != nil {
+			return fmt.Errorf("storing command id: %w", err)
+		}
+		bucket, err := tx.CreateBucketIfNotExists([]byte(messageStatsBucketKey))
+		if err != nil {
+			return fmt.Errorf("failed to create bucket: %w", err)
+		}
+		partitionBucket, err := bucket.CreateBucketIfNotExists([]byte(messageStatsPartitionsBucketKey))
+		if err != nil {
+			return fmt.Errorf("failed to create partition bucket: %w", err)
+		}
+		if err := partitionBucket.Put([]byte(group.ID), message.ID); err != nil {
+			return fmt.Errorf("failed to put acked message: %w", err)
+		}
+		return nil
+	})
 }
 
 func (b *Bolt) LastMessageID(_ context.Context, partitionKey string) ([]byte, error) {
@@ -148,7 +190,7 @@ func (b *Bolt) LastMessageID(_ context.Context, partitionKey string) ([]byte, er
 	}
 	var lastMessageID []byte
 	db.View(func(tx *boltDB.Tx) error {
-		bucket := tx.Bucket([]byte(messagesBucket))
+		bucket := tx.Bucket([]byte(messagesBucketKey))
 		if bucket == nil {
 			return nil
 		}
@@ -168,28 +210,36 @@ func (b *Bolt) NextUnAckedMessageID(_ context.Context, partition *model.Partitio
 	}
 	var nextMesssageID []byte
 	err = db.Update(func(tx *boltDB.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(messageStatsBucket))
+		bucket, err := tx.CreateBucketIfNotExists([]byte(messageStatsBucketKey))
 		if err != nil {
 			return fmt.Errorf("failed to create bucket: %w", err)
 		}
-		partitionBucket, err := bucket.CreateBucketIfNotExists([]byte(messageStatsPartitionsBucket))
+		partitionBucket, err := bucket.CreateBucketIfNotExists([]byte(messageStatsPartitionsBucketKey))
 		if err != nil {
 			return fmt.Errorf("failed to create partition bucket: %w", err)
 		}
 		lastAckedMsgId := partitionBucket.Get([]byte(group.ID))
-		msgBucket := tx.Bucket([]byte(messagesBucket))
+		msgBucket := tx.Bucket([]byte(messagesBucketKey))
 		if msgBucket == nil {
-			return fmt.Errorf("msgBucket not found")
+			return nil
 		}
+		lastMsgId, _ := msgBucket.Cursor().Last()
 		cursor := msgBucket.Cursor()
 		if lastAckedMsgId == nil {
 			nextMesssageID, _ = cursor.First()
 			return nil
 		}
-		cursor.Seek(lastAckedMsgId)
-		nextMesssageID, _ = cursor.Next()
+		log.Println("lastAckedMsgId", lastAckedMsgId, "partitionID", partition.ID,
+			"lastMsgID", lastMsgId)
+		if !bytes.Equal(lastAckedMsgId, lastMsgId) {
+			cursor.Seek(lastAckedMsgId)
+			nextMesssageID, _ = cursor.Next()
+		}
 		return nil
 	})
+	if nextMesssageID == nil {
+		return nil, errors.ErrNoMessageFound
+	}
 	return nextMesssageID, nil
 }
 

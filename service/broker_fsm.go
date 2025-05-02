@@ -13,7 +13,6 @@ import (
 	consumerServ "queue/service/consumer"
 	topicServ "queue/service/topic"
 	"queue/storage"
-	"queue/storage/errors"
 	"queue/util"
 	"slices"
 	"strconv"
@@ -58,7 +57,7 @@ func NewBrokerFSM(
 	}
 }
 
-func (f *BrokerFSM) Open(stopc <-chan struct{}) (uint64, error) {
+func (f *BrokerFSM) Open(_ <-chan struct{}) (uint64, error) {
 	return 0, nil
 }
 
@@ -83,10 +82,21 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			if err != nil {
 				return nil, fmt.Errorf("invalid command args: %w", err)
 			}
-			topic, err := f.topicService.CreateTopic(ctx, topicName, numOfPartitions, shardOffset)
+			topic, err := f.topicService.CreateTopic(ctx, entry.Index, topicName, numOfPartitions, shardOffset)
 			result := make([]byte, 0)
 			if err != nil {
-				if stdErrors.Is(err, errors.ErrTopicAlreadyExists) {
+				if stdErrors.Is(err, topicServ.ErrTopicAlreadyExists) {
+					result = binary.BigEndian.AppendUint64(result, 0)
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  result,
+						},
+					})
+					continue
+				} else if stdErrors.Is(err, topicServ.ErrDuplicateCommand) {
 					result = binary.BigEndian.AppendUint64(result, 0)
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
@@ -142,13 +152,24 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				})
 				continue
 			}
-			f.broker.AddPartitionShards(partitionID, shardID)
+			f.broker.AddShardIDForPartitionID(partitionID, shardID)
 			partitionUpdates := &model.Partition{
 				Members: members,
 				ShardID: shardID,
 			}
-			if err := f.topicService.UpdatePartition(ctx, partitionID, partitionUpdates); err != nil {
-				return nil, fmt.Errorf("create partition: %w", err)
+			if err := f.topicService.UpdatePartition(ctx, entry.Index, partitionID, partitionUpdates); err != nil {
+				if stdErrors.Is(err, topicServ.ErrDuplicateCommand) {
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  nil,
+						},
+					})
+					continue
+				}
+				return nil, fmt.Errorf("update partition: %w", err)
 			}
 			nh := f.broker.NodeHost()
 			log.Println("Starting replica for partition", partitionID, "on shard", shardID,
@@ -194,11 +215,23 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			}
 			consumer, consumerGroup, err := f.consumerService.Connect(
 				ctx,
+				entry.Index,
 				consumerGroupID,
 				consumerID,
 				topics,
 			)
 			if err != nil {
+				if stdErrors.Is(err, consumerServ.ErrDuplicateCommand) {
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  nil,
+						},
+					})
+					continue
+				}
 				return nil, fmt.Errorf("create consumer: %w", err)
 			}
 			res := struct {
@@ -227,8 +260,19 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				return nil, fmt.Errorf("invalid command args")
 			}
 			consumerID := string(args[0])
-			err := f.consumerService.Disconnect(ctx, consumerID)
+			err := f.consumerService.Disconnect(ctx, entry.Index, consumerID)
 			if err != nil {
+				if stdErrors.Is(err, consumerServ.ErrDuplicateCommand) {
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  nil,
+						},
+					})
+					continue
+				}
 				return nil, fmt.Errorf("create consumer: %w", err)
 			}
 			results = append(results, statemachine.Entry{
@@ -249,11 +293,58 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			if err != nil {
 				return nil, fmt.Errorf("invalid command args: %w", err)
 			}
-			consumer, err := f.consumerService.HealthCheck(ctx, consumerID, lastHealthCheckAt)
+			consumer, err := f.consumerService.HealthCheck(ctx, entry.Index, consumerID, lastHealthCheckAt)
 			if err != nil {
+				if stdErrors.Is(err, consumerServ.ErrDuplicateCommand) {
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  nil,
+						},
+					})
+					continue
+				}
 				return nil, fmt.Errorf("create consumer: %w", err)
 			}
 			consumerBytes, err := json.Marshal(consumer)
+			if err != nil {
+				return nil, fmt.Errorf("marshal consumer: %w", err)
+			}
+			results = append(results, statemachine.Entry{
+				Index: entry.Index,
+				Cmd:   slices.Clone(entry.Cmd),
+				Result: statemachine.Result{
+					Value: entry.Index,
+					Data:  consumerBytes,
+				},
+			})
+		} else if cmd.CommandType == ConsumerCommands.UpdateConsumer {
+			args := cmd.Args
+			if len(args) != 1 {
+				return nil, fmt.Errorf("invalid command args")
+			}
+			var consumer model.Consumer
+			if err := json.Unmarshal(args[0], &consumer); err != nil {
+				return nil, fmt.Errorf("unmarshing cmd: %w", err)
+			}
+			updatedConsumer, err := f.consumerService.UpdateConsumer(ctx, entry.Index, &consumer)
+			if err != nil {
+				if stdErrors.Is(err, consumerServ.ErrDuplicateCommand) {
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  nil,
+						},
+					})
+					continue
+				}
+				return nil, fmt.Errorf("update consumer: %w", err)
+			}
+			consumerBytes, err := json.Marshal(updatedConsumer)
 			if err != nil {
 				return nil, fmt.Errorf("marshal consumer: %w", err)
 			}
@@ -371,7 +462,7 @@ func (f *BrokerFSM) PrepareSnapshot() (any, error) {
 	return nil, nil
 }
 
-func (f *BrokerFSM) SaveSnapshot(i any, writer io.Writer, i2 <-chan struct{}) error {
+func (f *BrokerFSM) SaveSnapshot(_ any, writer io.Writer, i2 <-chan struct{}) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan struct{})

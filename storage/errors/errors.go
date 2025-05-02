@@ -9,4 +9,8 @@ var (
 	ErrTopicAlreadyExists    = errors.New("topic already exists")
 	ErrConsumerGroupNotFound = errors.New("consumer group not found")
 	ErrConsumerNotFound      = errors.New("consumer not found")
+
+	ErrNoMessageFound = errors.New("messages not found")
+
+	ErrDuplicateCommand = errors.New("duplicate command")
 )

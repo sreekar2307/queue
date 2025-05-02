@@ -31,14 +31,14 @@ func (b *Broker) NodeHost() *dragonboat.NodeHost {
 	return b.nh
 }
 
-func (b *Broker) AddPartitionShards(partition string, shardID uint64) {
+func (b *Broker) AddShardIDForPartitionID(partitionID string, shardID uint64) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	if b.partitionShards == nil {
 		b.partitionShards = make(map[string]uint64)
 	}
-	b.partitionShards[partition] = shardID
+	b.partitionShards[partitionID] = shardID
 }
 
 func (b *Broker) ShardForPartition(partition string) (uint64, bool) {

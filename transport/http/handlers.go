@@ -35,7 +35,7 @@ func (h *Http) createTopic(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "replicationFactor must be between 1 and 3", http.StatusBadRequest)
 		return
 	}
-	topic, err := h.CreateTopic(
+	topic, err := h.queue.CreateTopic(
 		ctx,
 		reqBody.Name,
 		reqBody.NumberOfPartitions,
@@ -88,7 +88,7 @@ func (h *Http) connect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	consumerID := reqBody.ConsumerID
-	consumer, consumerGroup, err := h.Connect(
+	consumer, consumerGroup, err := h.queue.Connect(
 		ctx,
 		consumerID,
 		reqBody.ConsumerGroup,
@@ -112,12 +112,6 @@ func (h *Http) connect(w http.ResponseWriter, r *http.Request) {
 	w.Write(response)
 }
 
-type disconnectReqBody struct {
-	ConsumerID    string   `json:"consumerID"`
-	ConsumerGroup string   `json:"consumerGroup"`
-	Topics        []string `json:"topics"`
-}
-
 func (h *Http) sendMessage(w http.ResponseWriter, r *http.Request) {
 	var (
 		ctx     = r.Context()
@@ -136,7 +130,7 @@ func (h *Http) sendMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "data is required", http.StatusBadRequest)
 		return
 	}
-	message, err := h.SendMessage(
+	message, err := h.queue.SendMessage(
 		ctx,
 		&reqBody,
 	)
@@ -166,7 +160,7 @@ func (h *Http) receiveMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	message, err := h.ReceiveMessage(
+	message, err := h.queue.ReceiveMessage(
 		ctx,
 		reqBody.ConsumerID,
 	)
@@ -209,7 +203,7 @@ func (h *Http) ackMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "partitionID is required", http.StatusBadRequest)
 		return
 	}
-	err := h.AckMessage(
+	err := h.queue.AckMessage(
 		ctx,
 		reqBody.ConsumerID,
 		&model.Message{ID: reqBody.ID, PartitionID: reqBody.PartitionID},
@@ -244,7 +238,7 @@ func (h *Http) healthCheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "pingAt is required", http.StatusBadRequest)
 		return
 	}
-	consumer, err := h.HealthCheck(
+	consumer, err := h.queue.HealthCheck(
 		ctx,
 		reqBody.ConsumerID,
 		reqBody.PingAt,

@@ -8,9 +8,9 @@ import (
 )
 
 type MessageService interface {
-	AppendMessage(context.Context, *model.Message) error
-	Poll(context.Context, string) (*model.Message, error)
-	AckMessage(context.Context, string, *model.Message) error
+	AppendMessage(context.Context, uint64, *model.Message) error
+	Poll(context.Context, string, string) (*model.Message, error)
+	AckMessage(context.Context, uint64, string, *model.Message) error
 	Close(context.Context) error
 	Open(context.Context) error
 	RecoverFromSnapshot(context.Context, io.Reader) error

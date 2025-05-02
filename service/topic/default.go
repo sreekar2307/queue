@@ -21,8 +21,14 @@ func NewDefaultTopicService(metaDataStorage storage.MetadataStorage) *DefaultTop
 	}
 }
 
+var (
+	ErrTopicAlreadyExists = stdErrors.New("topic already exists")
+	ErrDuplicateCommand   = stdErrors.New("duplicate command")
+)
+
 func (d *DefaultTopicService) CreateTopic(
 	ctx context.Context,
+	commandID uint64,
 	topicName string,
 	numPartitions uint64,
 	offsetSharID uint64,
@@ -32,6 +38,12 @@ func (d *DefaultTopicService) CreateTopic(
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
+	if err := d.MetaDataStorage.CheckCommandAppliedInTx(ctx, tx, commandID); err != nil {
+		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
+			return nil, stdErrors.Join(err, ErrDuplicateCommand)
+		}
+		return nil, fmt.Errorf("failed to check command applied: %w", err)
+	}
 	topic, err := d.MetaDataStorage.TopicInTx(ctx, tx, topicName)
 	if err != nil {
 		if stdErrors.Is(err, errors.ErrTopicNotFound) {
@@ -40,11 +52,9 @@ func (d *DefaultTopicService) CreateTopic(
 			if err != nil {
 				return nil, fmt.Errorf("failed to create topic: %w", err)
 			}
-		} else {
-			return nil, fmt.Errorf("failed to get topic: %w", err)
 		}
 	} else {
-		return nil, errors.ErrTopicAlreadyExists
+		return nil, ErrTopicAlreadyExists
 	}
 	allPartitions, err := d.MetaDataStorage.AllPartitionsInTx(ctx, tx)
 	if err != nil {
@@ -61,6 +71,9 @@ func (d *DefaultTopicService) CreateTopic(
 	}
 	if err := d.MetaDataStorage.CreatePartitionsInTx(ctx, tx, partitions); err != nil {
 		return nil, fmt.Errorf("failed to create partition: %w", err)
+	}
+	if err := d.MetaDataStorage.UpdateCommandAppliedInTx(ctx, tx, commandID); err != nil {
+		return nil, fmt.Errorf("failed to update command applied: %w", err)
 	}
 	return topic, tx.Commit()
 }
@@ -135,7 +148,7 @@ func (d *DefaultTopicService) PartitionID(
 		partitionID string
 		hash        = crc32.NewIEEE()
 	)
-	if msg.PartitionKey != "" {
+	if len(msg.PartitionKey) != 0 {
 		hash.Write([]byte(msg.PartitionKey))
 	} else {
 		hash.Write(msg.Data)
@@ -146,6 +159,7 @@ func (d *DefaultTopicService) PartitionID(
 
 func (d *DefaultTopicService) UpdatePartition(
 	ctx context.Context,
+	commandID uint64,
 	partitionID string,
 	partitionUpdates *model.Partition,
 ) error {
@@ -157,6 +171,12 @@ func (d *DefaultTopicService) UpdatePartition(
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
+	if err := d.MetaDataStorage.CheckCommandAppliedInTx(ctx, tx, commandID); err != nil {
+		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
+			return stdErrors.Join(err, ErrDuplicateCommand)
+		}
+		return fmt.Errorf("failed to check command applied: %w", err)
+	}
 	partition, err := d.MetaDataStorage.Partition(ctx, partitionID)
 	if err != nil {
 		return fmt.Errorf("failed to get partition: %w", err)
@@ -165,6 +185,9 @@ func (d *DefaultTopicService) UpdatePartition(
 	partition.ShardID = partitionUpdates.ShardID
 	if err := d.MetaDataStorage.UpdatePartitionInTx(ctx, tx, partition); err != nil {
 		return fmt.Errorf("failed to update partition: %w", err)
+	}
+	if err := d.MetaDataStorage.UpdateCommandAppliedInTx(ctx, tx, commandID); err != nil {
+		return fmt.Errorf("failed to update command applied: %w", err)
 	}
 	return tx.Commit()
 }

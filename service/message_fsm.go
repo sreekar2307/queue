@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -52,7 +53,7 @@ func NewMessageFSM(
 	}
 }
 
-func (f MessageFSM) Open(stopc <-chan struct{}) (uint64, error) {
+func (f MessageFSM) Open(_ <-chan struct{}) (uint64, error) {
 	ctx := context.Background()
 	return 0, f.messageService.Open(ctx)
 }
@@ -73,8 +74,20 @@ func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine
 			if err := json.Unmarshal(args[0], &msg); err != nil {
 				return nil, fmt.Errorf("unmarshing message: %w", err)
 			}
-			err := f.messageService.AppendMessage(ctx, &msg)
+			err := f.messageService.AppendMessage(ctx, entry.Index, &msg)
 			if err != nil {
+				if errors.Is(err, messageServ.ErrDuplicateCommand) {
+					// Duplicate command, ignore it
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  []byte{},
+						},
+					})
+					continue
+				}
 				return nil, fmt.Errorf("append msg: %w", err)
 			}
 
@@ -86,7 +99,7 @@ func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine
 				Index: entry.Index,
 				Cmd:   slices.Clone(entry.Cmd),
 				Result: statemachine.Result{
-					Value: 1,
+					Value: entry.Index,
 					Data:  msgBytes,
 				},
 			})
@@ -99,15 +112,27 @@ func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine
 			if err := json.Unmarshal(args[1], &msg); err != nil {
 				return nil, fmt.Errorf("unmarshing message: %w", err)
 			}
-			err := f.messageService.AckMessage(ctx, string(args[0]), &msg)
+			err := f.messageService.AckMessage(ctx, entry.Index, string(args[0]), &msg)
 			if err != nil {
-				return nil, fmt.Errorf("ack msg: %w", err)
+				if errors.Is(err, messageServ.ErrDuplicateCommand) {
+					// Duplicate command, ignore it
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  []byte{},
+						},
+					})
+					continue
+				}
+				return nil, fmt.Errorf("append msg: %w", err)
 			}
 			results = append(results, statemachine.Entry{
 				Index: entry.Index,
 				Cmd:   slices.Clone(entry.Cmd),
 				Result: statemachine.Result{
-					Value: 1,
+					Value: entry.Index,
 					Data:  []byte{},
 				},
 			})
@@ -128,11 +153,14 @@ func (f MessageFSM) Lookup(i any) (any, error) {
 	}
 	if cmd.CommandType == MessageCommands.Poll {
 		args := cmd.Args
-		if len(args) != 1 {
+		if len(args) != 2 {
 			return nil, fmt.Errorf("invalid command args")
 		}
-		msg, err := f.messageService.Poll(ctx, string(args[0]))
+		msg, err := f.messageService.Poll(ctx, string(args[0]), string(args[1]))
 		if err != nil {
+			if errors.Is(err, messageServ.ErrNoNewMessages) {
+				return nil, nil
+			}
 			return nil, fmt.Errorf("get topic: %w", err)
 		}
 		msgBytes, err := json.Marshal(msg)
@@ -152,7 +180,7 @@ func (f MessageFSM) PrepareSnapshot() (any, error) {
 	return nil, nil
 }
 
-func (f MessageFSM) SaveSnapshot(i any, writer io.Writer, i2 <-chan struct{}) error {
+func (f MessageFSM) SaveSnapshot(_ any, writer io.Writer, i2 <-chan struct{}) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan struct{})

@@ -9,17 +9,19 @@ var TopicCommands = struct {
 }
 
 var ConsumerCommands = struct {
-	Connect       string
-	Disconnected  string
-	ConsumerForID string
-	Consumers     string
-	HealthCheck   string
+	Connect        string
+	Disconnected   string
+	ConsumerForID  string
+	Consumers      string
+	HealthCheck    string
+	UpdateConsumer string
 }{
-	Connect:       "Connect",
-	Disconnected:  "Disconnected",
-	ConsumerForID: "ConsumerForID",
-	Consumers:     "Consumers",
-	HealthCheck:   "HealthCheck",
+	Connect:        "Connect",
+	Disconnected:   "Disconnected",
+	ConsumerForID:  "ConsumerForID",
+	Consumers:      "Consumers",
+	HealthCheck:    "HealthCheck",
+	UpdateConsumer: "UpdateConsumer",
 }
 
 var PartitionsCommands = struct {

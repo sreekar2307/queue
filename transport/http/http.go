@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"queue/model"
 	"queue/service"
-	"time"
 )
 
 type Http struct {
@@ -44,21 +42,8 @@ func NewTransport(
 	return transport, nil
 }
 
-func (h *Http) Start(context.Context) error {
+func (h *Http) Start(_ context.Context) error {
 	return h.server.ListenAndServe()
-}
-
-func (h *Http) Connect(
-	ctx context.Context,
-	consumerID string,
-	consumerGroup string,
-	topics []string,
-) (*model.Consumer, *model.ConsumerGroup, error) {
-	consumer, group, err := h.queue.Connect(ctx, consumerID, consumerGroup, topics)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect: %w", err)
-	}
-	return consumer, group, nil
 }
 
 func (h *Http) Close(ctx context.Context) error {
@@ -66,24 +51,4 @@ func (h *Http) Close(ctx context.Context) error {
 		return fmt.Errorf("failed to shutdown server: %w", err)
 	}
 	return h.queue.Close(ctx)
-}
-
-func (h *Http) CreateTopic(rCtx context.Context, name string, numberOfPartitions uint64) (*model.Topic, error) {
-	return h.queue.CreateTopic(rCtx, name, numberOfPartitions)
-}
-
-func (h *Http) SendMessage(rCtx context.Context, msg *model.Message) (*model.Message, error) {
-	return h.queue.SendMessage(rCtx, msg)
-}
-
-func (h *Http) ReceiveMessage(ctx context.Context, consumerID string) (*model.Message, error) {
-	return h.queue.ReceiveMessage(ctx, consumerID)
-}
-
-func (h *Http) AckMessage(ctx context.Context, consumerID string, message *model.Message) error {
-	return h.queue.AckMessage(ctx, consumerID, message)
-}
-
-func (h *Http) HealthCheck(ctx context.Context, consumerID string, pingAt time.Time) (*model.Consumer, error) {
-	return h.queue.HealthCheck(ctx, consumerID, pingAt)
 }
