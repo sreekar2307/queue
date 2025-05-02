@@ -15,6 +15,7 @@ type MessageService interface {
 	Open(context.Context) error
 	RecoverFromSnapshot(context.Context, io.Reader) error
 	Snapshot(context.Context, io.Writer) error
+	LastAppliedCommandID(ctx context.Context) (uint64, error)
 }
 
 var _ MessageService = (*messageServ.DefaultMessageService)(nil)

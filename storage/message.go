@@ -7,6 +7,7 @@ import (
 )
 
 type MessageStorage interface {
+	LastAppliedCommandID(context.Context, []string) (uint64, error)
 	AppendMessage(context.Context, uint64, *model.Message) error
 	MessageAtIndex(context.Context, *model.Partition, []byte) (*model.Message, error)
 	Close(context.Context) error

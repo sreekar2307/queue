@@ -21,7 +21,6 @@ type MessageFSM struct {
 	ShardID        uint64
 	ReplicaID      uint64
 	messageService MessageService
-	mdStorage      storage.MetadataStorage
 	broker         *model.Broker
 	config         Config
 }
@@ -46,7 +45,6 @@ func NewMessageFSM(
 			partitionsStorePath,
 		),
 		broker:    broker,
-		mdStorage: mdStorage,
 		config:    config,
 		ShardID:   shardID,
 		ReplicaID: replicaID,
@@ -55,7 +53,14 @@ func NewMessageFSM(
 
 func (f MessageFSM) Open(_ <-chan struct{}) (uint64, error) {
 	ctx := context.Background()
-	return 0, f.messageService.Open(ctx)
+	if err := f.messageService.Open(ctx); err != nil {
+		return 0, fmt.Errorf("open message service: %w", err)
+	}
+	commandID, err := f.messageService.LastAppliedCommandID(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("get last applied command ID: %w", err)
+	}
+	return commandID, nil
 }
 
 func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine.Entry, _ error) {
@@ -77,13 +82,11 @@ func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine
 			err := f.messageService.AppendMessage(ctx, entry.Index, &msg)
 			if err != nil {
 				if errors.Is(err, messageServ.ErrDuplicateCommand) {
-					// Duplicate command, ignore it
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
 						Cmd:   slices.Clone(entry.Cmd),
 						Result: statemachine.Result{
 							Value: entry.Index,
-							Data:  []byte{},
 						},
 					})
 					continue
@@ -115,13 +118,11 @@ func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine
 			err := f.messageService.AckMessage(ctx, entry.Index, string(args[0]), &msg)
 			if err != nil {
 				if errors.Is(err, messageServ.ErrDuplicateCommand) {
-					// Duplicate command, ignore it
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
 						Cmd:   slices.Clone(entry.Cmd),
 						Result: statemachine.Result{
 							Value: entry.Index,
-							Data:  []byte{},
 						},
 					})
 					continue
@@ -133,7 +134,6 @@ func (f MessageFSM) Update(entries []statemachine.Entry) (results []statemachine
 				Cmd:   slices.Clone(entry.Cmd),
 				Result: statemachine.Result{
 					Value: entry.Index,
-					Data:  []byte{},
 				},
 			})
 		} else {

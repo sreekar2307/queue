@@ -58,7 +58,12 @@ func NewBrokerFSM(
 }
 
 func (f *BrokerFSM) Open(_ <-chan struct{}) (uint64, error) {
-	return 0, nil
+	ctx := context.Background()
+	commandID, err := f.topicService.LastAppliedCommandID(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("get last applied command ID: %w", err)
+	}
+	return commandID, nil
 }
 
 func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine.Entry, _ error) {
@@ -183,13 +188,12 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					f.mdStorage,
 				)
 			}, config.Config{
-				ReplicaID:          f.broker.ID,
-				ShardID:            shardID,
-				ElectionRTT:        10,
-				HeartbeatRTT:       1,
-				CheckQuorum:        true,
-				SnapshotEntries:    1000,
-				CompactionOverhead: 50,
+				ReplicaID:       f.broker.ID,
+				ShardID:         shardID,
+				ElectionRTT:     10,
+				HeartbeatRTT:    1,
+				CheckQuorum:     true,
+				SnapshotEntries: 1000,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to start replica: %w", err)

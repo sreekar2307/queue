@@ -78,6 +78,14 @@ func (d *DefaultTopicService) CreateTopic(
 	return topic, tx.Commit()
 }
 
+func (d *DefaultTopicService) LastAppliedCommandID(ctx context.Context) (uint64, error) {
+	lastAppliedCommandID, err := d.MetaDataStorage.LastAppliedCommandID(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last applied command ID: %w", err)
+	}
+	return lastAppliedCommandID, nil
+}
+
 func (d *DefaultTopicService) GetTopic(
 	ctx context.Context,
 	topicName string,

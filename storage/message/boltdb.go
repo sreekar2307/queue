@@ -51,6 +51,36 @@ func (b *Bolt) Close(context.Context) error {
 	return nil
 }
 
+func (b *Bolt) LastAppliedCommandID(
+	_ context.Context,
+	partitions []string,
+) (uint64, error) {
+	var maxLastAppliedCommandID uint64
+	for _, partitionID := range partitions {
+		db, err := b.getDBForPartition(partitionID)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get database for partition: %w", err)
+		}
+		err = db.View(func(tx *boltDB.Tx) error {
+			commandsBucket := tx.Bucket([]byte(commandsBucketKey))
+			if commandsBucket == nil {
+				return nil
+			}
+			lastAppliedCommand := commandsBucket.Get([]byte(appliedCommandKey))
+			if lastAppliedCommand == nil {
+				return nil
+			}
+			lastAppliedCommandID := binary.BigEndian.Uint64(lastAppliedCommand)
+			maxLastAppliedCommandID = max(maxLastAppliedCommandID, lastAppliedCommandID)
+			return nil
+		})
+		if err != nil {
+			return 0, fmt.Errorf("failed to get last applied command ID: %w", err)
+		}
+	}
+	return maxLastAppliedCommandID, nil
+}
+
 func (b *Bolt) AppendMessage(
 	_ context.Context,
 	commandID uint64,

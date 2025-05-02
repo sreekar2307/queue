@@ -82,13 +82,12 @@ func NewQueue(
 		return NewMessageFSM(shardID, replicaID, config, broker, mdStorage)
 	}
 	err = nh.StartOnDiskReplica(config.InviteMembers, false, factory, drConfig.Config{
-		ReplicaID:          config.ReplicaID,
-		ShardID:            brokerSharID,
-		ElectionRTT:        10,
-		HeartbeatRTT:       1,
-		CheckQuorum:        true,
-		SnapshotEntries:    1000,
-		CompactionOverhead: 50,
+		ReplicaID:       config.ReplicaID,
+		ShardID:         brokerSharID,
+		ElectionRTT:     10,
+		HeartbeatRTT:    1,
+		CheckQuorum:     true,
+		SnapshotEntries: 5,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start replica: %w", err)
@@ -635,13 +634,12 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 				return NewMessageFSM(shardID, replicdID, q.config, q.broker, q.mdStorage)
 			},
 			drConfig.Config{
-				ReplicaID:          q.broker.ID,
-				ShardID:            shardID,
-				ElectionRTT:        10,
-				HeartbeatRTT:       1,
-				CheckQuorum:        true,
-				SnapshotEntries:    1000,
-				CompactionOverhead: 50,
+				ReplicaID:       q.broker.ID,
+				ShardID:         shardID,
+				ElectionRTT:     10,
+				HeartbeatRTT:    1,
+				CheckQuorum:     true,
+				SnapshotEntries: 5,
 			},
 		); err != nil {
 			return fmt.Errorf("failed to start replica: %w", err)
@@ -649,7 +647,12 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 		if err := q.blockTillLeaderSet(pCtx, shardID); err != nil {
 			return fmt.Errorf("block till leader set: %w, for shardID: %d", err, shardID)
 		}
-
+		ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
+		_, err = nh.SyncRequestSnapshot(ctx, shardID, dragonboat.SnapshotOption{})
+		cancelFunc()
+		if err != nil {
+			return fmt.Errorf("failed to request snapshot: %w", err)
+		}
 	}
 
 	return nil

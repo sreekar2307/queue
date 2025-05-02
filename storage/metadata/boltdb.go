@@ -36,6 +36,25 @@ const (
 	appliedCommandKey       = "applied_command"
 )
 
+func (b *Bolt) LastAppliedCommandID(_ context.Context) (uint64, error) {
+	var lastAppliedCommandID uint64
+	err := b.db.View(func(tx *boltDB.Tx) error {
+		bucket := tx.Bucket([]byte(commandsBucketKey))
+		if bucket == nil {
+			return nil
+		}
+		lastAppliedCommand := bucket.Get([]byte(appliedCommandKey))
+		if lastAppliedCommand != nil {
+			lastAppliedCommandID = binary.BigEndian.Uint64(lastAppliedCommand)
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last applied command ID: %w", err)
+	}
+	return lastAppliedCommandID, nil
+}
+
 func (b *Bolt) Open(_ context.Context) error {
 	newDB, err := boltDB.Open(b.dbPath, 0777, nil)
 	if err != nil {

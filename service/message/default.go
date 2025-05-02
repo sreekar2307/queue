@@ -15,7 +15,8 @@ import (
 )
 
 type DefaultMessageService struct {
-	MessageStorage  storage.MessageStorage
+	MessageStorage storage.MessageStorage
+	// Only read operations are allowed on metadata storage when using from message service
 	MetadataStorage storage.MetadataStorage
 
 	partitionsMutex sync.RWMutex
@@ -41,6 +42,22 @@ var (
 	ErrRebalanceInProgress = errors.New("rebalance in progress")
 	ErrDuplicateCommand    = errors.New("duplicate command")
 )
+
+func (d *DefaultMessageService) LastAppliedCommandID(ctx context.Context) (uint64, error) {
+	partitionIDs := make([]string, 0)
+	partitions, err := d.MetadataStorage.AllPartitions(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get partitions: %w", err)
+	}
+	for _, partition := range partitions {
+		partitionIDs = append(partitionIDs, partition.ID)
+	}
+	lastAppliedCommandID, err := d.MessageStorage.LastAppliedCommandID(ctx, partitionIDs)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last applied command ID: %w", err)
+	}
+	return lastAppliedCommandID, nil
+}
 
 func (d *DefaultMessageService) AppendMessage(ctx context.Context, commandID uint64, message *model.Message) error {
 	if len(message.Data) == 0 {
@@ -137,9 +154,11 @@ func (d *DefaultMessageService) Open(_ context.Context) error {
 }
 
 func (d *DefaultMessageService) Snapshot(ctx context.Context, writer io.Writer) error {
+	log.Println("taking snapshot of message storage")
 	if err := d.MessageStorage.Snapshot(ctx, writer); err != nil {
 		return fmt.Errorf("failed to snapshot message storage: %w", err)
 	}
+	log.Println("snapshot of message storage taken")
 	return nil
 }
 

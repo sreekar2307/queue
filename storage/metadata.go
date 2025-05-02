@@ -28,6 +28,7 @@ type MetadataStorage interface {
 	PartitionsForTopic(context.Context, string) ([]*model.Partition, error)
 	PartitionsForTopics(context.Context, []string) ([]*model.Partition, error)
 	AllPartitions(context.Context) ([]*model.Partition, error)
+	LastAppliedCommandID(context.Context) (uint64, error)
 	AllPartitionsInTx(context.Context, Transaction) ([]*model.Partition, error)
 
 	CreateConsumerGroupInTx(context.Context, Transaction, *model.ConsumerGroup) error

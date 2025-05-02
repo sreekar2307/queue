@@ -12,8 +12,8 @@ import (
 
 func main() {
 	ctx := context.Background()
-	//writeSomeMessages(ctx)
-	readAllMessages(ctx)
+	writeSomeMessages(ctx)
+	//readAllMessages(ctx)
 }
 
 func writeSomeMessages(ctx context.Context) {
@@ -26,7 +26,7 @@ func writeSomeMessages(ctx context.Context) {
 
 	// Create a Transport client
 	client := pb.NewTransportClient(conn)
-	for i := range 5 {
+	for i := range 500 {
 		// Prepare the request
 		req := &pb.SendMessageRequest{
 			Topic: "facebook",
