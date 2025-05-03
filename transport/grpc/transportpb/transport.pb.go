@@ -487,7 +487,6 @@ type CreateTopicRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Topic              string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
 	NumberOfPartitions uint64                 `protobuf:"varint,2,opt,name=number_of_partitions,json=numberOfPartitions,proto3" json:"number_of_partitions,omitempty"`
-	ReplicationFactor  uint64                 `protobuf:"varint,3,opt,name=replication_factor,json=replicationFactor,proto3" json:"replication_factor,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -532,13 +531,6 @@ func (x *CreateTopicRequest) GetTopic() string {
 func (x *CreateTopicRequest) GetNumberOfPartitions() uint64 {
 	if x != nil {
 		return x.NumberOfPartitions
-	}
-	return 0
-}
-
-func (x *CreateTopicRequest) GetReplicationFactor() uint64 {
-	if x != nil {
-		return x.ReplicationFactor
 	}
 	return 0
 }
@@ -873,11 +865,10 @@ const file_transport_grpc_transportpb_transport_proto_rawDesc = "" +
 	"message_id\x18\x02 \x01(\fR\tmessageId\x12!\n" +
 	"\fpartition_id\x18\x03 \x01(\tR\vpartitionId\x12#\n" +
 	"\rpartition_key\x18\x04 \x01(\tR\fpartitionKey\x12\x12\n" +
-	"\x04data\x18\x05 \x01(\fR\x04data\"\x8b\x01\n" +
+	"\x04data\x18\x05 \x01(\fR\x04data\"\\\n" +
 	"\x12CreateTopicRequest\x12\x14\n" +
 	"\x05topic\x18\x01 \x01(\tR\x05topic\x120\n" +
-	"\x14number_of_partitions\x18\x02 \x01(\x04R\x12numberOfPartitions\x12-\n" +
-	"\x12replication_factor\x18\x03 \x01(\x04R\x11replicationFactor\"[\n" +
+	"\x14number_of_partitions\x18\x02 \x01(\x04R\x12numberOfPartitions\"[\n" +
 	"\x13CreateTopicResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
 	"\x14number_of_partitions\x18\x02 \x01(\x04R\x12numberOfPartitions\"p\n" +

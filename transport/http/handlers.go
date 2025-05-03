@@ -10,7 +10,6 @@ import (
 type createTopicReqBody struct {
 	Name               string `json:"name"`
 	NumberOfPartitions uint64 `json:"numberOfPartitions"`
-	ReplicationFactor  uint64 `json:"replicationFactor"`
 }
 
 func (h *Http) createTopic(w http.ResponseWriter, r *http.Request) {
@@ -31,15 +30,10 @@ func (h *Http) createTopic(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "numberOfPartitions must be between 1 and 10", http.StatusBadRequest)
 		return
 	}
-	if reqBody.ReplicationFactor <= 0 && reqBody.ReplicationFactor > 3 {
-		http.Error(w, "replicationFactor must be between 1 and 3", http.StatusBadRequest)
-		return
-	}
 	topic, err := h.queue.CreateTopic(
 		ctx,
 		reqBody.Name,
 		reqBody.NumberOfPartitions,
-		reqBody.ReplicationFactor,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -117,7 +117,6 @@ func (q *Queue) CreateTopic(
 	pCtx context.Context,
 	name string,
 	numberOfPartitions uint64,
-	replicationFactor uint64,
 ) (*model.Topic, error) {
 	nh := q.broker.NodeHost()
 	cmd := Cmd{
@@ -171,7 +170,7 @@ func (q *Queue) CreateTopic(
 		return nil, fmt.Errorf("get shard membership: %w", err)
 	}
 	for _, partition := range partitions {
-		brokers := util.Sample(util.Keys(membership.Nodes), min(int(replicationFactor), len(membership.Nodes)))
+		brokers := util.Sample(util.Keys(membership.Nodes), len(membership.Nodes))
 		brokerTargets := make(map[uint64]string)
 		for _, broker := range brokers {
 			brokerTargets[broker] = membership.Nodes[broker]
@@ -534,6 +533,7 @@ func (q *Queue) blockTillLeaderSet(
 ) error {
 	ctx, cancelFunc := context.WithTimeout(pCtx, config.Conf.ShardLeaderWaitTime)
 	ticker := time.NewTicker(config.Conf.ShardLeaderSetReCheckInterval)
+	log.Println("finding leader for shardID: ", shardID)
 	defer ticker.Stop()
 	defer cancelFunc()
 	for {

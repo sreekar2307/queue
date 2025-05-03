@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log"
+	"net"
+	"time"
+
 	"github.com/sreekar2307/queue/config"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service"
 	pb "github.com/sreekar2307/queue/transport/grpc/transportpb"
 	"github.com/sreekar2307/queue/util"
-	"io"
-	"log"
-	"net"
-	"time"
 
 	"google.golang.org/grpc"
 )
@@ -134,7 +135,6 @@ func (g *GRPC) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb
 	topic, err := g.queue.CreateTopic(ctx,
 		req.GetTopic(),
 		req.GetNumberOfPartitions(),
-		req.GetReplicationFactor(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create topic: %w", err)

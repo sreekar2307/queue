@@ -4,6 +4,7 @@ import (
 	stdErrors "errors"
 	"flag"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -45,12 +46,12 @@ type (
 	}
 
 	MetadataFSMConfig struct {
-		SnapshotEntries    uint64 `mapstructure:"snapshots_path"`
+		SnapshotEntries    uint64 `mapstructure:"snapshot_entries"`
 		CompactionOverhead uint64 `mapstructure:"compaction_overhead"`
 	}
 
 	MessagesFSMConfig struct {
-		SnapshotsEntries   uint64 `mapstructure:"snapshots_path"`
+		SnapshotsEntries   uint64 `mapstructure:"snapshot_entries"`
 		CompactionOverhead uint64 `mapstructure:"compaction_overhead"`
 	}
 )
@@ -67,23 +68,27 @@ func init() {
 		v.SetEnvPrefix("QUEUE")
 		v.AutomaticEnv()
 
-		flag.Int("raft.replica_id", 1, "ReplicaID to use")
-		flag.String("config", "config", "Path to config file")
-		flag.String("raft.addr", "0.0.0.0:63001", "Raft Nodehost address")
-		flag.String("grpc.listener_addr", "0.0.0.0:8000", "GRPC listener address")
-		flag.String("http.listener_addr", "", "HTTP listener address")
+		pflag.Int("raft.replica_id", 1, "ReplicaID to use")
+		pflag.String("config", "config", "Path to config file")
+		pflag.String("raft.addr", "0.0.0.0:63001", "Raft Nodehost address")
+		pflag.String("grpc.listener_addr", "", "GRPC listener address")
+		pflag.String("http.listener_addr", "", "HTTP listener address")
+		pflag.Parse()
 		pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 		if err := v.BindPFlags(pflag.CommandLine); err != nil {
 			panic(fmt.Errorf("failed to bind flags: %w", err))
 		}
-		v.AddConfigPath(flag.Lookup("config").Value.String())
+		pathToConfigFile := pflag.Lookup("config").Value.String()
+		filename := filepath.Base(pathToConfigFile)
 
-		if err := v.ReadInConfig(); err != nil {
-			if !stdErrors.As(err, &viper.ConfigFileNotFoundError{}) {
-				panic(fmt.Errorf("failed to read config: %w", err))
-			}
+		v.AddConfigPath(filepath.Dir(pathToConfigFile))
+		v.SetConfigName(filename[0 : len(filename)-len(filepath.Ext(filename))])
+
+		if fileExt := filepath.Ext(pathToConfigFile); len(fileExt) > 1 {
+			v.SetConfigType(filepath.Ext(pathToConfigFile)[1:])
 		}
+
 		v.SetDefault("raft.replica_id", 1)
 		v.SetDefault("metadata_path", "metadata")
 		v.SetDefault("partitions_path", "partitions")
@@ -102,6 +107,12 @@ func init() {
 
 		v.SetDefault("consumer_lost_time", 30*time.Second)
 		v.SetDefault("consumer_health_check_interval", 5*time.Second)
+
+		if err := v.ReadInConfig(); err != nil {
+			if !stdErrors.As(err, &viper.ConfigFileNotFoundError{}) {
+				panic(fmt.Errorf("failed to read config: %w", err))
+			}
+		}
 
 		Conf = &Config{}
 		if err := v.Unmarshal(Conf); err != nil {
