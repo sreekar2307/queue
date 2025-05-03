@@ -9,15 +9,17 @@ import (
 	"io"
 	"log"
 	"queue/assignor/sticky"
+	"queue/config"
 	"queue/model"
 	consumerServ "queue/service/consumer"
+	"queue/service/errors"
 	topicServ "queue/service/topic"
 	"queue/storage"
 	"queue/util"
 	"slices"
 	"strconv"
 
-	"github.com/lni/dragonboat/v4/config"
+	drConfig "github.com/lni/dragonboat/v4/config"
 
 	"github.com/lni/dragonboat/v4/statemachine"
 )
@@ -31,13 +33,13 @@ type (
 		consumerService   ConsumerService
 		metaDataStorePath string
 		broker            *model.Broker
-		config            Config
+		config            config.Config
 	}
 )
 
 func NewBrokerFSM(
 	shardID, replicaID uint64,
-	config Config,
+	config config.Config,
 	broker *model.Broker,
 	mdStorage storage.MetadataStorage,
 ) statemachine.IOnDiskStateMachine {
@@ -90,7 +92,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			topic, err := f.topicService.CreateTopic(ctx, entry.Index, topicName, numOfPartitions, shardOffset)
 			result := make([]byte, 0)
 			if err != nil {
-				if stdErrors.Is(err, topicServ.ErrTopicAlreadyExists) {
+				if stdErrors.Is(err, errors.ErrTopicAlreadyExists) {
 					result = binary.BigEndian.AppendUint64(result, 0)
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
@@ -101,7 +103,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 						},
 					})
 					continue
-				} else if stdErrors.Is(err, topicServ.ErrDuplicateCommand) {
+				} else if stdErrors.Is(err, errors.ErrDuplicateCommand) {
 					result = binary.BigEndian.AppendUint64(result, 0)
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
@@ -163,7 +165,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				ShardID: shardID,
 			}
 			if err := f.topicService.UpdatePartition(ctx, entry.Index, partitionID, partitionUpdates); err != nil {
-				if stdErrors.Is(err, topicServ.ErrDuplicateCommand) {
+				if stdErrors.Is(err, errors.ErrDuplicateCommand) {
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
 						Cmd:   slices.Clone(entry.Cmd),
@@ -190,7 +192,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					)
 				}
 				return nil
-			}, config.Config{
+			}, drConfig.Config{
 				ReplicaID:       f.broker.ID,
 				ShardID:         shardID,
 				ElectionRTT:     10,
@@ -228,7 +230,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				topics,
 			)
 			if err != nil {
-				if stdErrors.Is(err, consumerServ.ErrDuplicateCommand) {
+				if stdErrors.Is(err, errors.ErrDuplicateCommand) {
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
 						Cmd:   slices.Clone(entry.Cmd),
@@ -269,7 +271,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			consumerID := string(args[0])
 			err := f.consumerService.Disconnect(ctx, entry.Index, consumerID)
 			if err != nil {
-				if stdErrors.Is(err, consumerServ.ErrDuplicateCommand) {
+				if stdErrors.Is(err, errors.ErrDuplicateCommand) {
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
 						Cmd:   slices.Clone(entry.Cmd),
@@ -302,7 +304,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			}
 			consumer, err := f.consumerService.HealthCheck(ctx, entry.Index, consumerID, lastHealthCheckAt)
 			if err != nil {
-				if stdErrors.Is(err, consumerServ.ErrDuplicateCommand) {
+				if stdErrors.Is(err, errors.ErrDuplicateCommand) {
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
 						Cmd:   slices.Clone(entry.Cmd),
@@ -338,7 +340,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			}
 			updatedConsumer, err := f.consumerService.UpdateConsumer(ctx, entry.Index, &consumer)
 			if err != nil {
-				if stdErrors.Is(err, consumerServ.ErrDuplicateCommand) {
+				if stdErrors.Is(err, errors.ErrDuplicateCommand) {
 					results = append(results, statemachine.Entry{
 						Index: entry.Index,
 						Cmd:   slices.Clone(entry.Cmd),

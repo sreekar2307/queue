@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"queue/assignor"
 	"queue/model"
+	"queue/service/errors"
 	"queue/storage"
-	"queue/storage/errors"
+	storageErrors "queue/storage/errors"
 	"queue/util"
 	"sync"
 	"time"
@@ -30,8 +31,6 @@ func NewDefaultConsumerService(
 	}
 }
 
-var ErrDuplicateCommand = stdErrors.New("duplicate command")
-
 func (d *DefaultConsumerService) GetConsumer(
 	ctx context.Context,
 	consumerID string,
@@ -45,8 +44,8 @@ func (d *DefaultConsumerService) UpdateConsumer(
 	consumer *model.Consumer,
 ) (*model.Consumer, error) {
 	if err := d.MetadataStorage.UpdateConsumer(ctx, commandID, consumer); err != nil {
-		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-			return nil, stdErrors.Join(err, ErrDuplicateCommand)
+		if stdErrors.Is(err, storageErrors.ErrDuplicateCommand) {
+			return nil, stdErrors.Join(err, errors.ErrDuplicateCommand)
 		}
 		return nil, fmt.Errorf("failed to update consumer: %w", err)
 	}
@@ -79,14 +78,14 @@ func (d *DefaultConsumerService) Connect(
 	}
 	defer tx.Rollback()
 	if err := d.MetadataStorage.CheckCommandAppliedInTx(ctx, tx, commandID); err != nil {
-		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-			return nil, nil, stdErrors.Join(err, ErrDuplicateCommand)
+		if stdErrors.Is(err, storageErrors.ErrDuplicateCommand) {
+			return nil, nil, stdErrors.Join(err, errors.ErrDuplicateCommand)
 		}
 		return nil, nil, fmt.Errorf("failed to check command applied: %w", err)
 	}
 	consumerGroup, err := d.MetadataStorage.ConsumerGroupInTx(ctx, tx, consumerGroupID)
 	if err != nil {
-		if stdErrors.Is(err, errors.ErrConsumerGroupNotFound) {
+		if stdErrors.Is(err, storageErrors.ErrConsumerGroupNotFound) {
 			consumerGroup = &model.ConsumerGroup{
 				ID:     consumerGroupID,
 				Topics: util.ToSet(topicNames),
@@ -101,7 +100,7 @@ func (d *DefaultConsumerService) Connect(
 	}
 	connectedConsumer, err := d.MetadataStorage.ConsumerInTx(ctx, tx, consumerBrokerID)
 	if err != nil {
-		if stdErrors.Is(err, errors.ErrConsumerNotFound) {
+		if stdErrors.Is(err, storageErrors.ErrConsumerNotFound) {
 			connectedConsumer = &model.Consumer{
 				ID:                consumerBrokerID,
 				ConsumerGroup:     consumerGroupID,
@@ -125,8 +124,8 @@ func (d *DefaultConsumerService) Connect(
 	}
 	err = d.MetadataStorage.AddConsumerToGroupInTx(ctx, tx, consumerGroup, connectedConsumer)
 	if err != nil {
-		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-			return nil, nil, stdErrors.Join(err, ErrDuplicateCommand)
+		if stdErrors.Is(err, storageErrors.ErrDuplicateCommand) {
+			return nil, nil, stdErrors.Join(err, errors.ErrDuplicateCommand)
 		}
 		return nil, nil, fmt.Errorf("failed to add consumer to group: %w", err)
 	}
@@ -151,8 +150,8 @@ func (d *DefaultConsumerService) HealthCheck(
 	}
 	consumer.LastHealthCheckAt = pingAt
 	if err := d.MetadataStorage.UpdateConsumer(ctx, commandID, consumer); err != nil {
-		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-			return nil, stdErrors.Join(err, ErrDuplicateCommand)
+		if stdErrors.Is(err, storageErrors.ErrDuplicateCommand) {
+			return nil, stdErrors.Join(err, errors.ErrDuplicateCommand)
 		}
 		return nil, fmt.Errorf("failed to update consumer: %w", err)
 	}
@@ -172,8 +171,8 @@ func (d *DefaultConsumerService) Disconnect(
 	}
 	defer tx.Rollback()
 	if err := d.MetadataStorage.CheckCommandAppliedInTx(ctx, tx, commandID); err != nil {
-		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-			return stdErrors.Join(err, ErrDuplicateCommand)
+		if stdErrors.Is(err, storageErrors.ErrDuplicateCommand) {
+			return stdErrors.Join(err, errors.ErrDuplicateCommand)
 		}
 		return fmt.Errorf("failed to check command applied: %w", err)
 	}

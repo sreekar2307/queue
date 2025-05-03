@@ -39,6 +39,7 @@ func (h *Http) createTopic(w http.ResponseWriter, r *http.Request) {
 		ctx,
 		reqBody.Name,
 		reqBody.NumberOfPartitions,
+		reqBody.ReplicationFactor,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

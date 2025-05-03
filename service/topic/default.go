@@ -7,6 +7,7 @@ import (
 	"hash/crc32"
 	"io"
 	"queue/model"
+	errors2 "queue/service/errors"
 	"queue/storage"
 	"queue/storage/errors"
 )
@@ -20,11 +21,6 @@ func NewDefaultTopicService(metaDataStorage storage.MetadataStorage) *DefaultTop
 		MetaDataStorage: metaDataStorage,
 	}
 }
-
-var (
-	ErrTopicAlreadyExists = stdErrors.New("topic already exists")
-	ErrDuplicateCommand   = stdErrors.New("duplicate command")
-)
 
 func (d *DefaultTopicService) CreateTopic(
 	ctx context.Context,
@@ -40,7 +36,7 @@ func (d *DefaultTopicService) CreateTopic(
 	defer tx.Rollback()
 	if err := d.MetaDataStorage.CheckCommandAppliedInTx(ctx, tx, commandID); err != nil {
 		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-			return nil, stdErrors.Join(err, ErrDuplicateCommand)
+			return nil, stdErrors.Join(err, errors2.ErrDuplicateCommand)
 		}
 		return nil, fmt.Errorf("failed to check command applied: %w", err)
 	}
@@ -54,7 +50,7 @@ func (d *DefaultTopicService) CreateTopic(
 			}
 		}
 	} else {
-		return nil, ErrTopicAlreadyExists
+		return nil, errors2.ErrTopicAlreadyExists
 	}
 	allPartitions, err := d.MetaDataStorage.AllPartitionsInTx(ctx, tx)
 	if err != nil {
@@ -182,7 +178,7 @@ func (d *DefaultTopicService) UpdatePartition(
 	defer tx.Rollback()
 	if err := d.MetaDataStorage.CheckCommandAppliedInTx(ctx, tx, commandID); err != nil {
 		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-			return stdErrors.Join(err, ErrDuplicateCommand)
+			return stdErrors.Join(err, errors2.ErrDuplicateCommand)
 		}
 		return fmt.Errorf("failed to check command applied: %w", err)
 	}

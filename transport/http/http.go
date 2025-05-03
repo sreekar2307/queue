@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"queue/config"
 	"queue/service"
 )
 
@@ -11,14 +12,17 @@ type Http struct {
 	queue *service.Queue
 
 	server *http.Server
+	config *config.HTTPConfig
 }
 
 func NewTransport(
 	_ context.Context,
+	config *config.HTTPConfig,
 	queue *service.Queue,
 ) (*Http, error) {
 	transport := &Http{
-		queue: queue,
+		queue:  queue,
+		config: config,
 	}
 	serverMux := http.NewServeMux()
 	serverMux.HandleFunc("POST /topics", transport.createTopic)
@@ -28,7 +32,7 @@ func NewTransport(
 	serverMux.HandleFunc("POST /ackMessage", transport.ackMessage)
 	serverMux.HandleFunc("POST /healthCheck", transport.healthCheck)
 	server := http.Server{
-		Addr:    ":8000",
+		Addr:    config.ListenerAddr,
 		Handler: serverMux,
 	}
 	transport.server = &server

@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"path/filepath"
+	config2 "queue/config"
 	"queue/model"
 	messageServ "queue/service/message"
 	"queue/storage"
@@ -23,12 +24,12 @@ type MessageFSM struct {
 	ReplicaID      uint64
 	messageService MessageService
 	broker         *model.Broker
-	config         Config
+	config         config2.Config
 }
 
 func NewMessageFSM(
 	shardID, replicaID uint64,
-	config Config,
+	config config2.Config,
 	broker *model.Broker,
 	mdStorage storage.MetadataStorage,
 ) statemachine.IOnDiskStateMachine {

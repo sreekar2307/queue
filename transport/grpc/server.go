@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"queue/config"
 	"queue/model"
 	"queue/service"
 	pb "queue/transport/grpc/transportpb"
@@ -20,14 +21,17 @@ type GRPC struct {
 	pb.UnimplementedTransportServer
 	queue  *service.Queue
 	server *grpc.Server
+	config *config.GRPCConfig
 }
 
 func NewTransport(
 	_ context.Context,
+	config *config.GRPCConfig,
 	queue *service.Queue,
 ) (*GRPC, error) {
 	g := &GRPC{
-		queue: queue,
+		queue:  queue,
+		config: config,
 	}
 
 	server := grpc.NewServer()
@@ -37,7 +41,7 @@ func NewTransport(
 }
 
 func (g *GRPC) Start(_ context.Context) error {
-	lis, err := net.Listen("tcp", ":8000")
+	lis, err := net.Listen("tcp", g.config.ListenerAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
@@ -127,7 +131,11 @@ func (g *GRPC) ReceiveMessage(ctx context.Context, req *pb.ReceiveMessageRequest
 }
 
 func (g *GRPC) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb.CreateTopicResponse, error) {
-	topic, err := g.queue.CreateTopic(ctx, req.GetTopic(), req.GetNumberOfPartitions())
+	topic, err := g.queue.CreateTopic(ctx,
+		req.GetTopic(),
+		req.GetNumberOfPartitions(),
+		req.GetReplicationFactor(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create topic: %w", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	config2 "queue/config"
 	"queue/model"
 	topicServ "queue/service/topic"
 	"queue/storage"
@@ -31,32 +32,33 @@ type Queue struct {
 	broker *model.Broker
 
 	mdStorage      storage.MetadataStorage
-	config         Config
+	config         config2.Config
 	topicService   TopicService
 	messageService MessageService
 }
 
 func NewQueue(
 	pCtx context.Context,
-	config Config,
+	config config2.Config,
 ) (*Queue, error) {
+	config.WithDefaults()
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
-	dir := filepath.Join(config.RaftLogsDataDir, strconv.FormatUint(config.ReplicaID, 10))
+	dir := filepath.Join(config.RaftConfig.RaftLogsDataDir, strconv.FormatUint(config.RaftConfig.ReplicaID, 10))
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return nil, fmt.Errorf("failed to create data dir: %w", err)
 	}
 	nh, err := dragonboat.NewNodeHost(drConfig.NodeHostConfig{
-		RaftAddress:    config.RaftNodeAddr,
+		RaftAddress:    config.RaftConfig.RaftNodeAddr,
 		NodeHostDir:    dir,
 		RTTMillisecond: 100,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create replica host: %w", err)
 	}
-	metadataPath := filepath.Join(config.MetadataPath, strconv.FormatUint(config.ReplicaID, 10))
+	metadataPath := filepath.Join(config.MetadataPath, strconv.FormatUint(config.RaftConfig.ReplicaID, 10))
 	if err := os.MkdirAll(metadataPath, 0777); err != nil {
 		return nil, fmt.Errorf("failed to create metadata path: %w", err)
 	}
@@ -65,7 +67,7 @@ func NewQueue(
 		return nil, fmt.Errorf("failed to open metadata storage: %w", err)
 	}
 	broker := &model.Broker{
-		ID: config.ReplicaID,
+		ID: config.RaftConfig.ReplicaID,
 	}
 	broker.SetNodeHost(nh)
 	broker.SetBrokerShardId(brokerSharID)
@@ -81,8 +83,8 @@ func NewQueue(
 		}
 		return NewMessageFSM(shardID, replicaID, config, broker, mdStorage)
 	}
-	err = nh.StartOnDiskReplica(config.InviteMembers, false, factory, drConfig.Config{
-		ReplicaID:       config.ReplicaID,
+	err = nh.StartOnDiskReplica(config.RaftConfig.InviteMembers, false, factory, drConfig.Config{
+		ReplicaID:       config.RaftConfig.ReplicaID,
 		ShardID:         brokerSharID,
 		ElectionRTT:     10,
 		HeartbeatRTT:    1,
@@ -123,6 +125,7 @@ func (q *Queue) CreateTopic(
 	pCtx context.Context,
 	name string,
 	numberOfPartitions uint64,
+	replicationFactor uint64,
 ) (*model.Topic, error) {
 	nh := q.broker.NodeHost()
 	cmd := Cmd{
@@ -176,7 +179,7 @@ func (q *Queue) CreateTopic(
 		return nil, fmt.Errorf("get shard membership: %w", err)
 	}
 	for _, partition := range partitions {
-		brokers := util.Sample(util.Keys(membership.Nodes), min(3, len(membership.Nodes)))
+		brokers := util.Sample(util.Keys(membership.Nodes), min(int(replicationFactor), len(membership.Nodes)))
 		brokerTargets := make(map[uint64]string)
 		for _, broker := range brokers {
 			brokerTargets[broker] = membership.Nodes[broker]
@@ -537,7 +540,7 @@ func (q *Queue) blockTillLeaderSet(
 	pCtx context.Context,
 	shardID uint64,
 ) error {
-	ctx, cancelFunc := context.WithTimeout(pCtx, 30*time.Second)
+	ctx, cancelFunc := context.WithTimeout(pCtx, q.config.ShardLeaderWaitTime)
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	defer cancelFunc()

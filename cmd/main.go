@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os/signal"
+	"queue/config"
 	"queue/service"
 	"queue/transport"
 	"queue/transport/grpc"
@@ -22,25 +23,34 @@ func main() {
 	flag.Parse()
 	members := map[uint64]string{
 		1: "localhost:63001",
-		2: "localhost:63002",
-		3: "localhost:63003",
+		//2: "localhost:63002",
+		//3: "localhost:63003",
 	}
-	config := service.Config{
-		RaftNodeAddr:    *addr,
-		ReplicaID:       uint64(*replicaID),
-		InviteMembers:   members,
-		RaftLogsDataDir: "raft-logs",
-		MetadataPath:    "metadata",
-		PartitionsPath:  "partitions",
+	conf := config.Config{
+		RaftConfig: &config.RaftConfig{
+			RaftNodeAddr:    *addr,
+			ReplicaID:       uint64(*replicaID),
+			InviteMembers:   members,
+			RaftLogsDataDir: "raft-logs",
+		},
+		MetadataPath:   "metadata",
+		PartitionsPath: "partitions",
+		GRPC: &config.GRPCConfig{
+			ListenerAddr: ":8000",
+		},
 	}
-	queue, err := service.NewQueue(ctx, config)
+	queue, err := service.NewQueue(ctx, conf)
 	if err != nil {
 		log.Fatalf("failed to create queue: %v", err)
 	}
 	var trans transport.Transport
 	if *startGRPC {
+		if conf.GRPC == nil {
+			log.Fatalf("GRPC config is nil")
+		}
 		trans, err = grpc.NewTransport(
 			ctx,
+			conf.GRPC,
 			queue,
 		)
 		if err != nil {

@@ -44,7 +44,6 @@ func (s *Sticky) Rebalance(
 		partitionMap[p.ID] = p
 	}
 
-	// First, try to preserve previous assignments
 	for consumerID, partitionIDs := range prevAssignments {
 		if _, ok := consumerGroup.Consumers[consumerID]; !ok {
 			continue
@@ -57,13 +56,11 @@ func (s *Sticky) Rebalance(
 		}
 	}
 
-	// Assign unassigned partitions to consumers with the least load
 	for _, p := range partitions {
 		if assignedPartitions[p.ID] {
 			continue
 		}
 
-		// Find the consumer with the least number of assigned partitions
 		var targetConsumer string
 		minCount := int(^uint(0) >> 1) // Max int
 		for _, consumer := range consumers {
