@@ -36,4 +36,4 @@ A high-performance, fault-tolerant distributed message queue inspired by Kafka â
 $ go build -o queue queue/cmd
 $ ./queue
 ```
-this will a single broker instance with grpc enabled on 0.0.0.0:8000, check out [transportpb.proto](https://github.com/sreekar2307/queue/blob/main/transport/grpc/transportpb/transport.proto) for the proto definition
+this will start a single broker instance with grpc enabled on 0.0.0.0:8000, check out [transportpb.proto](https://github.com/sreekar2307/queue/blob/main/transport/grpc/transportpb/transport.proto) for the proto definition
