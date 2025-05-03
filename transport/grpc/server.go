@@ -21,12 +21,12 @@ type GRPC struct {
 	pb.UnimplementedTransportServer
 	queue  *service.Queue
 	server *grpc.Server
-	config *config.GRPCConfig
+	config config.GRPC
 }
 
 func NewTransport(
 	_ context.Context,
-	config *config.GRPCConfig,
+	config config.GRPC,
 	queue *service.Queue,
 ) (*GRPC, error) {
 	g := &GRPC{

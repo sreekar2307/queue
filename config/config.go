@@ -1,96 +1,111 @@
 package config
 
 import (
+	stdErrors "errors"
+	"flag"
 	"fmt"
+	"sync"
 	"time"
+
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 type (
 	Config struct {
-		MetadataPath   string
-		PartitionsPath string
-		RaftConfig     *RaftConfig
+		MetadataPath   string      `mapstructure:"metadata_path"`
+		PartitionsPath string      `mapstructure:"partitions_path"`
+		RaftConfig     *RaftConfig `mapstructure:"raft"`
 
-		ShardLeaderWaitTime         time.Duration
-		ReCheckInterval             time.Duration
-		ConsumerLostTime            time.Duration
-		ConsumerHealthCheckInterval time.Duration
+		ShardLeaderWaitTime           time.Duration `mapstructure:"shard_leader_wait_time"`
+		ShardLeaderSetReCheckInterval time.Duration `mapstructure:"shard_leader_set_recheck_interval"`
+		ConsumerLostTime              time.Duration `mapstructure:"consumer_lost_time"`
+		ConsumerHealthCheckInterval   time.Duration `mapstructure:"consumer_health_check_interval"`
+		ShutdownTimeout               time.Duration `mapstructure:"shutdown_timeout"`
 
-		GRPC *GRPCConfig
-		HTTP *HTTPConfig
+		GRPC GRPC `mapstructure:"grpc"`
+		HTTP HTTP `mapstructure:"http"`
 	}
 
-	GRPCConfig struct {
-		ListenerAddr string
+	GRPC struct {
+		ListenerAddr string `mapstructure:"listener_addr"`
 	}
 
-	HTTPConfig struct {
-		ListenerAddr string
+	HTTP struct {
+		ListenerAddr string `mapstructure:"listener_addr"`
+	}
+
+	RaftConfig struct {
+		ReplicaID     uint64            `mapstructure:"replica_id"`
+		Addr          string            `mapstructure:"addr"`
+		InviteMembers map[uint64]string `mapstructure:"invite_members"`
+		LogsDataDir   string            `mapstructure:"logs_data_dir"`
+		Metadata      MetadataFSMConfig `mapstructure:"metadata_fsm"`
+		Messages      MessagesFSMConfig `mapstructure:"messages_fsm"`
+	}
+
+	MetadataFSMConfig struct {
+		SnapshotEntries    uint64 `mapstructure:"snapshots_path"`
+		CompactionOverhead uint64 `mapstructure:"compaction_overhead"`
+	}
+
+	MessagesFSMConfig struct {
+		SnapshotsEntries   uint64 `mapstructure:"snapshots_path"`
+		CompactionOverhead uint64 `mapstructure:"compaction_overhead"`
 	}
 )
 
-type RaftConfig struct {
-	ReplicaID       uint64
-	RaftNodeAddr    string
-	InviteMembers   map[uint64]string
-	RaftLogsDataDir string
-}
+var (
+	Conf *Config
 
-var DefaultConfig = Config{
-	ShardLeaderWaitTime:         30 * time.Second,
-	ConsumerLostTime:            30 * time.Second,
-	ConsumerHealthCheckInterval: 1 * time.Second,
-}
+	once sync.Once
+)
 
-func (c *Config) WithDefaults() {
-	if c.ShardLeaderWaitTime == 0 {
-		c.ShardLeaderWaitTime = DefaultConfig.ShardLeaderWaitTime
-	}
-	if c.ConsumerLostTime == 0 {
-		c.ConsumerLostTime = DefaultConfig.ConsumerLostTime
-	}
-	if c.ConsumerHealthCheckInterval == 0 {
-		c.ConsumerHealthCheckInterval = DefaultConfig.ConsumerHealthCheckInterval
-	}
-}
+func init() {
+	once.Do(func() {
+		v := viper.New()
+		v.SetEnvPrefix("QUEUE")
+		v.AutomaticEnv()
 
-func (c *Config) Validate() error {
-	if c.MetadataPath == "" {
-		return fmt.Errorf("metadata path is required")
-	}
-	if c.PartitionsPath == "" {
-		return fmt.Errorf("partitions path is required")
-	}
-	if c.RaftConfig == nil {
-		return fmt.Errorf("raft config is required")
-	}
-	if c.ConsumerLostTime == 0 {
-		return fmt.Errorf("consumer lost time is required")
-	}
-	if c.ShardLeaderWaitTime == 0 {
-		return fmt.Errorf("shard leader wait time is required")
-	}
-	if c.ConsumerHealthCheckInterval == 0 {
-		return fmt.Errorf("consumer health check interval is required")
-	}
-	if err := c.RaftConfig.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
+		flag.Int("raft.replica_id", 1, "ReplicaID to use")
+		flag.String("config", "config", "Path to config file")
+		flag.String("raft.addr", "0.0.0.0:63001", "Raft Nodehost address")
+		flag.String("grpc.listener_addr", "0.0.0.0:8000", "GRPC listener address")
+		flag.String("http.listener_addr", "", "HTTP listener address")
+		pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
-func (c *RaftConfig) Validate() error {
-	if c.RaftNodeAddr == "" {
-		return fmt.Errorf("raft node address is required")
-	}
-	if c.ReplicaID == 0 {
-		return fmt.Errorf("replica ID is required")
-	}
-	if len(c.InviteMembers) == 0 {
-		return fmt.Errorf("invite members are required")
-	}
-	if c.RaftLogsDataDir == "" {
-		return fmt.Errorf("raft logs data dir is required")
-	}
-	return nil
+		if err := v.BindPFlags(pflag.CommandLine); err != nil {
+			panic(fmt.Errorf("failed to bind flags: %w", err))
+		}
+		v.AddConfigPath(flag.Lookup("config").Value.String())
+
+		if err := v.ReadInConfig(); err != nil {
+			if !stdErrors.As(err, &viper.ConfigFileNotFoundError{}) {
+				panic(fmt.Errorf("failed to read config: %w", err))
+			}
+		}
+		v.SetDefault("raft.replica_id", 1)
+		v.SetDefault("metadata_path", "metadata")
+		v.SetDefault("partitions_path", "partitions")
+		v.SetDefault("raft.logs_data_dir", "raft")
+		v.SetDefault("raft.invite_members", map[uint64]string{
+			v.GetUint64("raft.replica_id"): v.GetString("raft.addr"),
+		})
+
+		v.SetDefault("raft.metadata_fsm.snapshot_entries", 1000)
+		v.SetDefault("raft.metadata_fsm.compaction_overhead", 50)
+		v.SetDefault("raft.messages_fsm.snapshot_entries", 1000)
+		v.SetDefault("raft.messages_fsm.compaction_overhead", 50)
+
+		v.SetDefault("shard_leader_wait_time", 30*time.Second)
+		v.SetDefault("shard_leader_set_recheck_interval", 1*time.Second)
+
+		v.SetDefault("consumer_lost_time", 30*time.Second)
+		v.SetDefault("consumer_health_check_interval", 5*time.Second)
+
+		Conf = &Config{}
+		if err := v.Unmarshal(Conf); err != nil {
+			panic(fmt.Errorf("failed to unmarshal config: %w", err))
+		}
+	})
 }

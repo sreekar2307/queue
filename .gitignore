@@ -1,5 +1,6 @@
 /.idea
 
 raft-logs/
+raft
 metadata/
 partitions/

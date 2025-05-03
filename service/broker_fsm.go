@@ -33,13 +33,11 @@ type (
 		consumerService   ConsumerService
 		metaDataStorePath string
 		broker            *model.Broker
-		config            config.Config
 	}
 )
 
 func NewBrokerFSM(
 	shardID, replicaID uint64,
-	config config.Config,
 	broker *model.Broker,
 	mdStorage storage.MetadataStorage,
 ) statemachine.IOnDiskStateMachine {
@@ -55,7 +53,6 @@ func NewBrokerFSM(
 		ReplicaID: replicaID,
 		mdStorage: mdStorage,
 		broker:    broker,
-		config:    config,
 	}
 }
 
@@ -181,24 +178,22 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			nh := f.broker.NodeHost()
 			log.Println("Starting replica for partition", partitionID, "on shard", shardID,
 				"replicaID", f.broker.ID)
-			err = nh.StartOnDiskReplica(members, false, func(_shardID, _replicaID uint64) statemachine.IOnDiskStateMachine {
-				if shardID == _shardID && f.broker.ID == _replicaID {
-					return NewMessageFSM(
-						_shardID,
-						_replicaID,
-						f.config,
-						f.broker,
-						f.mdStorage,
-					)
-				}
-				return nil
+			raftConfig := config.Conf.RaftConfig
+			err = nh.StartOnDiskReplica(members, false, func(shardID, replicaID uint64) statemachine.IOnDiskStateMachine {
+				return NewMessageFSM(
+					shardID,
+					replicaID,
+					f.broker,
+					f.mdStorage,
+				)
 			}, drConfig.Config{
-				ReplicaID:       f.broker.ID,
-				ShardID:         shardID,
-				ElectionRTT:     10,
-				HeartbeatRTT:    1,
-				CheckQuorum:     true,
-				SnapshotEntries: 1000,
+				ReplicaID:          f.broker.ID,
+				ShardID:            shardID,
+				ElectionRTT:        10,
+				HeartbeatRTT:       1,
+				CheckQuorum:        true,
+				SnapshotEntries:    raftConfig.Messages.SnapshotsEntries,
+				CompactionOverhead: raftConfig.Messages.CompactionOverhead,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to start replica: %w", err)

@@ -12,12 +12,12 @@ type Http struct {
 	queue *service.Queue
 
 	server *http.Server
-	config *config.HTTPConfig
+	config config.HTTP
 }
 
 func NewTransport(
 	_ context.Context,
-	config *config.HTTPConfig,
+	config config.HTTP,
 	queue *service.Queue,
 ) (*Http, error) {
 	transport := &Http{

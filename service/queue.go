@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	config2 "queue/config"
+	"queue/config"
 	"queue/model"
 	topicServ "queue/service/topic"
 	"queue/storage"
@@ -32,33 +32,28 @@ type Queue struct {
 	broker *model.Broker
 
 	mdStorage      storage.MetadataStorage
-	config         config2.Config
 	topicService   TopicService
 	messageService MessageService
 }
 
 func NewQueue(
 	pCtx context.Context,
-	config config2.Config,
 ) (*Queue, error) {
-	config.WithDefaults()
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
-	}
-
-	dir := filepath.Join(config.RaftConfig.RaftLogsDataDir, strconv.FormatUint(config.RaftConfig.ReplicaID, 10))
+	conf := config.Conf
+	raftConfig := conf.RaftConfig
+	dir := filepath.Join(raftConfig.LogsDataDir, strconv.FormatUint(raftConfig.ReplicaID, 10))
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return nil, fmt.Errorf("failed to create data dir: %w", err)
 	}
 	nh, err := dragonboat.NewNodeHost(drConfig.NodeHostConfig{
-		RaftAddress:    config.RaftConfig.RaftNodeAddr,
+		RaftAddress:    raftConfig.Addr,
 		NodeHostDir:    dir,
 		RTTMillisecond: 100,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create replica host: %w", err)
 	}
-	metadataPath := filepath.Join(config.MetadataPath, strconv.FormatUint(config.RaftConfig.ReplicaID, 10))
+	metadataPath := filepath.Join(conf.MetadataPath, strconv.FormatUint(raftConfig.ReplicaID, 10))
 	if err := os.MkdirAll(metadataPath, 0777); err != nil {
 		return nil, fmt.Errorf("failed to create metadata path: %w", err)
 	}
@@ -67,29 +62,26 @@ func NewQueue(
 		return nil, fmt.Errorf("failed to open metadata storage: %w", err)
 	}
 	broker := &model.Broker{
-		ID: config.RaftConfig.ReplicaID,
+		ID: raftConfig.ReplicaID,
 	}
 	broker.SetNodeHost(nh)
 	broker.SetBrokerShardId(brokerSharID)
 	q := &Queue{
 		broker:       broker,
 		mdStorage:    mdStorage,
-		config:       config,
 		topicService: topicServ.NewDefaultTopicService(mdStorage),
 	}
 	factory := func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
-		if shardID == brokerSharID {
-			return NewBrokerFSM(shardID, replicaID, config, broker, mdStorage)
-		}
-		return NewMessageFSM(shardID, replicaID, config, broker, mdStorage)
+		return NewBrokerFSM(shardID, replicaID, broker, mdStorage)
 	}
-	err = nh.StartOnDiskReplica(config.RaftConfig.InviteMembers, false, factory, drConfig.Config{
-		ReplicaID:       config.RaftConfig.ReplicaID,
-		ShardID:         brokerSharID,
-		ElectionRTT:     10,
-		HeartbeatRTT:    1,
-		CheckQuorum:     true,
-		SnapshotEntries: 5,
+	err = nh.StartOnDiskReplica(raftConfig.InviteMembers, false, factory, drConfig.Config{
+		ReplicaID:          raftConfig.ReplicaID,
+		ShardID:            brokerSharID,
+		ElectionRTT:        10,
+		HeartbeatRTT:       1,
+		CheckQuorum:        true,
+		SnapshotEntries:    raftConfig.Metadata.SnapshotEntries,
+		CompactionOverhead: raftConfig.Metadata.CompactionOverhead,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start replica: %w", err)
@@ -213,7 +205,7 @@ func (q *Queue) CreateTopic(
 
 func (q *Queue) disconnectInActiveConsumers(pCtx context.Context, stopCtx context.Context) {
 	go func() {
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(config.Conf.ConsumerHealthCheckInterval)
 		defer ticker.Stop()
 		for {
 			select {
@@ -242,7 +234,7 @@ func (q *Queue) disconnectInActiveConsumers(pCtx context.Context, stopCtx contex
 					return
 				}
 				for _, consumer := range consumers {
-					if consumer.LastHealthCheckAt < time.Now().Add(-30*time.Hour).Unix() {
+					if consumer.LastHealthCheckAt < time.Now().Add(-config.Conf.ConsumerLostTime).Unix() {
 						if err := q.disconnect(pCtx, consumer.ID); err != nil {
 							log.Println("failed to disconnect consumer: ", consumer.ID)
 						} else {
@@ -540,8 +532,8 @@ func (q *Queue) blockTillLeaderSet(
 	pCtx context.Context,
 	shardID uint64,
 ) error {
-	ctx, cancelFunc := context.WithTimeout(pCtx, q.config.ShardLeaderWaitTime)
-	ticker := time.NewTicker(1 * time.Second)
+	ctx, cancelFunc := context.WithTimeout(pCtx, config.Conf.ShardLeaderWaitTime)
+	ticker := time.NewTicker(config.Conf.ShardLeaderSetReCheckInterval)
 	defer ticker.Stop()
 	defer cancelFunc()
 	for {
@@ -629,20 +621,21 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 			"replicaID: ",
 			q.broker.ID,
 		)
-
+		raftConfig := config.Conf.RaftConfig
 		if err := nh.StartOnDiskReplica(
 			partition.Members,
 			false,
 			func(shardID, replicdID uint64) statemachine.IOnDiskStateMachine {
-				return NewMessageFSM(shardID, replicdID, q.config, q.broker, q.mdStorage)
+				return NewMessageFSM(shardID, replicdID, q.broker, q.mdStorage)
 			},
 			drConfig.Config{
-				ReplicaID:       q.broker.ID,
-				ShardID:         shardID,
-				ElectionRTT:     10,
-				HeartbeatRTT:    1,
-				CheckQuorum:     true,
-				SnapshotEntries: 5,
+				ReplicaID:          q.broker.ID,
+				ShardID:            shardID,
+				ElectionRTT:        10,
+				HeartbeatRTT:       1,
+				CheckQuorum:        true,
+				SnapshotEntries:    raftConfig.Messages.SnapshotsEntries,
+				CompactionOverhead: raftConfig.Messages.CompactionOverhead,
 			},
 		); err != nil {
 			return fmt.Errorf("failed to start replica: %w", err)

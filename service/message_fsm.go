@@ -8,7 +8,7 @@ import (
 	"io"
 	"log"
 	"path/filepath"
-	config2 "queue/config"
+	"queue/config"
 	"queue/model"
 	messageServ "queue/service/message"
 	"queue/storage"
@@ -24,17 +24,15 @@ type MessageFSM struct {
 	ReplicaID      uint64
 	messageService MessageService
 	broker         *model.Broker
-	config         config2.Config
 }
 
 func NewMessageFSM(
 	shardID, replicaID uint64,
-	config config2.Config,
 	broker *model.Broker,
 	mdStorage storage.MetadataStorage,
 ) statemachine.IOnDiskStateMachine {
 	partitionsStorePath := filepath.Join(
-		config.PartitionsPath,
+		config.Conf.PartitionsPath,
 		strconv.Itoa(int(shardID)),
 		strconv.Itoa(int(replicaID)),
 	)
@@ -48,7 +46,6 @@ func NewMessageFSM(
 			broker,
 		),
 		broker:    broker,
-		config:    config,
 		ShardID:   shardID,
 		ReplicaID: replicaID,
 	}
