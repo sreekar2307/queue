@@ -4,12 +4,12 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/model"
+	errors2 "github.com/sreekar2307/queue/service/errors"
+	"github.com/sreekar2307/queue/storage"
+	"github.com/sreekar2307/queue/storage/errors"
 	"hash/crc32"
 	"io"
-	"queue/model"
-	errors2 "queue/service/errors"
-	"queue/storage"
-	"queue/storage/errors"
 )
 
 type DefaultTopicService struct {

@@ -4,9 +4,9 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"queue/model"
-	"queue/storage"
-	"queue/util"
+	"github.com/sreekar2307/queue/model"
+	"github.com/sreekar2307/queue/storage"
+	"github.com/sreekar2307/queue/util"
 	"slices"
 )
 

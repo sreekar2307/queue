@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	pb "github.com/sreekar2307/queue/transport/grpc/transportpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
-	pb "queue/transport/grpc/transportpb"
 	"strconv"
 	"time"
 )

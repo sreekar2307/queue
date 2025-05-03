@@ -5,12 +5,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/sreekar2307/queue/model"
+	"github.com/sreekar2307/queue/storage"
+	storageErrors "github.com/sreekar2307/queue/storage/errors"
 	"io"
 	"log"
 	"os"
-	"queue/model"
-	"queue/storage"
-	storageErrors "queue/storage/errors"
 	"sync"
 )
 

@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"queue/model"
-	"queue/service/consumer"
+	"github.com/sreekar2307/queue/model"
+	"github.com/sreekar2307/queue/service/consumer"
 )
 
 type ConsumerService interface {

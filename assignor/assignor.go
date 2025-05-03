@@ -2,9 +2,9 @@ package assignor
 
 import (
 	"context"
-	"queue/assignor/equal"
-	"queue/assignor/sticky"
-	"queue/model"
+	"github.com/sreekar2307/queue/assignor/equal"
+	"github.com/sreekar2307/queue/assignor/sticky"
+	"github.com/sreekar2307/queue/model"
 )
 
 type PartitionAssignor interface {

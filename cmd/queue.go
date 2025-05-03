@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	"github.com/sreekar2307/queue/config"
+	"github.com/sreekar2307/queue/service"
+	"github.com/sreekar2307/queue/transport"
+	"github.com/sreekar2307/queue/transport/grpc"
+	"github.com/sreekar2307/queue/transport/http"
 	"log"
 	"os/signal"
-	"queue/config"
-	"queue/service"
-	"queue/transport"
-	"queue/transport/grpc"
-	"queue/transport/http"
 	"syscall"
 )
 

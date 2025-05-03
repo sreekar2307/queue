@@ -5,13 +5,13 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/sreekar2307/queue/model"
+	"github.com/sreekar2307/queue/storage"
+	"github.com/sreekar2307/queue/storage/errors"
+	"github.com/sreekar2307/queue/util"
 	"io"
 	"os"
 	"path/filepath"
-	"queue/model"
-	"queue/storage"
-	"queue/storage/errors"
-	"queue/util"
 
 	boltDB "go.etcd.io/bbolt"
 )

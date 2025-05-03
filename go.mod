@@ -1,4 +1,4 @@
-module queue
+module github.com/sreekar2307/queue
 
 go 1.24
 

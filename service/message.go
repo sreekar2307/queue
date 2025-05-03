@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+	"github.com/sreekar2307/queue/model"
+	messageServ "github.com/sreekar2307/queue/service/message"
 	"io"
-	"queue/model"
-	messageServ "queue/service/message"
 )
 
 type MessageService interface {

@@ -2,8 +2,8 @@ package http
 
 import (
 	"encoding/json"
+	"github.com/sreekar2307/queue/model"
 	"net/http"
-	"queue/model"
 	"time"
 )
 

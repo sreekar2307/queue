@@ -3,9 +3,9 @@ package http
 import (
 	"context"
 	"fmt"
+	"github.com/sreekar2307/queue/config"
+	"github.com/sreekar2307/queue/service"
 	"net/http"
-	"queue/config"
-	"queue/service"
 )
 
 type Http struct {

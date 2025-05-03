@@ -2,8 +2,8 @@ package storage
 
 import (
 	"context"
+	"github.com/sreekar2307/queue/model"
 	"io"
-	"queue/model"
 )
 
 type MetadataStorage interface {
