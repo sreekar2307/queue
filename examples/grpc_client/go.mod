@@ -1,6 +1,6 @@
 module grpc_client
 
-go 1.24.1
+go 1.24
 
 require (
 	github.com/sreekar2307/queue v0.0.0-20250503144211-236a3dc4c8ca

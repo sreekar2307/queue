@@ -33,7 +33,7 @@ A high-performance, fault-tolerant distributed message queue inspired by Kafka â
 ### ðŸ”§ Running a Broker
 
 ```bash
-$ go build -o queue queue
+$ go build -o queue cmd/queue
 $ ./queue
 ```
 this will start a single broker instance with grpc enabled on 0.0.0.0:8000, check out [transportpb.proto](https://github.com/sreekar2307/queue/blob/main/transport/grpc/transportpb/transport.proto) for the proto definition
