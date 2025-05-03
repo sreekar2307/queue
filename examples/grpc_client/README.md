@@ -44,3 +44,9 @@ $ queue --config config.yaml --raft.replica_id 3 --raft.addr localhost:63003
 ```bash
 $ go build -o grpc_client grpc_client && ./grpc_client
 ```
+
+### 4. Reset the cluster
+
+```bash
+$ rm -r metadata/ partitions/ raft/
+```
