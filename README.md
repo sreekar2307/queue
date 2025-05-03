@@ -27,7 +27,7 @@ A high-performance, fault-tolerant distributed message queue inspired by Kafka �
 ## 🚀 Getting Started
 
 ### 🛠 Requirements
-- Go 1.20
+- Go 1.24
 - Protobuf Compiler (`protoc`) if you want to generate gRPC code
 
 ### 🔧 Running a Broker
