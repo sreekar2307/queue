@@ -201,8 +201,11 @@ func (q *Queue) CreateTopic(
 		if err != nil {
 			return nil, fmt.Errorf("propose partition added: %w", err)
 		}
-		if err := q.blockTillLeaderSet(pCtx, partition.ShardID); err != nil {
-			return nil, err
+		if _, ok := brokerTargets[q.broker.ID]; ok {
+			// block for leader set only if current broker is member of the shard
+			if err := q.blockTillLeaderSet(pCtx, partition.ShardID); err != nil {
+				return nil, err
+			}
 		}
 	}
 
