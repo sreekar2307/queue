@@ -5,6 +5,12 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
+
 	"github.com/sreekar2307/queue/config"
 	"github.com/sreekar2307/queue/model"
 	topicServ "github.com/sreekar2307/queue/service/topic"
@@ -12,11 +18,6 @@ import (
 	"github.com/sreekar2307/queue/storage/errors"
 	metadataStorage "github.com/sreekar2307/queue/storage/metadata"
 	"github.com/sreekar2307/queue/util"
-	"log"
-	"os"
-	"path/filepath"
-	"strconv"
-	"time"
 
 	"github.com/lni/dragonboat/v4/statemachine"
 
@@ -62,7 +63,10 @@ func NewQueue(
 		return nil, fmt.Errorf("failed to open metadata storage: %w", err)
 	}
 	broker := &model.Broker{
-		ID: raftConfig.ReplicaID,
+		ID:               raftConfig.ReplicaID,
+		RaftAddress:      raftConfig.Addr,
+		ReachGrpcAddress: conf.GRPC.ListenerAddr,
+		ReachHttpAddress: conf.HTTP.ListenerAddr,
 	}
 	broker.SetNodeHost(nh)
 	broker.SetBrokerShardId(brokerSharID)
@@ -88,6 +92,9 @@ func NewQueue(
 	}
 	if err := q.blockTillLeaderSet(pCtx, brokerSharID); err != nil {
 		return nil, fmt.Errorf("block till leader set: %w", err)
+	}
+	if err := q.registerBroker(pCtx); err != nil {
+		return nil, fmt.Errorf("failed to register broker: %w", err)
 	}
 	if err := q.reShardExistingPartitions(pCtx); err != nil {
 		return nil, fmt.Errorf("failed to re shard existing partitions: %w", err)
@@ -527,6 +534,62 @@ func (q *Queue) HealthCheck(
 	return &consumer, nil
 }
 
+func (q *Queue) ShardsInfo(
+	pCtx context.Context,
+	topics []string,
+) (map[string]*model.ShardInfo, error) {
+	cmd := Cmd{
+		CommandType: PartitionsCommands.AllPartitions,
+	}
+	cmdBytes, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("marshal cmd: %w", err)
+	}
+	nh := q.broker.NodeHost()
+	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+	cancelFunc()
+	if err != nil {
+		return nil, fmt.Errorf("propose get consumer for ID: %w", err)
+	}
+	partitions := make([]*model.Partition, 0)
+	if err := json.Unmarshal(res.([]byte), &partitions); err != nil {
+		return nil, fmt.Errorf("un marshall result: %w", err)
+	}
+	topicsSet := util.ToSet(topics)
+	partitions = util.Filter(partitions, func(p *model.Partition) bool {
+		return topicsSet[p.TopicName]
+	})
+	if len(partitions) == 0 {
+		return nil, fmt.Errorf("no partitions found for topics: %v", topics)
+	}
+	partitionsBytes, err := json.Marshal(partitions)
+	if err != nil {
+		return nil, fmt.Errorf("marshal partitions: %w", err)
+	}
+	cmd = Cmd{
+		CommandType: BrokerCommands.ShardInfoForPartitions,
+		Args: [][]byte{
+			partitionsBytes,
+		},
+	}
+	cmdBytes, err = json.Marshal(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("marshal cmd: %w", err)
+	}
+	ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
+	defer cancelFunc()
+	res, err = nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+	if err != nil {
+		return nil, fmt.Errorf("propose get consumer for ID: %w", err)
+	}
+	shardInfo := make(map[string]*model.ShardInfo)
+	if err := json.Unmarshal(res.([]byte), &shardInfo); err != nil {
+		return nil, fmt.Errorf("un marshall result: %w", err)
+	}
+	return shardInfo, nil
+}
+
 func (q *Queue) blockTillLeaderSet(
 	pCtx context.Context,
 	shardID uint64,
@@ -589,7 +652,7 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
 	cmd := Cmd{
-		CommandType: PartitionsCommands.Partitions,
+		CommandType: PartitionsCommands.AllPartitions,
 	}
 	cmdBytes, err := json.Marshal(cmd)
 	if err != nil {
@@ -645,5 +708,30 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 		}
 	}
 
+	return nil
+}
+
+func (q *Queue) registerBroker(pCtx context.Context) error {
+	nh := q.broker.NodeHost()
+	brokerBytes, err := json.Marshal(q.broker)
+	if err != nil {
+		return fmt.Errorf("marshal broker: %w", err)
+	}
+	cmd := Cmd{
+		CommandType: BrokerCommands.RegisterBroker,
+		Args: [][]byte{
+			brokerBytes,
+		},
+	}
+	cmdBytes, err := json.Marshal(cmd)
+	if err != nil {
+		return fmt.Errorf("marshal cmd: %w", err)
+	}
+	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	defer cancelFunc()
+	_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	if err != nil {
+		return fmt.Errorf("propose register broker: %w", err)
+	}
 	return nil
 }

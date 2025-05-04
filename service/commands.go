@@ -8,6 +8,14 @@ var TopicCommands = struct {
 	TopicForID:  "TopicForID",
 }
 
+var BrokerCommands = struct {
+	RegisterBroker         string
+	ShardInfoForPartitions string
+}{
+	RegisterBroker:         "RegisterBroker",
+	ShardInfoForPartitions: "ShardInfoForPartitions",
+}
+
 var ConsumerCommands = struct {
 	Connect        string
 	Disconnected   string
@@ -26,12 +34,12 @@ var ConsumerCommands = struct {
 
 var PartitionsCommands = struct {
 	PartitionsForTopic string
-	Partitions         string
+	AllPartitions      string
 	PartitionForID     string
 	PartitionAdded     string
 }{
 	PartitionsForTopic: "PartitionsForTopic",
-	Partitions:         "Partitions",
+	AllPartitions:      "AllPartitions",
 	PartitionForID:     "PartitionID",
 	PartitionAdded:     "PartitionAdded",
 }

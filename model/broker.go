@@ -7,9 +7,12 @@ import (
 )
 
 type Broker struct {
-	ID            uint64
-	nh            *dragonboat.NodeHost
-	brokerShardId uint64
+	ID               uint64
+	nh               *dragonboat.NodeHost
+	brokerShardId    uint64
+	RaftAddress      string
+	ReachGrpcAddress string
+	ReachHttpAddress string
 
 	mu              sync.RWMutex
 	partitionShards map[string]uint64

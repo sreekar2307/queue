@@ -174,3 +174,33 @@ func (g *GRPC) Close(ctx context.Context) error {
 	g.server.GracefulStop()
 	return g.queue.Close(ctx)
 }
+
+func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.ShardInfoResponse, error) {
+	shardsInfo, err := g.queue.ShardsInfo(ctx, req.GetTopics())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shard info: %w", err)
+	}
+	res := &pb.ShardInfoResponse{
+		ShardInfo: make(map[string]*pb.ShardInfo),
+	}
+	for partitionID, shardInfo := range shardsInfo {
+		shardType := pb.ShardType_SHARD_TYPE_BROKERS
+		if shardInfo.ShardType == model.ShardTypePartitions {
+			shardType = pb.ShardType_SHARD_TYPE_PARTITIONS
+		}
+		res.ShardInfo[partitionID] = &pb.ShardInfo{
+			ShardId:   shardInfo.ShardID,
+			ShardType: shardType,
+			Brokers: util.Map(shardInfo.Brokers, func(broker *model.Broker) *pb.Broker {
+				return &pb.Broker{
+					Id:          broker.ID,
+					RaftAddress: broker.RaftAddress,
+					GrpcAddress: broker.ReachGrpcAddress,
+					HttpAddress: broker.ReachHttpAddress,
+				}
+			}),
+		}
+	}
+
+	return res, nil
+}

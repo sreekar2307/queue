@@ -35,6 +35,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ShardType int32
+
+const (
+	ShardType_SHARD_TYPE_UNKNOWN    ShardType = 0
+	ShardType_SHARD_TYPE_BROKERS    ShardType = 1
+	ShardType_SHARD_TYPE_PARTITIONS ShardType = 2
+)
+
+// Enum value maps for ShardType.
+var (
+	ShardType_name = map[int32]string{
+		0: "SHARD_TYPE_UNKNOWN",
+		1: "SHARD_TYPE_BROKERS",
+		2: "SHARD_TYPE_PARTITIONS",
+	}
+	ShardType_value = map[string]int32{
+		"SHARD_TYPE_UNKNOWN":    0,
+		"SHARD_TYPE_BROKERS":    1,
+		"SHARD_TYPE_PARTITIONS": 2,
+	}
+)
+
+func (x ShardType) Enum() *ShardType {
+	p := new(ShardType)
+	*p = x
+	return p
+}
+
+func (x ShardType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ShardType) Descriptor() protoreflect.EnumDescriptor {
+	return file_transport_grpc_transportpb_transport_proto_enumTypes[0].Descriptor()
+}
+
+func (ShardType) Type() protoreflect.EnumType {
+	return &file_transport_grpc_transportpb_transport_proto_enumTypes[0]
+}
+
+func (x ShardType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ShardType.Descriptor instead.
+func (ShardType) EnumDescriptor() ([]byte, []int) {
+	return file_transport_grpc_transportpb_transport_proto_rawDescGZIP(), []int{0}
+}
+
 type HealthCheckRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ConsumerId    string                 `protobuf:"bytes,1,opt,name=consumer_id,json=consumerId,proto3" json:"consumer_id,omitempty"`
@@ -827,6 +876,222 @@ func (x *ConsumerGroup) GetTopics() []string {
 	return nil
 }
 
+type ShardInfoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Topics        []string               `protobuf:"bytes,1,rep,name=topics,proto3" json:"topics,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShardInfoRequest) Reset() {
+	*x = ShardInfoRequest{}
+	mi := &file_transport_grpc_transportpb_transport_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShardInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShardInfoRequest) ProtoMessage() {}
+
+func (x *ShardInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_grpc_transportpb_transport_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShardInfoRequest.ProtoReflect.Descriptor instead.
+func (*ShardInfoRequest) Descriptor() ([]byte, []int) {
+	return file_transport_grpc_transportpb_transport_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ShardInfoRequest) GetTopics() []string {
+	if x != nil {
+		return x.Topics
+	}
+	return nil
+}
+
+type ShardInfoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ShardInfo     map[string]*ShardInfo  `protobuf:"bytes,1,rep,name=shard_info,json=shardInfo,proto3" json:"shard_info,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShardInfoResponse) Reset() {
+	*x = ShardInfoResponse{}
+	mi := &file_transport_grpc_transportpb_transport_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShardInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShardInfoResponse) ProtoMessage() {}
+
+func (x *ShardInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_grpc_transportpb_transport_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShardInfoResponse.ProtoReflect.Descriptor instead.
+func (*ShardInfoResponse) Descriptor() ([]byte, []int) {
+	return file_transport_grpc_transportpb_transport_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ShardInfoResponse) GetShardInfo() map[string]*ShardInfo {
+	if x != nil {
+		return x.ShardInfo
+	}
+	return nil
+}
+
+type ShardInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ShardType     ShardType              `protobuf:"varint,1,opt,name=shard_type,json=shardType,proto3,enum=transportpb.ShardType" json:"shard_type,omitempty"`
+	ShardId       uint64                 `protobuf:"varint,2,opt,name=shard_id,json=shardId,proto3" json:"shard_id,omitempty"`
+	Brokers       []*Broker              `protobuf:"bytes,3,rep,name=brokers,proto3" json:"brokers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShardInfo) Reset() {
+	*x = ShardInfo{}
+	mi := &file_transport_grpc_transportpb_transport_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShardInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShardInfo) ProtoMessage() {}
+
+func (x *ShardInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_grpc_transportpb_transport_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShardInfo.ProtoReflect.Descriptor instead.
+func (*ShardInfo) Descriptor() ([]byte, []int) {
+	return file_transport_grpc_transportpb_transport_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ShardInfo) GetShardType() ShardType {
+	if x != nil {
+		return x.ShardType
+	}
+	return ShardType_SHARD_TYPE_UNKNOWN
+}
+
+func (x *ShardInfo) GetShardId() uint64 {
+	if x != nil {
+		return x.ShardId
+	}
+	return 0
+}
+
+func (x *ShardInfo) GetBrokers() []*Broker {
+	if x != nil {
+		return x.Brokers
+	}
+	return nil
+}
+
+type Broker struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	RaftAddress   string                 `protobuf:"bytes,2,opt,name=raft_address,json=raftAddress,proto3" json:"raft_address,omitempty"`
+	GrpcAddress   string                 `protobuf:"bytes,3,opt,name=grpc_address,json=grpcAddress,proto3" json:"grpc_address,omitempty"`
+	HttpAddress   string                 `protobuf:"bytes,4,opt,name=http_address,json=httpAddress,proto3" json:"http_address,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Broker) Reset() {
+	*x = Broker{}
+	mi := &file_transport_grpc_transportpb_transport_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Broker) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Broker) ProtoMessage() {}
+
+func (x *Broker) ProtoReflect() protoreflect.Message {
+	mi := &file_transport_grpc_transportpb_transport_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Broker.ProtoReflect.Descriptor instead.
+func (*Broker) Descriptor() ([]byte, []int) {
+	return file_transport_grpc_transportpb_transport_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *Broker) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Broker) GetRaftAddress() string {
+	if x != nil {
+		return x.RaftAddress
+	}
+	return ""
+}
+
+func (x *Broker) GetGrpcAddress() string {
+	if x != nil {
+		return x.GrpcAddress
+	}
+	return ""
+}
+
+func (x *Broker) GetHttpAddress() string {
+	if x != nil {
+		return x.HttpAddress
+	}
+	return ""
+}
+
 var File_transport_grpc_transportpb_transport_proto protoreflect.FileDescriptor
 
 const file_transport_grpc_transportpb_transport_proto_rawDesc = "" +
@@ -890,7 +1155,29 @@ const file_transport_grpc_transportpb_transport_proto_rawDesc = "" +
 	"\rConsumerGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tconsumers\x18\x02 \x03(\tR\tconsumers\x12\x16\n" +
-	"\x06topics\x18\x03 \x03(\tR\x06topics2\xf5\x03\n" +
+	"\x06topics\x18\x03 \x03(\tR\x06topics\"*\n" +
+	"\x10ShardInfoRequest\x12\x16\n" +
+	"\x06topics\x18\x01 \x03(\tR\x06topics\"\xb7\x01\n" +
+	"\x11ShardInfoResponse\x12L\n" +
+	"\n" +
+	"shard_info\x18\x01 \x03(\v2-.transportpb.ShardInfoResponse.ShardInfoEntryR\tshardInfo\x1aT\n" +
+	"\x0eShardInfoEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.transportpb.ShardInfoR\x05value:\x028\x01\"\x8c\x01\n" +
+	"\tShardInfo\x125\n" +
+	"\n" +
+	"shard_type\x18\x01 \x01(\x0e2\x16.transportpb.ShardTypeR\tshardType\x12\x19\n" +
+	"\bshard_id\x18\x02 \x01(\x04R\ashardId\x12-\n" +
+	"\abrokers\x18\x03 \x03(\v2\x13.transportpb.BrokerR\abrokers\"\x81\x01\n" +
+	"\x06Broker\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12!\n" +
+	"\fraft_address\x18\x02 \x01(\tR\vraftAddress\x12!\n" +
+	"\fgrpc_address\x18\x03 \x01(\tR\vgrpcAddress\x12!\n" +
+	"\fhttp_address\x18\x04 \x01(\tR\vhttpAddress*V\n" +
+	"\tShardType\x12\x16\n" +
+	"\x12SHARD_TYPE_UNKNOWN\x10\x00\x12\x16\n" +
+	"\x12SHARD_TYPE_BROKERS\x10\x01\x12\x19\n" +
+	"\x15SHARD_TYPE_PARTITIONS\x10\x022\xc1\x04\n" +
 	"\tTransport\x12T\n" +
 	"\vHealthCheck\x12\x1f.transportpb.HealthCheckRequest\x1a .transportpb.HealthCheckResponse(\x010\x01\x12M\n" +
 	"\n" +
@@ -898,7 +1185,8 @@ const file_transport_grpc_transportpb_transport_proto_rawDesc = "" +
 	"\vSendMessage\x12\x1f.transportpb.SendMessageRequest\x1a .transportpb.SendMessageResponse\x12Y\n" +
 	"\x0eReceiveMessage\x12\".transportpb.ReceiveMessageRequest\x1a#.transportpb.ReceiveMessageResponse\x12P\n" +
 	"\vCreateTopic\x12\x1f.transportpb.CreateTopicRequest\x1a .transportpb.CreateTopicResponse\x12D\n" +
-	"\aConnect\x12\x1b.transportpb.ConnectRequest\x1a\x1c.transportpb.ConnectResponseB\"Z queue/transport/grpc/transportpbb\x06proto3"
+	"\aConnect\x12\x1b.transportpb.ConnectRequest\x1a\x1c.transportpb.ConnectResponse\x12J\n" +
+	"\tShardInfo\x12\x1d.transportpb.ShardInfoRequest\x1a\x1e.transportpb.ShardInfoResponseB\"Z queue/transport/grpc/transportpbb\x06proto3"
 
 var (
 	file_transport_grpc_transportpb_transport_proto_rawDescOnce sync.Once
@@ -912,43 +1200,56 @@ func file_transport_grpc_transportpb_transport_proto_rawDescGZIP() []byte {
 	return file_transport_grpc_transportpb_transport_proto_rawDescData
 }
 
-var file_transport_grpc_transportpb_transport_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_transport_grpc_transportpb_transport_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_transport_grpc_transportpb_transport_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_transport_grpc_transportpb_transport_proto_goTypes = []any{
-	(*HealthCheckRequest)(nil),     // 0: transportpb.HealthCheckRequest
-	(*HealthCheckResponse)(nil),    // 1: transportpb.HealthCheckResponse
-	(*AckMessageRequest)(nil),      // 2: transportpb.AckMessageRequest
-	(*AckMessageResponse)(nil),     // 3: transportpb.AckMessageResponse
-	(*SendMessageRequest)(nil),     // 4: transportpb.SendMessageRequest
-	(*SendMessageResponse)(nil),    // 5: transportpb.SendMessageResponse
-	(*ReceiveMessageRequest)(nil),  // 6: transportpb.ReceiveMessageRequest
-	(*ReceiveMessageResponse)(nil), // 7: transportpb.ReceiveMessageResponse
-	(*CreateTopicRequest)(nil),     // 8: transportpb.CreateTopicRequest
-	(*CreateTopicResponse)(nil),    // 9: transportpb.CreateTopicResponse
-	(*ConnectRequest)(nil),         // 10: transportpb.ConnectRequest
-	(*ConnectResponse)(nil),        // 11: transportpb.ConnectResponse
-	(*Consumer)(nil),               // 12: transportpb.Consumer
-	(*ConsumerGroup)(nil),          // 13: transportpb.ConsumerGroup
+	(ShardType)(0),                 // 0: transportpb.ShardType
+	(*HealthCheckRequest)(nil),     // 1: transportpb.HealthCheckRequest
+	(*HealthCheckResponse)(nil),    // 2: transportpb.HealthCheckResponse
+	(*AckMessageRequest)(nil),      // 3: transportpb.AckMessageRequest
+	(*AckMessageResponse)(nil),     // 4: transportpb.AckMessageResponse
+	(*SendMessageRequest)(nil),     // 5: transportpb.SendMessageRequest
+	(*SendMessageResponse)(nil),    // 6: transportpb.SendMessageResponse
+	(*ReceiveMessageRequest)(nil),  // 7: transportpb.ReceiveMessageRequest
+	(*ReceiveMessageResponse)(nil), // 8: transportpb.ReceiveMessageResponse
+	(*CreateTopicRequest)(nil),     // 9: transportpb.CreateTopicRequest
+	(*CreateTopicResponse)(nil),    // 10: transportpb.CreateTopicResponse
+	(*ConnectRequest)(nil),         // 11: transportpb.ConnectRequest
+	(*ConnectResponse)(nil),        // 12: transportpb.ConnectResponse
+	(*Consumer)(nil),               // 13: transportpb.Consumer
+	(*ConsumerGroup)(nil),          // 14: transportpb.ConsumerGroup
+	(*ShardInfoRequest)(nil),       // 15: transportpb.ShardInfoRequest
+	(*ShardInfoResponse)(nil),      // 16: transportpb.ShardInfoResponse
+	(*ShardInfo)(nil),              // 17: transportpb.ShardInfo
+	(*Broker)(nil),                 // 18: transportpb.Broker
+	nil,                            // 19: transportpb.ShardInfoResponse.ShardInfoEntry
 }
 var file_transport_grpc_transportpb_transport_proto_depIdxs = []int32{
-	12, // 0: transportpb.ConnectResponse.consumer:type_name -> transportpb.Consumer
-	13, // 1: transportpb.ConnectResponse.consumer_group:type_name -> transportpb.ConsumerGroup
-	0,  // 2: transportpb.Transport.HealthCheck:input_type -> transportpb.HealthCheckRequest
-	2,  // 3: transportpb.Transport.AckMessage:input_type -> transportpb.AckMessageRequest
-	4,  // 4: transportpb.Transport.SendMessage:input_type -> transportpb.SendMessageRequest
-	6,  // 5: transportpb.Transport.ReceiveMessage:input_type -> transportpb.ReceiveMessageRequest
-	8,  // 6: transportpb.Transport.CreateTopic:input_type -> transportpb.CreateTopicRequest
-	10, // 7: transportpb.Transport.Connect:input_type -> transportpb.ConnectRequest
-	1,  // 8: transportpb.Transport.HealthCheck:output_type -> transportpb.HealthCheckResponse
-	3,  // 9: transportpb.Transport.AckMessage:output_type -> transportpb.AckMessageResponse
-	5,  // 10: transportpb.Transport.SendMessage:output_type -> transportpb.SendMessageResponse
-	7,  // 11: transportpb.Transport.ReceiveMessage:output_type -> transportpb.ReceiveMessageResponse
-	9,  // 12: transportpb.Transport.CreateTopic:output_type -> transportpb.CreateTopicResponse
-	11, // 13: transportpb.Transport.Connect:output_type -> transportpb.ConnectResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	13, // 0: transportpb.ConnectResponse.consumer:type_name -> transportpb.Consumer
+	14, // 1: transportpb.ConnectResponse.consumer_group:type_name -> transportpb.ConsumerGroup
+	19, // 2: transportpb.ShardInfoResponse.shard_info:type_name -> transportpb.ShardInfoResponse.ShardInfoEntry
+	0,  // 3: transportpb.ShardInfo.shard_type:type_name -> transportpb.ShardType
+	18, // 4: transportpb.ShardInfo.brokers:type_name -> transportpb.Broker
+	17, // 5: transportpb.ShardInfoResponse.ShardInfoEntry.value:type_name -> transportpb.ShardInfo
+	1,  // 6: transportpb.Transport.HealthCheck:input_type -> transportpb.HealthCheckRequest
+	3,  // 7: transportpb.Transport.AckMessage:input_type -> transportpb.AckMessageRequest
+	5,  // 8: transportpb.Transport.SendMessage:input_type -> transportpb.SendMessageRequest
+	7,  // 9: transportpb.Transport.ReceiveMessage:input_type -> transportpb.ReceiveMessageRequest
+	9,  // 10: transportpb.Transport.CreateTopic:input_type -> transportpb.CreateTopicRequest
+	11, // 11: transportpb.Transport.Connect:input_type -> transportpb.ConnectRequest
+	15, // 12: transportpb.Transport.ShardInfo:input_type -> transportpb.ShardInfoRequest
+	2,  // 13: transportpb.Transport.HealthCheck:output_type -> transportpb.HealthCheckResponse
+	4,  // 14: transportpb.Transport.AckMessage:output_type -> transportpb.AckMessageResponse
+	6,  // 15: transportpb.Transport.SendMessage:output_type -> transportpb.SendMessageResponse
+	8,  // 16: transportpb.Transport.ReceiveMessage:output_type -> transportpb.ReceiveMessageResponse
+	10, // 17: transportpb.Transport.CreateTopic:output_type -> transportpb.CreateTopicResponse
+	12, // 18: transportpb.Transport.Connect:output_type -> transportpb.ConnectResponse
+	16, // 19: transportpb.Transport.ShardInfo:output_type -> transportpb.ShardInfoResponse
+	13, // [13:20] is the sub-list for method output_type
+	6,  // [6:13] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_transport_grpc_transportpb_transport_proto_init() }
@@ -961,13 +1262,14 @@ func file_transport_grpc_transportpb_transport_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_transport_grpc_transportpb_transport_proto_rawDesc), len(file_transport_grpc_transportpb_transport_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   14,
+			NumEnums:      1,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_transport_grpc_transportpb_transport_proto_goTypes,
 		DependencyIndexes: file_transport_grpc_transportpb_transport_proto_depIdxs,
+		EnumInfos:         file_transport_grpc_transportpb_transport_proto_enumTypes,
 		MessageInfos:      file_transport_grpc_transportpb_transport_proto_msgTypes,
 	}.Build()
 	File_transport_grpc_transportpb_transport_proto = out.File

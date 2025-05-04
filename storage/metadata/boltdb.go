@@ -5,13 +5,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/storage"
 	"github.com/sreekar2307/queue/storage/errors"
 	"github.com/sreekar2307/queue/util"
-	"io"
-	"os"
-	"path/filepath"
 
 	boltDB "go.etcd.io/bbolt"
 )
@@ -28,6 +29,7 @@ func NewBolt(dbPath string) *Bolt {
 }
 
 const (
+	brokersBucketKey        = "brokers"
 	topicsBucketKey         = "topics"
 	consumersBucketKey      = "consumers"
 	consumerGroupsBucketKey = "consumer_groups"
@@ -35,6 +37,54 @@ const (
 	commandsBucketKey       = "commands"
 	appliedCommandKey       = "applied_command"
 )
+
+func (b *Bolt) CreateBrokerInTx(
+	_ context.Context,
+	tx storage.Transaction,
+	broker *model.Broker,
+) error {
+	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
+	if !ok {
+		return fmt.Errorf("invalid transaction type")
+	}
+	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(brokersBucketKey))
+	if err != nil {
+		return fmt.Errorf("failed to create bucket: %w", err)
+	}
+	brokerData, err := json.Marshal(broker)
+	if err != nil {
+		return fmt.Errorf("failed to marshal broker: %w", err)
+	}
+	if err := bucket.Put(binary.BigEndian.AppendUint64(nil, broker.ID), brokerData); err != nil {
+		return fmt.Errorf("failed to put broker: %w", err)
+	}
+	return nil
+}
+
+func (b *Bolt) GetBrokers(ctx context.Context, brokerIDs map[uint64]bool) ([]*model.Broker, error) {
+	var brokers []*model.Broker
+	err := b.db.View(func(tx *boltDB.Tx) error {
+		bucket := tx.Bucket([]byte(brokersBucketKey))
+		if bucket == nil {
+			return nil
+		}
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			var broker model.Broker
+			if err := json.Unmarshal(v, &broker); err != nil {
+				return fmt.Errorf("failed to unmarshal broker: %w", err)
+			}
+			if _, ok := brokerIDs[broker.ID]; ok {
+				brokers = append(brokers, &broker)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get brokers: %w", err)
+	}
+	return brokers, nil
+}
 
 func (b *Bolt) LastAppliedCommandID(_ context.Context) (uint64, error) {
 	var lastAppliedCommandID uint64

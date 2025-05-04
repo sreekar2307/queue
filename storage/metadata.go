@@ -2,8 +2,9 @@ package storage
 
 import (
 	"context"
-	"github.com/sreekar2307/queue/model"
 	"io"
+
+	"github.com/sreekar2307/queue/model"
 )
 
 type MetadataStorage interface {
@@ -12,6 +13,9 @@ type MetadataStorage interface {
 	BeginTransaction(ctx context.Context, forWrite bool) (Transaction, error)
 	Snapshot(context.Context, io.Writer) error
 	RecoverFromSnapshot(context.Context, io.Reader) error
+
+	CreateBrokerInTx(context.Context, Transaction, *model.Broker) error
+	GetBrokers(context.Context, map[uint64]bool) ([]*model.Broker, error)
 
 	CheckCommandAppliedInTx(context.Context, Transaction, uint64) error
 	UpdateCommandAppliedInTx(context.Context, Transaction, uint64) error

@@ -2,9 +2,10 @@ package http
 
 import (
 	"encoding/json"
-	"github.com/sreekar2307/queue/model"
 	"net/http"
 	"time"
+
+	"github.com/sreekar2307/queue/model"
 )
 
 type createTopicReqBody struct {
@@ -243,6 +244,28 @@ func (h *Http) healthCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	responseBody, err := json.Marshal(consumer)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(responseBody)
+}
+
+func (h *Http) shardsInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	queryParams := r.URL.Query()
+	if len(queryParams["topics"]) == 0 {
+		http.Error(w, "topics is required", http.StatusBadRequest)
+		return
+	}
+	shardInfo, err := h.queue.ShardsInfo(ctx, queryParams["topics"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	responseBody, err := json.Marshal(shardInfo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

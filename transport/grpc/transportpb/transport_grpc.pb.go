@@ -39,6 +39,7 @@ const (
 	Transport_ReceiveMessage_FullMethodName = "/transportpb.Transport/ReceiveMessage"
 	Transport_CreateTopic_FullMethodName    = "/transportpb.Transport/CreateTopic"
 	Transport_Connect_FullMethodName        = "/transportpb.Transport/Connect"
+	Transport_ShardInfo_FullMethodName      = "/transportpb.Transport/ShardInfo"
 )
 
 // TransportClient is the client API for Transport service.
@@ -51,6 +52,7 @@ type TransportClient interface {
 	ReceiveMessage(ctx context.Context, in *ReceiveMessageRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error)
 	CreateTopic(ctx context.Context, in *CreateTopicRequest, opts ...grpc.CallOption) (*CreateTopicResponse, error)
 	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error)
+	ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error)
 }
 
 type transportClient struct {
@@ -124,6 +126,16 @@ func (c *transportClient) Connect(ctx context.Context, in *ConnectRequest, opts 
 	return out, nil
 }
 
+func (c *transportClient) ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ShardInfoResponse)
+	err := c.cc.Invoke(ctx, Transport_ShardInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TransportServer is the server API for Transport service.
 // All implementations must embed UnimplementedTransportServer
 // for forward compatibility.
@@ -134,6 +146,7 @@ type TransportServer interface {
 	ReceiveMessage(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error)
 	CreateTopic(context.Context, *CreateTopicRequest) (*CreateTopicResponse, error)
 	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
+	ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error)
 	mustEmbedUnimplementedTransportServer()
 }
 
@@ -161,6 +174,9 @@ func (UnimplementedTransportServer) CreateTopic(context.Context, *CreateTopicReq
 }
 func (UnimplementedTransportServer) Connect(context.Context, *ConnectRequest) (*ConnectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Connect not implemented")
+}
+func (UnimplementedTransportServer) ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ShardInfo not implemented")
 }
 func (UnimplementedTransportServer) mustEmbedUnimplementedTransportServer() {}
 func (UnimplementedTransportServer) testEmbeddedByValue()                   {}
@@ -280,6 +296,24 @@ func _Transport_Connect_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Transport_ShardInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ShardInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransportServer).ShardInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Transport_ShardInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransportServer).ShardInfo(ctx, req.(*ShardInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Transport_ServiceDesc is the grpc.ServiceDesc for Transport service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -306,6 +340,10 @@ var Transport_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Connect",
 			Handler:    _Transport_Connect_Handler,
+		},
+		{
+			MethodName: "ShardInfo",
+			Handler:    _Transport_ShardInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

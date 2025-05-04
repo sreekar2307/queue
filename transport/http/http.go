@@ -3,9 +3,10 @@ package http
 import (
 	"context"
 	"fmt"
+	"net/http"
+
 	"github.com/sreekar2307/queue/config"
 	"github.com/sreekar2307/queue/service"
-	"net/http"
 )
 
 type Http struct {
@@ -31,6 +32,7 @@ func NewTransport(
 	serverMux.HandleFunc("GET /receiveMessage", transport.receiveMessage)
 	serverMux.HandleFunc("POST /ackMessage", transport.ackMessage)
 	serverMux.HandleFunc("POST /healthCheck", transport.healthCheck)
+	serverMux.HandleFunc("GET /shards-info", transport.shardsInfo)
 	server := http.Server{
 		Addr:    config.ListenerAddr,
 		Handler: serverMux,

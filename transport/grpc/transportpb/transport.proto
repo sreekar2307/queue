@@ -25,6 +25,7 @@ service Transport {
   rpc ReceiveMessage(ReceiveMessageRequest) returns (ReceiveMessageResponse);
   rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
   rpc Connect(ConnectRequest) returns (ConnectResponse);
+  rpc ShardInfo(ShardInfoRequest) returns (ShardInfoResponse);
 }
 
 message HealthCheckRequest {
@@ -103,3 +104,31 @@ message ConsumerGroup {
   repeated string consumers = 2;
   repeated string topics = 3;
 }
+
+message ShardInfoRequest {
+  repeated string topics = 1;
+}
+
+message ShardInfoResponse {
+  map<string, ShardInfo> shard_info = 1;
+}
+
+enum ShardType {
+  SHARD_TYPE_UNKNOWN = 0;
+  SHARD_TYPE_BROKERS = 1;
+  SHARD_TYPE_PARTITIONS = 2;
+}
+
+message ShardInfo {
+  ShardType shard_type = 1;
+  uint64 shard_id = 2;
+  repeated Broker brokers = 3;
+}
+
+message Broker {
+  uint64 id = 1;
+  string raft_address = 2;
+  string grpc_address = 3;
+  string http_address = 4;
+}
+

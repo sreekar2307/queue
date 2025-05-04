@@ -6,18 +6,20 @@ import (
 	"encoding/json"
 	stdErrors "errors"
 	"fmt"
+	"io"
+	"log"
+	"slices"
+	"strconv"
+
 	"github.com/sreekar2307/queue/assignor/sticky"
 	"github.com/sreekar2307/queue/config"
 	"github.com/sreekar2307/queue/model"
+	brokerServ "github.com/sreekar2307/queue/service/broker"
 	consumerServ "github.com/sreekar2307/queue/service/consumer"
 	"github.com/sreekar2307/queue/service/errors"
 	topicServ "github.com/sreekar2307/queue/service/topic"
 	"github.com/sreekar2307/queue/storage"
 	"github.com/sreekar2307/queue/util"
-	"io"
-	"log"
-	"slices"
-	"strconv"
 
 	drConfig "github.com/lni/dragonboat/v4/config"
 
@@ -31,6 +33,7 @@ type (
 		mdStorage         storage.MetadataStorage
 		topicService      TopicService
 		consumerService   ConsumerService
+		brokerService     BrokerService
 		metaDataStorePath string
 		broker            *model.Broker
 	}
@@ -48,6 +51,9 @@ func NewBrokerFSM(
 		consumerService: consumerServ.NewDefaultConsumerService(
 			mdStorage,
 			sticky.NewAssignor(mdStorage),
+		),
+		brokerService: brokerServ.NewDefaultBrokerService(
+			mdStorage,
 		),
 		ShardID:   shardID,
 		ReplicaID: replicaID,
@@ -360,6 +366,30 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					Data:  consumerBytes,
 				},
 			})
+		} else if cmd.CommandType == BrokerCommands.RegisterBroker {
+			args := cmd.Args
+			if len(args) != 1 {
+				return nil, fmt.Errorf("invalid command args")
+			}
+			var broker model.Broker
+			if err := json.Unmarshal(args[0], &broker); err != nil {
+				return nil, fmt.Errorf("unmarshing cmd: %w", err)
+			}
+			_, err := f.brokerService.RegisterBroker(ctx, entry.Index, &broker)
+			if err != nil {
+				if !stdErrors.Is(err, errors.ErrDuplicateCommand) {
+					return nil, fmt.Errorf("register broker: %w", err)
+				}
+			}
+			results = append(results, statemachine.Entry{
+				Index: entry.Index,
+				Cmd:   slices.Clone(entry.Cmd),
+				Result: statemachine.Result{
+					Value: entry.Index,
+					Data:  nil,
+				},
+			})
+
 		} else {
 			return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
 		}
@@ -417,7 +447,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("get partitionID: %w", err)
 		}
 		return []byte(partitionID), nil
-	} else if cmd.CommandType == PartitionsCommands.Partitions {
+	} else if cmd.CommandType == PartitionsCommands.AllPartitions {
 		partitions, err := f.topicService.AllPartitions(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("get partitions: %w", err)
@@ -454,6 +484,24 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("marshal consumers: %w", err)
 		}
 		return consumersBytes, nil
+	} else if cmd.CommandType == BrokerCommands.ShardInfoForPartitions {
+		if len(cmd.Args) != 1 {
+			return nil, fmt.Errorf("invalid command args")
+		}
+		partitions := make([]*model.Partition, 0)
+		if err := json.Unmarshal(cmd.Args[0], &partitions); err != nil {
+			return nil, fmt.Errorf("unmarshing cmd: %w", err)
+		}
+		shardInfo, err := f.brokerService.ShardInfoForPartitions(ctx, partitions)
+		if err != nil {
+			return nil, fmt.Errorf("get shard info: %w", err)
+		}
+		shardInfoBytes, err := json.Marshal(shardInfo)
+		if err != nil {
+			return nil, fmt.Errorf("marshal shard info: %w", err)
+		}
+		return shardInfoBytes, nil
+
 	}
 	return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
 }
