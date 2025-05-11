@@ -159,6 +159,7 @@ func (g *GRPC) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb
 	topic, err := g.queue.CreateTopic(ctx,
 		req.GetTopic(),
 		req.GetNumberOfPartitions(),
+		req.GetReplicationFactor(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create topic: %w", err)

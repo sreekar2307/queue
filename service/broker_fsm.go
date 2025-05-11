@@ -148,21 +148,6 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			if err := json.Unmarshal(args[2], &members); err != nil {
 				return nil, fmt.Errorf("unmarshing cmd: %w", err)
 			}
-			_, ok := util.FirstMatch(util.Keys(members), func(k uint64) bool {
-				return k == f.broker.ID
-			})
-			if !ok {
-				results = append(results, statemachine.Entry{
-					Index: entry.Index,
-					Cmd:   slices.Clone(entry.Cmd),
-					Result: statemachine.Result{
-						Value: entry.Index,
-						Data:  nil,
-					},
-				})
-				continue
-			}
-			f.broker.AddShardIDForPartitionID(partitionID, shardID)
 			partitionUpdates := &model.Partition{
 				Members: members,
 				ShardID: shardID,
@@ -181,6 +166,21 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				}
 				return nil, fmt.Errorf("update partition: %w", err)
 			}
+			_, ok := util.FirstMatch(util.Keys(members), func(k uint64) bool {
+				return k == f.broker.ID
+			})
+			if !ok {
+				results = append(results, statemachine.Entry{
+					Index: entry.Index,
+					Cmd:   slices.Clone(entry.Cmd),
+					Result: statemachine.Result{
+						Value: entry.Index,
+						Data:  nil,
+					},
+				})
+				continue
+			}
+			f.broker.AddShardIDForPartitionID(partitionID, shardID)
 			nh := f.broker.NodeHost()
 			log.Println("Starting replica for partition", partitionID, "on shard", shardID,
 				"replicaID", f.broker.ID)

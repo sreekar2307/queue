@@ -80,6 +80,7 @@ message ReceiveMessageForPartitionIDRequest {
 message CreateTopicRequest {
   string topic = 1;
   uint64 number_of_partitions = 2;
+  uint64 replication_factor = 3;
 }
 
 message CreateTopicResponse {

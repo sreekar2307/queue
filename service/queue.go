@@ -124,6 +124,7 @@ func (q *Queue) CreateTopic(
 	pCtx context.Context,
 	name string,
 	numberOfPartitions uint64,
+	replicationFactor uint64,
 ) (*model.Topic, error) {
 	nh := q.broker.NodeHost()
 	cmd := Cmd{
@@ -177,7 +178,7 @@ func (q *Queue) CreateTopic(
 		return nil, fmt.Errorf("get shard membership: %w", err)
 	}
 	for _, partition := range partitions {
-		brokers := util.Sample(util.Keys(membership.Nodes), len(membership.Nodes))
+		brokers := util.Sample(util.Keys(membership.Nodes), int(replicationFactor))
 		brokerTargets := make(map[uint64]string)
 		for _, broker := range brokers {
 			brokerTargets[broker] = membership.Nodes[broker]
