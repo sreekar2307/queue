@@ -80,10 +80,16 @@ func (c *Client) Start(pCtx context.Context, topics []string, consumerID, consum
 	return nil
 }
 
-func (c *Client) CreateTopic(pCtx context.Context, topicName string, numOfPartitions uint64) error {
+func (c *Client) CreateTopic(
+	pCtx context.Context,
+	topicName string,
+	numOfPartitions uint64,
+	replicationFactor uint64,
+) error {
 	createTopicReq := &pb.CreateTopicRequest{
 		Topic:              topicName,
 		NumberOfPartitions: numOfPartitions,
+		ReplicationFactor:  replicationFactor,
 	}
 	ctx, cancel := context.WithTimeout(pCtx, 30*time.Second)
 	_, err := c.initialBrokerClient.CreateTopic(ctx, createTopicReq)

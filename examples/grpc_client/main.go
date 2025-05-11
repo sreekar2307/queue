@@ -13,7 +13,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create client: %v", err)
 	}
-	if err := client.CreateTopic(pCtx, "facebook", 3); err != nil {
+	if err := client.CreateTopic(pCtx, "facebook", 10, 3); err != nil {
 		log.Fatalf("failed to create topic: %v", err)
 	}
 	if err := client.Start(pCtx, []string{"facebook"}, "node-1", "social"); err != nil {
