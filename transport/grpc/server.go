@@ -131,7 +131,7 @@ func (g *GRPC) ReceiveMessage(ctx context.Context, req *pb.ReceiveMessageRequest
 	}, nil
 }
 
-func (g *GRPC) ReceiveMessageForPartition(
+func (g *GRPC) ReceiveMessageForPartitionID(
 	ctx context.Context,
 	req *pb.ReceiveMessageForPartitionIDRequest,
 ) (*pb.ReceiveMessageResponse, error) {

@@ -1233,14 +1233,14 @@ const file_transport_grpc_transportpb_transport_proto_rawDesc = "" +
 	"\tShardType\x12\x16\n" +
 	"\x12SHARD_TYPE_UNKNOWN\x10\x00\x12\x16\n" +
 	"\x12SHARD_TYPE_BROKERS\x10\x01\x12\x19\n" +
-	"\x15SHARD_TYPE_PARTITIONS\x10\x022\xaa\x05\n" +
+	"\x15SHARD_TYPE_PARTITIONS\x10\x022\xb8\x05\n" +
 	"\tTransport\x12T\n" +
 	"\vHealthCheck\x12\x1f.transportpb.HealthCheckRequest\x1a .transportpb.HealthCheckResponse(\x010\x01\x12M\n" +
 	"\n" +
 	"AckMessage\x12\x1e.transportpb.AckMessageRequest\x1a\x1f.transportpb.AckMessageResponse\x12P\n" +
 	"\vSendMessage\x12\x1f.transportpb.SendMessageRequest\x1a .transportpb.SendMessageResponse\x12Y\n" +
-	"\x0eReceiveMessage\x12\".transportpb.ReceiveMessageRequest\x1a#.transportpb.ReceiveMessageResponse\x12g\n" +
-	"\x1cReceiveMessageForPartitionID\x12\".transportpb.ReceiveMessageRequest\x1a#.transportpb.ReceiveMessageResponse\x12P\n" +
+	"\x0eReceiveMessage\x12\".transportpb.ReceiveMessageRequest\x1a#.transportpb.ReceiveMessageResponse\x12u\n" +
+	"\x1cReceiveMessageForPartitionID\x120.transportpb.ReceiveMessageForPartitionIDRequest\x1a#.transportpb.ReceiveMessageResponse\x12P\n" +
 	"\vCreateTopic\x12\x1f.transportpb.CreateTopicRequest\x1a .transportpb.CreateTopicResponse\x12D\n" +
 	"\aConnect\x12\x1b.transportpb.ConnectRequest\x1a\x1c.transportpb.ConnectResponse\x12J\n" +
 	"\tShardInfo\x12\x1d.transportpb.ShardInfoRequest\x1a\x1e.transportpb.ShardInfoResponseB\"Z queue/transport/grpc/transportpbb\x06proto3"
@@ -1293,7 +1293,7 @@ var file_transport_grpc_transportpb_transport_proto_depIdxs = []int32{
 	3,  // 7: transportpb.Transport.AckMessage:input_type -> transportpb.AckMessageRequest
 	5,  // 8: transportpb.Transport.SendMessage:input_type -> transportpb.SendMessageRequest
 	7,  // 9: transportpb.Transport.ReceiveMessage:input_type -> transportpb.ReceiveMessageRequest
-	7,  // 10: transportpb.Transport.ReceiveMessageForPartitionID:input_type -> transportpb.ReceiveMessageRequest
+	9,  // 10: transportpb.Transport.ReceiveMessageForPartitionID:input_type -> transportpb.ReceiveMessageForPartitionIDRequest
 	10, // 11: transportpb.Transport.CreateTopic:input_type -> transportpb.CreateTopicRequest
 	12, // 12: transportpb.Transport.Connect:input_type -> transportpb.ConnectRequest
 	16, // 13: transportpb.Transport.ShardInfo:input_type -> transportpb.ShardInfoRequest

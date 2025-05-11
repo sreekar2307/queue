@@ -51,7 +51,7 @@ type TransportClient interface {
 	AckMessage(ctx context.Context, in *AckMessageRequest, opts ...grpc.CallOption) (*AckMessageResponse, error)
 	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error)
 	ReceiveMessage(ctx context.Context, in *ReceiveMessageRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error)
-	ReceiveMessageForPartitionID(ctx context.Context, in *ReceiveMessageRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error)
+	ReceiveMessageForPartitionID(ctx context.Context, in *ReceiveMessageForPartitionIDRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error)
 	CreateTopic(ctx context.Context, in *CreateTopicRequest, opts ...grpc.CallOption) (*CreateTopicResponse, error)
 	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error)
 	ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error)
@@ -108,7 +108,7 @@ func (c *transportClient) ReceiveMessage(ctx context.Context, in *ReceiveMessage
 	return out, nil
 }
 
-func (c *transportClient) ReceiveMessageForPartitionID(ctx context.Context, in *ReceiveMessageRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error) {
+func (c *transportClient) ReceiveMessageForPartitionID(ctx context.Context, in *ReceiveMessageForPartitionIDRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ReceiveMessageResponse)
 	err := c.cc.Invoke(ctx, Transport_ReceiveMessageForPartitionID_FullMethodName, in, out, cOpts...)
@@ -156,7 +156,7 @@ type TransportServer interface {
 	AckMessage(context.Context, *AckMessageRequest) (*AckMessageResponse, error)
 	SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error)
 	ReceiveMessage(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error)
-	ReceiveMessageForPartitionID(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error)
+	ReceiveMessageForPartitionID(context.Context, *ReceiveMessageForPartitionIDRequest) (*ReceiveMessageResponse, error)
 	CreateTopic(context.Context, *CreateTopicRequest) (*CreateTopicResponse, error)
 	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
 	ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error)
@@ -182,7 +182,7 @@ func (UnimplementedTransportServer) SendMessage(context.Context, *SendMessageReq
 func (UnimplementedTransportServer) ReceiveMessage(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReceiveMessage not implemented")
 }
-func (UnimplementedTransportServer) ReceiveMessageForPartitionID(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error) {
+func (UnimplementedTransportServer) ReceiveMessageForPartitionID(context.Context, *ReceiveMessageForPartitionIDRequest) (*ReceiveMessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReceiveMessageForPartitionID not implemented")
 }
 func (UnimplementedTransportServer) CreateTopic(context.Context, *CreateTopicRequest) (*CreateTopicResponse, error) {
@@ -277,7 +277,7 @@ func _Transport_ReceiveMessage_Handler(srv interface{}, ctx context.Context, dec
 }
 
 func _Transport_ReceiveMessageForPartitionID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReceiveMessageRequest)
+	in := new(ReceiveMessageForPartitionIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func _Transport_ReceiveMessageForPartitionID_Handler(srv interface{}, ctx contex
 		FullMethod: Transport_ReceiveMessageForPartitionID_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransportServer).ReceiveMessageForPartitionID(ctx, req.(*ReceiveMessageRequest))
+		return srv.(TransportServer).ReceiveMessageForPartitionID(ctx, req.(*ReceiveMessageForPartitionIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

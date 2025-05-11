@@ -23,7 +23,7 @@ service Transport {
   rpc AckMessage(AckMessageRequest) returns (AckMessageResponse);
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
   rpc ReceiveMessage(ReceiveMessageRequest) returns (ReceiveMessageResponse);
-  rpc ReceiveMessageForPartitionID(ReceiveMessageRequest) returns (ReceiveMessageResponse);
+  rpc ReceiveMessageForPartitionID(ReceiveMessageForPartitionIDRequest) returns (ReceiveMessageResponse);
   rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
   rpc Connect(ConnectRequest) returns (ConnectResponse);
   rpc ShardInfo(ShardInfoRequest) returns (ShardInfoResponse);
