@@ -22,21 +22,21 @@ This example demonstrates how to interact with a distributed queue system using 
 ### 1. Install the queue 
 
 ```bash
-$ go install github.com/sreekar2307/queue/cmd/queue@v0.1.1
+$ go install github.com/sreekar2307/queue/cmd/queue@v0.1.5
 ```
 
 ### 2. Start the brokers, each one in a separate terminal
 
 ```bash
-$ queue --config config.yaml --grpc.listener_addr localhost:8000
+$ queue --config config.yaml 
 ```
 
 ```bash
-$ queue --config config.yaml --raft.replica_id 2 --raft.addr localhost:63002
+$ queue --config config.yaml --raft.replica_id 2 --raft.addr localhost:63002 --grpc.listener_addr localhost:8002
 ```
 
 ```bash
-$ queue --config config.yaml --raft.replica_id 3 --raft.addr localhost:63003
+$ queue --config config.yaml --raft.replica_id 3 --raft.addr localhost:63003 --grpc.listener_addr localhost:8003
 ```
 
 ### 3. Run the example

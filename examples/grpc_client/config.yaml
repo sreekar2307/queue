@@ -5,3 +5,5 @@ raft:
     1: "localhost:63001"
     2: "localhost:63002"
     3: "localhost:63003"
+grpc:
+  listener_addr: "localhost:8001"
