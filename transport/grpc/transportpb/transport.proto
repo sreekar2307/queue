@@ -103,6 +103,7 @@ message Consumer {
   string consumer_group = 2;
   repeated string partitions = 3;
   bool is_active = 4;
+  repeated string topics = 5;
 }
 
 message ConsumerGroup {

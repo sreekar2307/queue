@@ -806,6 +806,7 @@ type Consumer struct {
 	ConsumerGroup string                 `protobuf:"bytes,2,opt,name=consumer_group,json=consumerGroup,proto3" json:"consumer_group,omitempty"`
 	Partitions    []string               `protobuf:"bytes,3,rep,name=partitions,proto3" json:"partitions,omitempty"`
 	IsActive      bool                   `protobuf:"varint,4,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	Topics        []string               `protobuf:"bytes,5,rep,name=topics,proto3" json:"topics,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -866,6 +867,13 @@ func (x *Consumer) GetIsActive() bool {
 		return x.IsActive
 	}
 	return false
+}
+
+func (x *Consumer) GetTopics() []string {
+	if x != nil {
+		return x.Topics
+	}
+	return nil
 }
 
 type ConsumerGroup struct {
@@ -1200,14 +1208,15 @@ const file_transport_grpc_transportpb_transport_proto_rawDesc = "" +
 	"\x06topics\x18\x03 \x03(\tR\x06topics\"\x87\x01\n" +
 	"\x0fConnectResponse\x121\n" +
 	"\bconsumer\x18\x01 \x01(\v2\x15.transportpb.ConsumerR\bconsumer\x12A\n" +
-	"\x0econsumer_group\x18\x02 \x01(\v2\x1a.transportpb.ConsumerGroupR\rconsumerGroup\"~\n" +
+	"\x0econsumer_group\x18\x02 \x01(\v2\x1a.transportpb.ConsumerGroupR\rconsumerGroup\"\x96\x01\n" +
 	"\bConsumer\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0econsumer_group\x18\x02 \x01(\tR\rconsumerGroup\x12\x1e\n" +
 	"\n" +
 	"partitions\x18\x03 \x03(\tR\n" +
 	"partitions\x12\x1b\n" +
-	"\tis_active\x18\x04 \x01(\bR\bisActive\"U\n" +
+	"\tis_active\x18\x04 \x01(\bR\bisActive\x12\x16\n" +
+	"\x06topics\x18\x05 \x03(\tR\x06topics\"U\n" +
 	"\rConsumerGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tconsumers\x18\x02 \x03(\tR\tconsumers\x12\x16\n" +

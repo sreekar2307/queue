@@ -8,6 +8,7 @@ type Consumer struct {
 	ID            string
 	Partitions    []string
 	ConsumerGroup string
+	Topics        []string
 	IsActive      bool
 
 	partitionIndex    int

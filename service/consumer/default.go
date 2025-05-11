@@ -4,14 +4,15 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/sreekar2307/queue/assignor"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service/errors"
 	"github.com/sreekar2307/queue/storage"
 	storageErrors "github.com/sreekar2307/queue/storage/errors"
 	"github.com/sreekar2307/queue/util"
-	"sync"
-	"time"
 )
 
 type DefaultConsumerService struct {
@@ -106,6 +107,7 @@ func (d *DefaultConsumerService) Connect(
 				ConsumerGroup:     consumerGroupID,
 				LastHealthCheckAt: time.Now().Unix(),
 				IsActive:          true,
+				Topics:            topicNames,
 			}
 			err = d.MetadataStorage.CreateConsumerInTx(ctx, tx, connectedConsumer)
 			if err != nil {
@@ -117,6 +119,7 @@ func (d *DefaultConsumerService) Connect(
 	} else {
 		connectedConsumer.IsActive = true
 		connectedConsumer.LastHealthCheckAt = time.Now().Unix()
+		connectedConsumer.Topics = topicNames
 		err = d.MetadataStorage.UpdateConsumerInTx(ctx, tx, connectedConsumer)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to update consumer: %w", err)
@@ -129,7 +132,7 @@ func (d *DefaultConsumerService) Connect(
 		}
 		return nil, nil, fmt.Errorf("failed to add consumer to group: %w", err)
 	}
-	if err := d.rebalanceAndUpdateConsumers(ctx, tx, consumerGroup); err != nil {
+	if err := d.rebalanceAndUpdateConsumers(ctx, tx, connectedConsumer, consumerGroup); err != nil {
 		return nil, nil, fmt.Errorf("failed to rebalance and update consumers: %w", err)
 	}
 	if err := d.MetadataStorage.UpdateCommandAppliedInTx(ctx, tx, commandID); err != nil {
@@ -197,7 +200,7 @@ func (d *DefaultConsumerService) Disconnect(
 	if err != nil {
 		return fmt.Errorf("failed to remove consumer from group: %w", err)
 	}
-	if err := d.rebalanceAndUpdateConsumers(ctx, tx, consumerGroup); err != nil {
+	if err := d.rebalanceAndUpdateConsumers(ctx, tx, disconnectedConsumer, consumerGroup); err != nil {
 		return fmt.Errorf("failed to rebalance and update consumers: %w", err)
 	}
 	if err := d.MetadataStorage.UpdateCommandAppliedInTx(ctx, tx, commandID); err != nil {
@@ -209,6 +212,7 @@ func (d *DefaultConsumerService) Disconnect(
 func (d *DefaultConsumerService) rebalanceAndUpdateConsumers(
 	ctx context.Context,
 	tx storage.Transaction,
+	currentConsumer *model.Consumer,
 	consumerGroup *model.ConsumerGroup,
 ) error {
 	consumerGroup.SetRebalanceInProgress(true)
@@ -238,6 +242,9 @@ func (d *DefaultConsumerService) rebalanceAndUpdateConsumers(
 		consumer.SetPartitions(partitionNames)
 		if err := d.MetadataStorage.UpdateConsumerInTx(ctx, tx, consumer); err != nil {
 			return fmt.Errorf("failed to update consumer %s: %w", consumerID, err)
+		}
+		if consumer.ID == currentConsumer.ID {
+			*currentConsumer = *consumer
 		}
 	}
 

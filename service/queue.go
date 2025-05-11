@@ -315,6 +315,7 @@ func (q *Queue) Connect(
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
+	topics = util.Keys(util.ToSet(topics))
 	topicsBytes, err := json.Marshal(topics)
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal topics: %w", err)

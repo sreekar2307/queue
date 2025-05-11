@@ -185,6 +185,7 @@ func (g *GRPC) Connect(ctx context.Context, req *pb.ConnectRequest) (*pb.Connect
 			ConsumerGroup: consumer.ConsumerGroup,
 			Partitions:    consumer.Partitions,
 			IsActive:      consumer.IsActive,
+			Topics:        consumer.Topics,
 		},
 		ConsumerGroup: &pb.ConsumerGroup{
 			Id:        group.ID,
