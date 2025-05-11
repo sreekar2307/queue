@@ -454,6 +454,69 @@ func (q *Queue) ReceiveMessage(
 	return &msg, nil
 }
 
+func (q *Queue) ReceiveMessageForPartition(
+	pCtx context.Context,
+	consumerID string,
+	partitionId string,
+) (*model.Message, error) {
+	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	defer cancelFunc()
+	nh := q.broker.NodeHost()
+	cmd := Cmd{
+		CommandType: ConsumerCommands.ConsumerForID,
+		Args: [][]byte{
+			[]byte(consumerID),
+		},
+	}
+	cmdBytes, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("marshal cmd: %w", err)
+	}
+	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+	if err != nil {
+		return nil, fmt.Errorf("propose get consumer for ID: %w", err)
+	}
+	var consumer model.Consumer
+	if err := json.Unmarshal(res.([]byte), &consumer); err != nil {
+		return nil, fmt.Errorf("un marshall result: %w", err)
+	}
+	_, ok := util.FirstMatch(consumer.Partitions, func(p string) bool {
+		return p == partitionId
+	})
+	if !ok {
+		return nil, fmt.Errorf("consumer %s is not subscribed to partition %s", consumerID, partitionId)
+	}
+
+	var msg model.Message
+	shardID, ok := q.broker.ShardForPartition(partitionId)
+	if !ok {
+		return nil, fmt.Errorf("broker does not have partition: %s", partitionId)
+	}
+	log.Println("consumer polling shardID", shardID, " for partition ID ", partitionId)
+	cmd = Cmd{
+		CommandType: MessageCommands.Poll,
+		Args: [][]byte{
+			[]byte(consumer.ConsumerGroup),
+			[]byte(partitionId),
+		},
+	}
+	cmdBytes, err = json.Marshal(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("marshal cmd: %w", err)
+	}
+	result, err := nh.SyncRead(ctx, shardID, cmdBytes)
+	if err != nil {
+		return nil, fmt.Errorf("sync read get message: %w", err)
+	}
+	if result == nil {
+		return nil, nil
+	}
+	if err := json.Unmarshal(result.([]byte), &msg); err != nil {
+		return nil, fmt.Errorf("un marshall result: %w", err)
+	}
+	return &msg, nil
+}
+
 func (q *Queue) AckMessage(
 	pCtx context.Context,
 	consumerID string,

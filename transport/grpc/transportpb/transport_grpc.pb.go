@@ -33,13 +33,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Transport_HealthCheck_FullMethodName    = "/transportpb.Transport/HealthCheck"
-	Transport_AckMessage_FullMethodName     = "/transportpb.Transport/AckMessage"
-	Transport_SendMessage_FullMethodName    = "/transportpb.Transport/SendMessage"
-	Transport_ReceiveMessage_FullMethodName = "/transportpb.Transport/ReceiveMessage"
-	Transport_CreateTopic_FullMethodName    = "/transportpb.Transport/CreateTopic"
-	Transport_Connect_FullMethodName        = "/transportpb.Transport/Connect"
-	Transport_ShardInfo_FullMethodName      = "/transportpb.Transport/ShardInfo"
+	Transport_HealthCheck_FullMethodName                  = "/transportpb.Transport/HealthCheck"
+	Transport_AckMessage_FullMethodName                   = "/transportpb.Transport/AckMessage"
+	Transport_SendMessage_FullMethodName                  = "/transportpb.Transport/SendMessage"
+	Transport_ReceiveMessage_FullMethodName               = "/transportpb.Transport/ReceiveMessage"
+	Transport_ReceiveMessageForPartitionID_FullMethodName = "/transportpb.Transport/ReceiveMessageForPartitionID"
+	Transport_CreateTopic_FullMethodName                  = "/transportpb.Transport/CreateTopic"
+	Transport_Connect_FullMethodName                      = "/transportpb.Transport/Connect"
+	Transport_ShardInfo_FullMethodName                    = "/transportpb.Transport/ShardInfo"
 )
 
 // TransportClient is the client API for Transport service.
@@ -50,6 +51,7 @@ type TransportClient interface {
 	AckMessage(ctx context.Context, in *AckMessageRequest, opts ...grpc.CallOption) (*AckMessageResponse, error)
 	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error)
 	ReceiveMessage(ctx context.Context, in *ReceiveMessageRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error)
+	ReceiveMessageForPartitionID(ctx context.Context, in *ReceiveMessageRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error)
 	CreateTopic(ctx context.Context, in *CreateTopicRequest, opts ...grpc.CallOption) (*CreateTopicResponse, error)
 	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error)
 	ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error)
@@ -106,6 +108,16 @@ func (c *transportClient) ReceiveMessage(ctx context.Context, in *ReceiveMessage
 	return out, nil
 }
 
+func (c *transportClient) ReceiveMessageForPartitionID(ctx context.Context, in *ReceiveMessageRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReceiveMessageResponse)
+	err := c.cc.Invoke(ctx, Transport_ReceiveMessageForPartitionID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *transportClient) CreateTopic(ctx context.Context, in *CreateTopicRequest, opts ...grpc.CallOption) (*CreateTopicResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateTopicResponse)
@@ -144,6 +156,7 @@ type TransportServer interface {
 	AckMessage(context.Context, *AckMessageRequest) (*AckMessageResponse, error)
 	SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error)
 	ReceiveMessage(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error)
+	ReceiveMessageForPartitionID(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error)
 	CreateTopic(context.Context, *CreateTopicRequest) (*CreateTopicResponse, error)
 	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
 	ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error)
@@ -168,6 +181,9 @@ func (UnimplementedTransportServer) SendMessage(context.Context, *SendMessageReq
 }
 func (UnimplementedTransportServer) ReceiveMessage(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReceiveMessage not implemented")
+}
+func (UnimplementedTransportServer) ReceiveMessageForPartitionID(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReceiveMessageForPartitionID not implemented")
 }
 func (UnimplementedTransportServer) CreateTopic(context.Context, *CreateTopicRequest) (*CreateTopicResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTopic not implemented")
@@ -260,6 +276,24 @@ func _Transport_ReceiveMessage_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Transport_ReceiveMessageForPartitionID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReceiveMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TransportServer).ReceiveMessageForPartitionID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Transport_ReceiveMessageForPartitionID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TransportServer).ReceiveMessageForPartitionID(ctx, req.(*ReceiveMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Transport_CreateTopic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateTopicRequest)
 	if err := dec(in); err != nil {
@@ -332,6 +366,10 @@ var Transport_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReceiveMessage",
 			Handler:    _Transport_ReceiveMessage_Handler,
+		},
+		{
+			MethodName: "ReceiveMessageForPartitionID",
+			Handler:    _Transport_ReceiveMessageForPartitionID_Handler,
 		},
 		{
 			MethodName: "CreateTopic",

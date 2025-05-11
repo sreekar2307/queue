@@ -145,7 +145,8 @@ func (h *Http) sendMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 type receiveMessageReqBody struct {
-	ConsumerID string `json:"consumerID"`
+	ConsumerID  string `json:"consumerID"`
+	PartitionID string `json:"partitionID"`
 }
 
 func (h *Http) receiveMessage(w http.ResponseWriter, r *http.Request) {
@@ -156,10 +157,26 @@ func (h *Http) receiveMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	message, err := h.queue.ReceiveMessage(
-		ctx,
-		reqBody.ConsumerID,
+	if reqBody.ConsumerID == "" {
+		http.Error(w, "consumerID is required", http.StatusBadRequest)
+		return
+	}
+	var (
+		message *model.Message
+		err     error
 	)
+	if reqBody.PartitionID != "" {
+		message, err = h.queue.ReceiveMessageForPartition(
+			ctx,
+			reqBody.ConsumerID,
+			reqBody.PartitionID,
+		)
+	} else {
+		message, err = h.queue.ReceiveMessage(
+			ctx,
+			reqBody.ConsumerID,
+		)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

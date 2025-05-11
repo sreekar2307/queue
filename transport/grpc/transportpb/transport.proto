@@ -23,6 +23,7 @@ service Transport {
   rpc AckMessage(AckMessageRequest) returns (AckMessageResponse);
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
   rpc ReceiveMessage(ReceiveMessageRequest) returns (ReceiveMessageResponse);
+  rpc ReceiveMessageForPartitionID(ReceiveMessageRequest) returns (ReceiveMessageResponse);
   rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
   rpc Connect(ConnectRequest) returns (ConnectResponse);
   rpc ShardInfo(ShardInfoRequest) returns (ShardInfoResponse);
@@ -69,6 +70,11 @@ message ReceiveMessageResponse {
   string partition_id = 3;
   string partition_key = 4;
   bytes data = 5;
+}
+
+message ReceiveMessageForPartitionIDRequest {
+  string consumer_id = 1;
+  string partition_id = 2;
 }
 
 message CreateTopicRequest {

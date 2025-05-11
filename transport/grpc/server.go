@@ -131,6 +131,30 @@ func (g *GRPC) ReceiveMessage(ctx context.Context, req *pb.ReceiveMessageRequest
 	}, nil
 }
 
+func (g *GRPC) ReceiveMessageForPartition(
+	ctx context.Context,
+	req *pb.ReceiveMessageForPartitionIDRequest,
+) (*pb.ReceiveMessageResponse, error) {
+	msg, err := g.queue.ReceiveMessageForPartition(
+		ctx,
+		req.GetConsumerId(),
+		req.GetPartitionId(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to receive message: %w", err)
+	}
+	if msg == nil {
+		return nil, nil
+	}
+	return &pb.ReceiveMessageResponse{
+		Topic:        msg.Topic,
+		PartitionKey: msg.PartitionKey,
+		Data:         msg.Data,
+		PartitionId:  msg.PartitionID,
+		MessageId:    msg.ID,
+	}, nil
+}
+
 func (g *GRPC) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb.CreateTopicResponse, error) {
 	topic, err := g.queue.CreateTopic(ctx,
 		req.GetTopic(),

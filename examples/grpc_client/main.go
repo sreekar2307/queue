@@ -3,44 +3,60 @@ package main
 import (
 	"context"
 	"fmt"
-	pb "github.com/sreekar2307/queue/transport/grpc/transportpb"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"strconv"
 	"time"
+
+	pb "github.com/sreekar2307/queue/transport/grpc/transportpb"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
 	pCtx, pCancel := context.WithCancel(context.Background())
 	defer pCancel()
-	conn, err := grpc.NewClient("localhost:8000",
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// start the connection with any one broker
+	initialConn, err := grpc.NewClient(
+		"localhost:8000",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)
 	}
 	defer func() {
-		_ = conn.Close()
+		_ = initialConn.Close()
 	}()
-	client := pb.NewTransportClient(conn)
+	initialClient := pb.NewTransportClient(initialConn)
 
-	writeSomeMessages(pCtx, client)
+	// writeSomeMessages(pCtx, initialClient)
 
 	// Connect a consumer to a topic
+	topics := []string{"facebook"}
 	connectReq := &pb.ConnectRequest{
 		ConsumerId:    "node-1",
 		ConsumerGroup: "social",
-		Topics:        []string{"facebook"},
+		Topics:        topics,
 	}
 
 	ctx, cancel := context.WithTimeout(pCtx, 5*time.Second)
-	connectResp, err := client.Connect(ctx, connectReq)
+	connectResp, err := initialClient.Connect(ctx, connectReq)
 	cancel()
 	if err != nil {
 		log.Fatalf("Connect failed: %v", err)
 	}
-	runHealthCheck(pCtx, connectResp.Consumer, client)
-	readSomeMessages(pCtx, client)
+	sharInfoPerPartition := shardsInfo(
+		pCtx,
+		topics,
+		connectResp.Consumer,
+		initialClient,
+	)
+	clientForPartition := createClientForPartition(
+		pCtx,
+		sharInfoPerPartition,
+	)
+
+	runHealthCheck(pCtx, connectResp.Consumer, initialClient)
+	readSomeMessages(pCtx, clientForPartition)
 	pCancel()
 }
 
@@ -79,7 +95,7 @@ func writeSomeMessages(pCtx context.Context, client pb.TransportClient) {
 	log.Println("All messages sent successfully")
 }
 
-func readSomeMessages(pCtx context.Context, client pb.TransportClient) {
+func readSomeMessages(pCtx context.Context, clients map[string]pb.TransportClient) {
 	// Create a Transport client
 	for range 100 {
 		// Receive a message
@@ -87,7 +103,7 @@ func readSomeMessages(pCtx context.Context, client pb.TransportClient) {
 			ConsumerId: "node-1",
 		}
 		ctx, cancel := context.WithTimeout(pCtx, 5*time.Second)
-		recvRes, err := client.ReceiveMessage(ctx, recvReq)
+		recvRes, err := clients[""].ReceiveMessage(ctx, recvReq)
 		cancel()
 		if err != nil {
 			log.Fatalf("SendMessage failed: %v", err)
@@ -101,6 +117,10 @@ func readSomeMessages(pCtx context.Context, client pb.TransportClient) {
 				MessageId:   recvRes.MessageId,
 			}
 			ctx, cancel = context.WithTimeout(pCtx, 5*time.Second)
+			client, ok := clients[recvRes.PartitionId]
+			if !ok {
+				log.Fatalf("No client found for partition %s", recvRes.PartitionId)
+			}
 			_, err = client.AckMessage(ctx, ackReq)
 			cancel()
 			if err != nil {
@@ -139,4 +159,47 @@ func runHealthCheck(pCtx context.Context, consumer *pb.Consumer, client pb.Trans
 			}
 		}
 	}()
+}
+
+func shardsInfo(pCtx context.Context,
+	topics []string,
+	consumer *pb.Consumer, client pb.TransportClient,
+) map[string]*pb.ShardInfo {
+	shardInfo, err := client.ShardInfo(
+		pCtx,
+		&pb.ShardInfoRequest{
+			Topics: topics,
+		},
+	)
+	if err != nil {
+		log.Fatalf("failed to get shard info: %v", err)
+	}
+	return shardInfo.ShardInfo
+}
+
+func createClientForPartition(
+	pCtx context.Context,
+	shardInfoPerPartition map[string]*pb.ShardInfo,
+) map[string]pb.TransportClient {
+	clientForPartition := make(map[string]pb.TransportClient)
+
+	for partitionId, shardInfo := range shardInfoPerPartition {
+		brokers := shardInfo.Brokers
+		if len(brokers) == 0 {
+			log.Fatalf("no brokers found for partition %s", partitionId)
+		}
+		initialConn, err := grpc.NewClient(
+			brokers[0].GetGrpcAddress(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		if err != nil {
+			log.Fatalf("failed to connect: %v", err)
+		}
+		defer func() {
+			_ = initialConn.Close()
+		}()
+		client := pb.NewTransportClient(initialConn)
+		clientForPartition[partitionId] = client
+	}
+	return clientForPartition
 }
