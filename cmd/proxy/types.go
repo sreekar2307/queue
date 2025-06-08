@@ -1,5 +1,10 @@
 package main
 
+type lookupResource struct {
+	Topic     string
+	Partition string
+}
+
 type clusterDetails struct {
 	BrokersForPartition map[string][]broker
 	BrokersForTopic     map[string][]broker

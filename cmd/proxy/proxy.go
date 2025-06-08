@@ -9,9 +9,9 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"os"
 	"os/signal"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	pb "github.com/sreekar2307/queue/transport/grpc/transportpb"
@@ -40,15 +40,15 @@ var (
 	)
 	maxLookupRetries = flag.Int("max_lookup_retries", 5, "Maximum number of retries for lookup")
 
-	partitions      atomic.Pointer[clusterDetails]
+	clusterD        atomic.Pointer[clusterDetails]
 	grpcClient      *grpc.ClientConn
 	transportClient pb.TransportClient
-	lc              = make(chan struct{})
+	lc              = make(chan lookupResource)
 )
 
 func main() {
 	flag.Parse()
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGKILL)
 	defer cancel()
 
 	if len(*brokerHttpAddr) == 0 || len(*brokerGrpcAddr) == 0 {
@@ -68,7 +68,7 @@ func main() {
 	}
 	go watcher(ctx, lc)
 
-	lc <- struct{}{} // Trigger initial lookup
+	lc <- lookupResource{} // Trigger initial lookup
 
 	lis, err := net.Listen("tcp", *proxyAddr)
 	if err != nil {
@@ -114,13 +114,13 @@ func director(ctx context.Context, _ string) (context.Context, *grpc.ClientConn,
 	return ctx, conn, nil
 }
 
-func watcher(ctx context.Context, lc chan struct{}) {
+func watcher(ctx context.Context, lc chan lookupResource) {
 	var lastLookupAt *time.Time
 
-	initiateLookup := func() {
+	initiateLookup := func(lr lookupResource) {
 		log.Println("initiating lookup for cluster details")
 		if lastLookupAt == nil || time.Since(*lastLookupAt) >= *minDurationBtwLookups {
-			if err := lookupWithBackoff(ctx); err != nil {
+			if err := lookupWithBackoff(ctx, lr); err != nil {
 				log.Printf("lookup failed: %v", err)
 			} else {
 				now := time.Now()
@@ -134,17 +134,17 @@ func watcher(ctx context.Context, lc chan struct{}) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-lc:
-			initiateLookup()
+		case lr := <-lc:
+			initiateLookup(lr)
 		case <-time.After(*minDurationBtwLookups):
-			initiateLookup()
+			initiateLookup(lookupResource{})
 		}
 	}
 }
 
 func routeToBroker(topic, partitionID string) (string, error) {
 	log.Println("broker lookup for topic:", topic, "partitionID:", partitionID)
-	clusterInfo := partitions.Load()
+	clusterInfo := clusterD.Load()
 	if clusterInfo == nil {
 		return "", fmt.Errorf("shard info not available, please retry later")
 	}
@@ -159,9 +159,11 @@ func routeToBroker(topic, partitionID string) (string, error) {
 	} else if len(partitionID) == 0 {
 		_, ok := clusterInfo.BrokersForTopic[topic]
 		if !ok {
-			lc <- struct{}{} // Trigger a lookup if topic is not found
+			lc <- lookupResource{
+				Topic: topic,
+			} // Trigger a lookup if topic is not found
 		}
-		clusterInfo = partitions.Load()
+		clusterInfo = clusterD.Load()
 		brokersForTopic, _ := clusterInfo.BrokersForTopic[topic]
 		if len(brokersForTopic) == 0 {
 			return "", fmt.Errorf("no brokers available, for topic %s", topic)
@@ -170,9 +172,11 @@ func routeToBroker(topic, partitionID string) (string, error) {
 	} else {
 		_, ok := clusterInfo.BrokersForPartition[partitionID]
 		if !ok {
-			lc <- struct{}{} // Trigger a lookup if partition is not found
+			lc <- lookupResource{
+				Partition: partitionID,
+			} // Trigger a lookup if partition is not found
 		}
-		clusterInfo = partitions.Load()
+		clusterInfo = clusterD.Load()
 		brokersForPartition, _ := clusterInfo.BrokersForPartition[partitionID]
 		if len(brokersForPartition) == 0 {
 			return "", fmt.Errorf("no brokers available, for partition  %s", partitionID)
@@ -183,12 +187,27 @@ func routeToBroker(topic, partitionID string) (string, error) {
 	return brokers[rand.Intn(len(brokers))].GrpcAddress, nil
 }
 
-func lookupWithBackoff(ctx context.Context) error {
+func lookupWithBackoff(ctx context.Context, lr lookupResource) error {
 	for i := 0; i < *maxLookupRetries; i++ {
 		if err := lookup(ctx); err != nil {
 			backoff := durationToBackoff(i, deffaultBackOffConfig)
 			time.Sleep(backoff)
 			continue
+		}
+		cd := clusterD.Load()
+		if lr.Topic != "" {
+			if _, ok := cd.BrokersForTopic[lr.Topic]; !ok {
+				backoff := durationToBackoff(i, deffaultBackOffConfig)
+				time.Sleep(backoff)
+				continue
+			}
+		}
+		if lr.Partition != "" {
+			if _, ok := cd.BrokersForPartition[lr.Partition]; !ok {
+				backoff := durationToBackoff(i, deffaultBackOffConfig)
+				time.Sleep(backoff)
+				continue
+			}
 		}
 		log.Println("Successfully fetched shard info")
 		return nil
@@ -238,7 +257,7 @@ func lookupGrpc(pCtx context.Context) error {
 		}
 	})
 	cd = sanitizeClusterDetails(cd)
-	partitions.Store(&cd)
+	clusterD.Store(&cd)
 	return nil
 }
 
@@ -284,7 +303,7 @@ func lookupHttp(pCtx context.Context) error {
 	}
 	cd.Brokers = sr.Brokers
 	cd = sanitizeClusterDetails(cd)
-	partitions.Store(&cd)
+	clusterD.Store(&cd)
 	return nil
 }
 

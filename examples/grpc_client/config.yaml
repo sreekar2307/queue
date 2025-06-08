@@ -1,9 +1,9 @@
 raft:
   replica_id: 1
-  addr: "0.0.0.0:63001"
+  addr: "localhost:63001"
   invite_members:
-    1: "0.0.0.0:63001"
-    2: "0.0.0.0:63002"
-    3: "0.0.0.0:63003"
+    1: "localhost:63001"
+    2: "localhost:63002"
+    3: "localhost:63003"
 grpc:
-  listener_addr: "0.0.0.0:8001"
+  listener_addr: "localhost:8001"
