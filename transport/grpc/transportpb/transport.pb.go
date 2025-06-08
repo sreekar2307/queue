@@ -991,6 +991,7 @@ func (x *ShardInfoRequest) GetTopics() []string {
 type ShardInfoResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ShardInfo     map[string]*ShardInfo  `protobuf:"bytes,1,rep,name=shard_info,json=shardInfo,proto3" json:"shard_info,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Brokers       []*Broker              `protobuf:"bytes,2,rep,name=brokers,proto3" json:"brokers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1032,11 +1033,20 @@ func (x *ShardInfoResponse) GetShardInfo() map[string]*ShardInfo {
 	return nil
 }
 
+func (x *ShardInfoResponse) GetBrokers() []*Broker {
+	if x != nil {
+		return x.Brokers
+	}
+	return nil
+}
+
 type ShardInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ShardType     ShardType              `protobuf:"varint,1,opt,name=shard_type,json=shardType,proto3,enum=transportpb.ShardType" json:"shard_type,omitempty"`
 	ShardId       uint64                 `protobuf:"varint,2,opt,name=shard_id,json=shardId,proto3" json:"shard_id,omitempty"`
-	Brokers       []*Broker              `protobuf:"bytes,3,rep,name=brokers,proto3" json:"brokers,omitempty"`
+	Topic         string                 `protobuf:"bytes,3,opt,name=topic,proto3" json:"topic,omitempty"`
+	PartitionId   string                 `protobuf:"bytes,4,opt,name=partition_id,json=partitionId,proto3" json:"partition_id,omitempty"`
+	Brokers       []*Broker              `protobuf:"bytes,5,rep,name=brokers,proto3" json:"brokers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1083,6 +1093,20 @@ func (x *ShardInfo) GetShardId() uint64 {
 		return x.ShardId
 	}
 	return 0
+}
+
+func (x *ShardInfo) GetTopic() string {
+	if x != nil {
+		return x.Topic
+	}
+	return ""
+}
+
+func (x *ShardInfo) GetPartitionId() string {
+	if x != nil {
+		return x.PartitionId
+	}
+	return ""
 }
 
 func (x *ShardInfo) GetBrokers() []*Broker {
@@ -1231,18 +1255,21 @@ const file_transport_grpc_transportpb_transport_proto_rawDesc = "" +
 	"\tconsumers\x18\x02 \x03(\tR\tconsumers\x12\x16\n" +
 	"\x06topics\x18\x03 \x03(\tR\x06topics\"*\n" +
 	"\x10ShardInfoRequest\x12\x16\n" +
-	"\x06topics\x18\x01 \x03(\tR\x06topics\"\xb7\x01\n" +
+	"\x06topics\x18\x01 \x03(\tR\x06topics\"\xe6\x01\n" +
 	"\x11ShardInfoResponse\x12L\n" +
 	"\n" +
-	"shard_info\x18\x01 \x03(\v2-.transportpb.ShardInfoResponse.ShardInfoEntryR\tshardInfo\x1aT\n" +
+	"shard_info\x18\x01 \x03(\v2-.transportpb.ShardInfoResponse.ShardInfoEntryR\tshardInfo\x12-\n" +
+	"\abrokers\x18\x02 \x03(\v2\x13.transportpb.BrokerR\abrokers\x1aT\n" +
 	"\x0eShardInfoEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.transportpb.ShardInfoR\x05value:\x028\x01\"\x8c\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.transportpb.ShardInfoR\x05value:\x028\x01\"\xc5\x01\n" +
 	"\tShardInfo\x125\n" +
 	"\n" +
 	"shard_type\x18\x01 \x01(\x0e2\x16.transportpb.ShardTypeR\tshardType\x12\x19\n" +
-	"\bshard_id\x18\x02 \x01(\x04R\ashardId\x12-\n" +
-	"\abrokers\x18\x03 \x03(\v2\x13.transportpb.BrokerR\abrokers\"\x81\x01\n" +
+	"\bshard_id\x18\x02 \x01(\x04R\ashardId\x12\x14\n" +
+	"\x05topic\x18\x03 \x01(\tR\x05topic\x12!\n" +
+	"\fpartition_id\x18\x04 \x01(\tR\vpartitionId\x12-\n" +
+	"\abrokers\x18\x05 \x03(\v2\x13.transportpb.BrokerR\abrokers\"\x81\x01\n" +
 	"\x06Broker\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12!\n" +
 	"\fraft_address\x18\x02 \x01(\tR\vraftAddress\x12!\n" +
@@ -1304,30 +1331,31 @@ var file_transport_grpc_transportpb_transport_proto_depIdxs = []int32{
 	14, // 0: transportpb.ConnectResponse.consumer:type_name -> transportpb.Consumer
 	15, // 1: transportpb.ConnectResponse.consumer_group:type_name -> transportpb.ConsumerGroup
 	20, // 2: transportpb.ShardInfoResponse.shard_info:type_name -> transportpb.ShardInfoResponse.ShardInfoEntry
-	0,  // 3: transportpb.ShardInfo.shard_type:type_name -> transportpb.ShardType
-	19, // 4: transportpb.ShardInfo.brokers:type_name -> transportpb.Broker
-	18, // 5: transportpb.ShardInfoResponse.ShardInfoEntry.value:type_name -> transportpb.ShardInfo
-	1,  // 6: transportpb.Transport.HealthCheck:input_type -> transportpb.HealthCheckRequest
-	3,  // 7: transportpb.Transport.AckMessage:input_type -> transportpb.AckMessageRequest
-	5,  // 8: transportpb.Transport.SendMessage:input_type -> transportpb.SendMessageRequest
-	7,  // 9: transportpb.Transport.ReceiveMessage:input_type -> transportpb.ReceiveMessageRequest
-	9,  // 10: transportpb.Transport.ReceiveMessageForPartitionID:input_type -> transportpb.ReceiveMessageForPartitionIDRequest
-	10, // 11: transportpb.Transport.CreateTopic:input_type -> transportpb.CreateTopicRequest
-	12, // 12: transportpb.Transport.Connect:input_type -> transportpb.ConnectRequest
-	16, // 13: transportpb.Transport.ShardInfo:input_type -> transportpb.ShardInfoRequest
-	2,  // 14: transportpb.Transport.HealthCheck:output_type -> transportpb.HealthCheckResponse
-	4,  // 15: transportpb.Transport.AckMessage:output_type -> transportpb.AckMessageResponse
-	6,  // 16: transportpb.Transport.SendMessage:output_type -> transportpb.SendMessageResponse
-	8,  // 17: transportpb.Transport.ReceiveMessage:output_type -> transportpb.ReceiveMessageResponse
-	8,  // 18: transportpb.Transport.ReceiveMessageForPartitionID:output_type -> transportpb.ReceiveMessageResponse
-	11, // 19: transportpb.Transport.CreateTopic:output_type -> transportpb.CreateTopicResponse
-	13, // 20: transportpb.Transport.Connect:output_type -> transportpb.ConnectResponse
-	17, // 21: transportpb.Transport.ShardInfo:output_type -> transportpb.ShardInfoResponse
-	14, // [14:22] is the sub-list for method output_type
-	6,  // [6:14] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	19, // 3: transportpb.ShardInfoResponse.brokers:type_name -> transportpb.Broker
+	0,  // 4: transportpb.ShardInfo.shard_type:type_name -> transportpb.ShardType
+	19, // 5: transportpb.ShardInfo.brokers:type_name -> transportpb.Broker
+	18, // 6: transportpb.ShardInfoResponse.ShardInfoEntry.value:type_name -> transportpb.ShardInfo
+	1,  // 7: transportpb.Transport.HealthCheck:input_type -> transportpb.HealthCheckRequest
+	3,  // 8: transportpb.Transport.AckMessage:input_type -> transportpb.AckMessageRequest
+	5,  // 9: transportpb.Transport.SendMessage:input_type -> transportpb.SendMessageRequest
+	7,  // 10: transportpb.Transport.ReceiveMessage:input_type -> transportpb.ReceiveMessageRequest
+	9,  // 11: transportpb.Transport.ReceiveMessageForPartitionID:input_type -> transportpb.ReceiveMessageForPartitionIDRequest
+	10, // 12: transportpb.Transport.CreateTopic:input_type -> transportpb.CreateTopicRequest
+	12, // 13: transportpb.Transport.Connect:input_type -> transportpb.ConnectRequest
+	16, // 14: transportpb.Transport.ShardInfo:input_type -> transportpb.ShardInfoRequest
+	2,  // 15: transportpb.Transport.HealthCheck:output_type -> transportpb.HealthCheckResponse
+	4,  // 16: transportpb.Transport.AckMessage:output_type -> transportpb.AckMessageResponse
+	6,  // 17: transportpb.Transport.SendMessage:output_type -> transportpb.SendMessageResponse
+	8,  // 18: transportpb.Transport.ReceiveMessage:output_type -> transportpb.ReceiveMessageResponse
+	8,  // 19: transportpb.Transport.ReceiveMessageForPartitionID:output_type -> transportpb.ReceiveMessageResponse
+	11, // 20: transportpb.Transport.CreateTopic:output_type -> transportpb.CreateTopicResponse
+	13, // 21: transportpb.Transport.Connect:output_type -> transportpb.ConnectResponse
+	17, // 22: transportpb.Transport.ShardInfo:output_type -> transportpb.ShardInfoResponse
+	15, // [15:23] is the sub-list for method output_type
+	7,  // [7:15] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_transport_grpc_transportpb_transport_proto_init() }

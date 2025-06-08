@@ -9,6 +9,8 @@ import (
 	"net"
 	"time"
 
+	"google.golang.org/grpc/metadata"
+
 	"github.com/sreekar2307/queue/config"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service"
@@ -93,6 +95,10 @@ func (g *GRPC) AckMessage(ctx context.Context, req *pb.AckMessageRequest) (*pb.A
 	}); err != nil {
 		return nil, fmt.Errorf("failed to ack message: %w", err)
 	}
+	md := metadata.Pairs(
+		PartitionMetadataKey, req.GetPartitionId(),
+	)
+	_ = grpc.SetTrailer(ctx, md)
 	return &pb.AckMessageResponse{}, nil
 }
 
@@ -105,6 +111,11 @@ func (g *GRPC) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
 	}
+	md := metadata.Pairs(
+		TopicMetadataKey, msg.Topic,
+		PartitionMetadataKey, msg.PartitionID,
+	)
+	_ = grpc.SetTrailer(ctx, md)
 	return &pb.SendMessageResponse{
 		Topic:        msg.Topic,
 		PartitionKey: msg.PartitionKey,
@@ -122,6 +133,11 @@ func (g *GRPC) ReceiveMessage(ctx context.Context, req *pb.ReceiveMessageRequest
 	if msg == nil {
 		return nil, nil
 	}
+	md := metadata.Pairs(
+		TopicMetadataKey, msg.Topic,
+		PartitionMetadataKey, msg.PartitionID,
+	)
+	_ = grpc.SetTrailer(ctx, md)
 	return &pb.ReceiveMessageResponse{
 		Topic:        msg.Topic,
 		PartitionKey: msg.PartitionKey,
@@ -146,6 +162,12 @@ func (g *GRPC) ReceiveMessageForPartitionID(
 	if msg == nil {
 		return nil, nil
 	}
+	md := metadata.Pairs(
+		TopicMetadataKey, msg.Topic,
+		PartitionMetadataKey, msg.PartitionID,
+	)
+	_ = grpc.SetTrailer(ctx, md)
+	_ = grpc.SetHeader(ctx, md)
 	return &pb.ReceiveMessageResponse{
 		Topic:        msg.Topic,
 		PartitionKey: msg.PartitionKey,
@@ -164,6 +186,8 @@ func (g *GRPC) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb
 	if err != nil {
 		return nil, fmt.Errorf("failed to create topic: %w", err)
 	}
+	md := metadata.Pairs(TopicMetadataKey, topic.Name)
+	_ = grpc.SetTrailer(ctx, md)
 	return &pb.CreateTopicResponse{
 		Name:               topic.Name,
 		NumberOfPartitions: topic.NumberOfPartitions,
@@ -202,12 +226,20 @@ func (g *GRPC) Close(ctx context.Context) error {
 }
 
 func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.ShardInfoResponse, error) {
-	shardsInfo, err := g.queue.ShardsInfo(ctx, req.GetTopics())
+	shardsInfo, brokers, err := g.queue.ShardsInfo(ctx, req.GetTopics())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shard info: %w", err)
 	}
 	res := &pb.ShardInfoResponse{
 		ShardInfo: make(map[string]*pb.ShardInfo),
+		Brokers: util.Map(brokers, func(broker *model.Broker) *pb.Broker {
+			return &pb.Broker{
+				Id:          broker.ID,
+				RaftAddress: broker.RaftAddress,
+				GrpcAddress: broker.ReachGrpcAddress,
+				HttpAddress: broker.ReachHttpAddress,
+			}
+		}),
 	}
 	for partitionID, shardInfo := range shardsInfo {
 		shardType := pb.ShardType_SHARD_TYPE_BROKERS
@@ -215,8 +247,10 @@ func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.Sha
 			shardType = pb.ShardType_SHARD_TYPE_PARTITIONS
 		}
 		res.ShardInfo[partitionID] = &pb.ShardInfo{
-			ShardId:   shardInfo.ShardID,
-			ShardType: shardType,
+			ShardId:     shardInfo.ShardID,
+			ShardType:   shardType,
+			Topic:       shardInfo.Topic,
+			PartitionId: shardInfo.PartitionID,
 			Brokers: util.Map(shardInfo.Brokers, func(broker *model.Broker) *pb.Broker {
 				return &pb.Broker{
 					Id:          broker.ID,

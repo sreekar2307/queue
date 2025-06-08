@@ -9,7 +9,7 @@ func main() {
 	pCtx, pCancel := context.WithCancel(context.Background())
 	defer pCancel()
 
-	client, err := NewClient(pCtx, "localhost:8001")
+	client, err := NewClient(pCtx, "0.0.0.0:9000")
 	if err != nil {
 		log.Fatalf("failed to create client: %v", err)
 	}

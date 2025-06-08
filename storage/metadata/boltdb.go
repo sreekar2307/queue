@@ -86,6 +86,29 @@ func (b *Bolt) GetBrokers(ctx context.Context, brokerIDs map[uint64]bool) ([]*mo
 	return brokers, nil
 }
 
+func (b *Bolt) GetAllBrokers(ctx context.Context) ([]*model.Broker, error) {
+	var brokers []*model.Broker
+	err := b.db.View(func(tx *boltDB.Tx) error {
+		bucket := tx.Bucket([]byte(brokersBucketKey))
+		if bucket == nil {
+			return nil
+		}
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			var broker model.Broker
+			if err := json.Unmarshal(v, &broker); err != nil {
+				return fmt.Errorf("failed to unmarshal broker: %w", err)
+			}
+			brokers = append(brokers, &broker)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get brokers: %w", err)
+	}
+	return brokers, nil
+}
+
 func (b *Bolt) LastAppliedCommandID(_ context.Context) (uint64, error) {
 	var lastAppliedCommandID uint64
 	err := b.db.View(func(tx *boltDB.Tx) error {

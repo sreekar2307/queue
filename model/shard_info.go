@@ -8,7 +8,9 @@ const (
 )
 
 type ShardInfo struct {
-	ShardType ShardType
-	ShardID   uint64
-	Brokers   []*Broker
+	ShardType   ShardType
+	ShardID     uint64
+	Topic       string
+	PartitionID string
+	Brokers     []*Broker
 }

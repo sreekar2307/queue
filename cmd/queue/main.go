@@ -39,9 +39,11 @@ func startTransporters(ctx context.Context, queue *service.Queue) []transport.Tr
 		if err != nil {
 			log.Fatalf("failed to create gRPC transport: %v", err)
 		}
-		if err := grpcTransport.Start(ctx); err != nil {
-			log.Fatalf("failed to start gRPC transport: %v", err)
-		}
+		go func() {
+			if err := grpcTransport.Start(ctx); err != nil {
+				log.Fatalf("failed to start gRPC transport: %v", err)
+			}
+		}()
 		transporters = append(transporters, grpcTransport)
 	}
 	if config.Conf.HTTP.ListenerAddr != "" {
@@ -50,9 +52,11 @@ func startTransporters(ctx context.Context, queue *service.Queue) []transport.Tr
 		if err != nil {
 			log.Fatalf("failed to create HTTP transport: %v", err)
 		}
-		if err := httpTransport.Start(ctx); err != nil {
-			log.Fatalf("failed to start HTTP transport: %v", err)
-		}
+		go func() {
+			if err := httpTransport.Start(ctx); err != nil {
+				log.Fatalf("failed to start HTTP transport: %v", err)
+			}
+		}()
 		transporters = append(transporters, httpTransport)
 	}
 	return transporters

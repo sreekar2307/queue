@@ -44,3 +44,28 @@ func GroupBy[T any, K comparable](slice []T, keyFunc func(T) K) map[K][]T {
 	}
 	return grouped
 }
+
+func Uniq[T comparable](slice []T) []T {
+	seen := make(map[T]bool)
+	var result []T
+	for _, item := range slice {
+		if !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+func UniqBy[T any, K comparable](slice []T, keyFunc func(T) K) []T {
+	seen := make(map[K]bool)
+	var result []T
+	for _, item := range slice {
+		key := keyFunc(item)
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, item)
+		}
+	}
+	return result
+}
