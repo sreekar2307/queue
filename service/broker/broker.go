@@ -48,16 +48,10 @@ func (b *DefaultBroker) RegisterBroker(
 func (b *DefaultBroker) ShardInfoForPartitions(
 	ctx context.Context,
 	partitions []*model.Partition,
-) (map[string]*model.ShardInfo, error) {
-	brokerIDs := make(map[uint64]bool)
-	for _, partition := range partitions {
-		for member := range partition.Members {
-			brokerIDs[member] = true
-		}
-	}
-	brokers, err := b.MetaDataStorage.GetBrokers(ctx, brokerIDs)
+) (map[string]*model.ShardInfo, []*model.Broker, error) {
+	brokers, err := b.MetaDataStorage.GetAllBrokers(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get brokers: %w", err)
+		return nil, nil, fmt.Errorf("failed to get brokers: %w", err)
 	}
 	brokerForReplicaID := util.GroupBy(brokers, func(broker *model.Broker) uint64 {
 		return broker.ID
@@ -65,13 +59,15 @@ func (b *DefaultBroker) ShardInfoForPartitions(
 	shardsInfo := make(map[string]*model.ShardInfo)
 	for _, partition := range partitions {
 		shardInfo := &model.ShardInfo{
-			ShardType: model.ShardTypePartitions,
-			ShardID:   partition.ShardID,
+			ShardType:   model.ShardTypePartitions,
+			ShardID:     partition.ShardID,
+			PartitionID: partition.ID,
+			Topic:       partition.TopicName,
 			Brokers: util.Map(util.Keys(partition.Members), func(member uint64) *model.Broker {
 				return brokerForReplicaID[member][0]
 			}),
 		}
 		shardsInfo[partition.ID] = shardInfo
 	}
-	return shardsInfo, nil
+	return shardsInfo, brokers, nil
 }

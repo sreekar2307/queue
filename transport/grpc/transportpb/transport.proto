@@ -119,6 +119,7 @@ message ShardInfoRequest {
 
 message ShardInfoResponse {
   map<string, ShardInfo> shard_info = 1;
+  repeated Broker brokers= 2;
 }
 
 enum ShardType {
@@ -130,7 +131,9 @@ enum ShardType {
 message ShardInfo {
   ShardType shard_type = 1;
   uint64 shard_id = 2;
-  repeated Broker brokers = 3;
+  string topic = 3;
+  string partition_id = 4;
+  repeated Broker brokers = 5;
 }
 
 message Broker {

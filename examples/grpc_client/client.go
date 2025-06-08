@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	stdErrors "errors"
 	"fmt"
+	"google.golang.org/grpc/metadata"
 	"log"
 	"strconv"
 	"time"
 
-	queueErrors "github.com/sreekar2307/queue/service/errors"
 	pb "github.com/sreekar2307/queue/transport/grpc/transportpb"
 	"github.com/sreekar2307/queue/util"
 	"google.golang.org/grpc"
@@ -16,12 +15,10 @@ import (
 )
 
 type Client struct {
-	initialBrokerAddr    string
-	initialBrokerClient  pb.TransportClient
-	initialBrokerConn    *grpc.ClientConn
-	consumer             *pb.Consumer
-	clientsForPartitions map[string]pb.TransportClient
-	connForPartitions    map[string]*grpc.ClientConn
+	initialBrokerAddr string
+	brokerProxyClient pb.TransportClient
+	brokerProxyConn   *grpc.ClientConn
+	consumer          *pb.Consumer
 }
 
 func NewClient(_ context.Context, initialBrokerAddr string) (*Client, error) {
@@ -36,23 +33,15 @@ func NewClient(_ context.Context, initialBrokerAddr string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.initialBrokerConn = initialConn
-	c.initialBrokerClient = pb.NewTransportClient(initialConn)
+	c.brokerProxyConn = initialConn
+	c.brokerProxyClient = pb.NewTransportClient(initialConn)
 
 	return c, nil
 }
 
 func (c *Client) Close() error {
-	if c.initialBrokerConn != nil {
-		return c.initialBrokerConn.Close()
-	}
-
-	for _, conn := range c.connForPartitions {
-		if conn != nil {
-			if err := conn.Close(); err != nil {
-				return err
-			}
-		}
+	if c.brokerProxyConn != nil {
+		return c.brokerProxyConn.Close()
 	}
 	return nil
 }
@@ -64,19 +53,13 @@ func (c *Client) Start(pCtx context.Context, topics []string, consumerID, consum
 		Topics:        topics,
 	}
 	ctx, cancel := context.WithTimeout(pCtx, 5*time.Second)
-	connectResp, err := c.initialBrokerClient.Connect(ctx, connectReq)
+	connectResp, err := c.brokerProxyClient.Connect(ctx, connectReq)
 	cancel()
 	if err != nil {
 		return err
 	}
 	c.consumer = connectResp.Consumer
 	c.runHealthCheck(pCtx)
-	if err := c.createTransportClientForPartition(pCtx); err != nil {
-		if stdErrors.Is(err, queueErrors.ErrTopicAlreadyExists) {
-			return nil
-		}
-		return err
-	}
 	return nil
 }
 
@@ -92,7 +75,7 @@ func (c *Client) CreateTopic(
 		ReplicationFactor:  replicationFactor,
 	}
 	ctx, cancel := context.WithTimeout(pCtx, 30*time.Second)
-	_, err := c.initialBrokerClient.CreateTopic(ctx, createTopicReq)
+	_, err := c.brokerProxyClient.CreateTopic(ctx, createTopicReq)
 	cancel()
 	if err != nil {
 		return err
@@ -117,7 +100,8 @@ func (c *Client) WriteSomeMessages(pCtx context.Context, topic string) error {
 
 		// Send the message
 		ctx, cancel := context.WithTimeout(pCtx, 5*time.Second)
-		_, err := c.initialBrokerClient.SendMessage(ctx, req)
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("topic", topic))
+		_, err := c.brokerProxyClient.SendMessage(ctx, req)
 		cancel()
 		if err != nil {
 			return err
@@ -141,12 +125,9 @@ label:
 				ConsumerId:  c.consumer.Id,
 				PartitionId: partitionId,
 			}
-			client, ok := c.clientsForPartitions[partitionId]
-			if !ok {
-				return fmt.Errorf("no client found for partition %s", partitionId)
-			}
 			ctx, cancel := context.WithTimeout(pCtx, 5*time.Second)
-			recvRes, err := client.ReceiveMessageForPartitionID(ctx, recvReq)
+			ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("partition", partitionId))
+			recvRes, err := c.brokerProxyClient.ReceiveMessageForPartitionID(ctx, recvReq)
 			cancel()
 			if err != nil {
 				return err
@@ -160,7 +141,8 @@ label:
 					MessageId:   recvRes.MessageId,
 				}
 				ctx, cancel = context.WithTimeout(pCtx, 5*time.Second)
-				_, err = client.AckMessage(ctx, ackReq)
+				ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("partition", recvRes.PartitionId))
+				_, err = c.brokerProxyClient.AckMessage(ctx, ackReq)
 				cancel()
 				if err != nil {
 					return err
@@ -183,7 +165,7 @@ func (c *Client) runHealthCheck(pCtx context.Context) {
 		default:
 			// continue
 		}
-		stream, err := c.initialBrokerClient.HealthCheck(pCtx)
+		stream, err := c.brokerProxyClient.HealthCheck(pCtx)
 		if err != nil {
 			log.Fatalf("failed to create stream: %v", err)
 		}
@@ -207,53 +189,4 @@ func (c *Client) runHealthCheck(pCtx context.Context) {
 			}
 		}
 	}()
-}
-
-func (c *Client) createTransportClientForPartition(
-	pCtx context.Context,
-) error {
-	ctx, cancel := context.WithTimeout(pCtx, 5*time.Second)
-	defer cancel()
-	shardInfoPerPartition, err := c.initialBrokerClient.ShardInfo(
-		ctx,
-		&pb.ShardInfoRequest{
-			Topics: c.consumer.Topics,
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	clientForPartition := make(map[string]pb.TransportClient)
-
-	conns := make(map[string]*grpc.ClientConn)
-	for partitionId, shardInfo := range shardInfoPerPartition.GetShardInfo() {
-		brokers := shardInfo.Brokers
-		if len(brokers) == 0 {
-			return fmt.Errorf("no brokers found for partition %s", partitionId)
-		}
-		addr := brokers[0].GetGrpcAddress()
-		if conn, ok := conns[addr]; ok {
-			client := pb.NewTransportClient(conn)
-			clientForPartition[partitionId] = client
-			continue
-		}
-		conn, err := grpc.NewClient(
-			brokers[0].GetGrpcAddress(),
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		if err != nil {
-			return err
-		}
-		conns[addr] = conn
-		go func() {
-			<-pCtx.Done()
-			_ = conn.Close()
-		}()
-		client := pb.NewTransportClient(conn)
-		clientForPartition[partitionId] = client
-	}
-	c.clientsForPartitions = clientForPartition
-	c.connForPartitions = conns
-	return nil
 }

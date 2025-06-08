@@ -605,35 +605,37 @@ func (q *Queue) HealthCheck(
 func (q *Queue) ShardsInfo(
 	pCtx context.Context,
 	topics []string,
-) (map[string]*model.ShardInfo, error) {
+) (map[string]*model.ShardInfo, []*model.Broker, error) {
 	cmd := Cmd{
 		CommandType: PartitionsCommands.AllPartitions,
 	}
 	cmdBytes, err := json.Marshal(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("marshal cmd: %w", err)
+		return nil, nil, fmt.Errorf("marshal cmd: %w", err)
 	}
 	nh := q.broker.NodeHost()
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
 	cancelFunc()
 	if err != nil {
-		return nil, fmt.Errorf("propose get consumer for ID: %w", err)
+		return nil, nil, fmt.Errorf("propose get consumer for ID: %w", err)
 	}
 	partitions := make([]*model.Partition, 0)
 	if err := json.Unmarshal(res.([]byte), &partitions); err != nil {
-		return nil, fmt.Errorf("un marshall result: %w", err)
+		return nil, nil, fmt.Errorf("un marshall result: %w", err)
 	}
-	topicsSet := util.ToSet(topics)
-	partitions = util.Filter(partitions, func(p *model.Partition) bool {
-		return topicsSet[p.TopicName]
-	})
-	if len(partitions) == 0 {
-		return nil, fmt.Errorf("no partitions found for topics: %v", topics)
+	if len(topics) != 0 {
+		topicsSet := util.ToSet(topics)
+		partitions = util.Filter(partitions, func(p *model.Partition) bool {
+			return topicsSet[p.TopicName]
+		})
+		if len(partitions) == 0 {
+			return nil, nil, fmt.Errorf("no partitions found for topics: %v", topics)
+		}
 	}
 	partitionsBytes, err := json.Marshal(partitions)
 	if err != nil {
-		return nil, fmt.Errorf("marshal partitions: %w", err)
+		return nil, nil, fmt.Errorf("marshal partitions: %w", err)
 	}
 	cmd = Cmd{
 		CommandType: BrokerCommands.ShardInfoForPartitions,
@@ -643,19 +645,22 @@ func (q *Queue) ShardsInfo(
 	}
 	cmdBytes, err = json.Marshal(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("marshal cmd: %w", err)
+		return nil, nil, fmt.Errorf("marshal cmd: %w", err)
 	}
 	ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
 	res, err = nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
 	if err != nil {
-		return nil, fmt.Errorf("propose get consumer for ID: %w", err)
+		return nil, nil, fmt.Errorf("propose get consumer for ID: %w", err)
 	}
-	shardInfo := make(map[string]*model.ShardInfo)
-	if err := json.Unmarshal(res.([]byte), &shardInfo); err != nil {
-		return nil, fmt.Errorf("un marshall result: %w", err)
+	var clusterDetails struct {
+		ShardInfo map[string]*model.ShardInfo `json:"shardInfo"`
+		Brokers   []*model.Broker             `json:"brokers"`
 	}
-	return shardInfo, nil
+	if err := json.Unmarshal(res.([]byte), &clusterDetails); err != nil {
+		return nil, nil, fmt.Errorf("un marshall result: %w", err)
+	}
+	return clusterDetails.ShardInfo, clusterDetails.Brokers, nil
 }
 
 func (q *Queue) blockTillLeaderSet(

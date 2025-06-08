@@ -492,15 +492,22 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 		if err := json.Unmarshal(cmd.Args[0], &partitions); err != nil {
 			return nil, fmt.Errorf("unmarshing cmd: %w", err)
 		}
-		shardInfo, err := f.brokerService.ShardInfoForPartitions(ctx, partitions)
+		shardInfo, brokers, err := f.brokerService.ShardInfoForPartitions(ctx, partitions)
 		if err != nil {
 			return nil, fmt.Errorf("get shard info: %w", err)
 		}
-		shardInfoBytes, err := json.Marshal(shardInfo)
+		res := struct {
+			ShardInfo map[string]*model.ShardInfo `json:"shardInfo"`
+			Brokers   []*model.Broker             `json:"brokers"`
+		}{
+			ShardInfo: shardInfo,
+			Brokers:   brokers,
+		}
+		clusterInfoBytes, err := json.Marshal(res)
 		if err != nil {
 			return nil, fmt.Errorf("marshal shard info: %w", err)
 		}
-		return shardInfoBytes, nil
+		return clusterInfoBytes, nil
 
 	}
 	return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
