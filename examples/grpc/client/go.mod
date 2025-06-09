@@ -8,7 +8,7 @@ require (
 )
 
 require (
-	buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-00000000000000-73c4b2cefcf1.2 // indirect
+	buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-00000000000000-e77000edb68e.2 // indirect
 	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect

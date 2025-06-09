@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/sreekar2307/queue/util"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"log"
 	"strconv"
 	"time"
@@ -184,7 +185,7 @@ func (c *Client) runHealthCheck(pCtx context.Context) {
 			case <-ticker.C:
 				healthCheckReq := &pb.HealthCheckRequest{
 					ConsumerId: c.consumer.Id,
-					PingAt:     time.Now().In(time.UTC).Unix(),
+					PingAt:     timestamppb.Now(),
 				}
 				if err := stream.Send(healthCheckReq); err != nil {
 					log.Fatalf("failed to send health check request: %v", err)
