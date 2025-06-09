@@ -2,8 +2,11 @@ package grpc
 
 import (
 	"context"
-	"errors"
+	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/storage/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io"
 	"log"
 	"net"
@@ -62,7 +65,7 @@ func (g *GRPC) HealthCheck(biStream grpc.BidiStreamingServer[pb.HealthCheckReque
 		// Receive a health check request from the stream
 		req, err := biStream.Recv()
 		if err != nil {
-			if errors.Is(err, io.EOF) {
+			if stdErrors.Is(err, io.EOF) {
 				return nil
 			}
 			return err
@@ -93,7 +96,7 @@ func (g *GRPC) AckMessage(ctx context.Context, req *pb.AckMessageRequest) (*pb.A
 		PartitionID: req.GetPartitionId(),
 		ID:          req.GetMessageId(),
 	}); err != nil {
-		return nil, fmt.Errorf("failed to ack message: %w", err)
+		return nil, status.Errorf(codes.Internal, "ack message: %v", err)
 	}
 	md := metadata.Pairs(
 		PartitionMetadataKey, req.GetPartitionId(),
@@ -109,7 +112,7 @@ func (g *GRPC) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb
 		Topic:        req.GetTopic(),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to send message: %w", err)
+		return nil, status.Errorf(codes.Internal, "send message: %v", err)
 	}
 	md := metadata.Pairs(
 		TopicMetadataKey, msg.Topic,
@@ -128,7 +131,7 @@ func (g *GRPC) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb
 func (g *GRPC) ReceiveMessage(ctx context.Context, req *pb.ReceiveMessageRequest) (*pb.ReceiveMessageResponse, error) {
 	msg, err := g.queue.ReceiveMessage(ctx, req.GetConsumerId())
 	if err != nil {
-		return nil, fmt.Errorf("failed to receive message: %w", err)
+		return nil, status.Errorf(codes.Internal, "receive message: %v", err)
 	}
 	if msg == nil {
 		return nil, nil
@@ -157,7 +160,7 @@ func (g *GRPC) ReceiveMessageForPartitionID(
 		req.GetPartitionId(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to receive message: %w", err)
+		return nil, status.Errorf(codes.Internal, "receive message: %v", err)
 	}
 	if msg == nil {
 		return nil, nil
@@ -184,7 +187,10 @@ func (g *GRPC) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb
 		req.GetReplicationFactor(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create topic: %w", err)
+		if stdErrors.Is(err, errors.ErrTopicAlreadyExists) {
+			return nil, status.Errorf(codes.AlreadyExists, "topic %s already exists", req.GetTopic())
+		}
+		return nil, status.Errorf(codes.Internal, "create topic: %v", err)
 	}
 	md := metadata.Pairs(TopicMetadataKey, topic.Name)
 	_ = grpc.SetTrailer(ctx, md)
@@ -202,7 +208,10 @@ func (g *GRPC) Connect(ctx context.Context, req *pb.ConnectRequest) (*pb.Connect
 		req.GetTopics(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect: %w", err)
+		if stdErrors.Is(err, errors.ErrTopicNotFound) {
+			return nil, status.Errorf(codes.NotFound, "topics %v not found", req.GetTopics())
+		}
+		return nil, status.Errorf(codes.Internal, "connect consumer: %v", err)
 	}
 	return &pb.ConnectResponse{
 		Consumer: &pb.Consumer{
@@ -228,7 +237,7 @@ func (g *GRPC) Close(ctx context.Context) error {
 func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.ShardInfoResponse, error) {
 	shardsInfo, brokers, err := g.queue.ShardsInfo(ctx, req.GetTopics())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get shard info: %w", err)
+		return nil, status.Errorf(codes.Internal, "shard info: %v", err)
 	}
 	res := &pb.ShardInfoResponse{
 		ShardInfo: make(map[string]*pb.ShardInfo),

@@ -2,7 +2,7 @@ package util
 
 import "math/rand"
 
-// Sample randomly selects n elements from a slice. elemnts selected are unique by index
+// Sample randomly selects n elements from a slice. elements selected are unique by index
 func Sample[T any](slice []T, n int) []T {
 	if n > len(slice) {
 		n = len(slice)

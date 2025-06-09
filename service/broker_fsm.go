@@ -92,7 +92,13 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 			if err != nil {
 				return nil, fmt.Errorf("invalid command args: %w", err)
 			}
-			topic, err := f.topicService.CreateTopic(ctx, entry.Index, topicName, numOfPartitions, shardOffset)
+			topic, err := f.topicService.CreateTopic(
+				ctx,
+				entry.Index,
+				topicName,
+				numOfPartitions,
+				shardOffset,
+			)
 			result := make([]byte, 0)
 			if err != nil {
 				if stdErrors.Is(err, errors.ErrTopicAlreadyExists) {
@@ -241,15 +247,36 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 						},
 					})
 					continue
+				} else if stdErrors.Is(err, errors.ErrTopicNotFound) {
+					res := struct {
+						TopicNotFound bool
+					}{
+						TopicNotFound: true,
+					}
+					resultBytes, err := json.Marshal(res)
+					if err != nil {
+						return nil, fmt.Errorf("marshal consumer: %w", err)
+					}
+					results = append(results, statemachine.Entry{
+						Index: entry.Index,
+						Cmd:   slices.Clone(entry.Cmd),
+						Result: statemachine.Result{
+							Value: entry.Index,
+							Data:  resultBytes,
+						},
+					})
+					continue
 				}
 				return nil, fmt.Errorf("create consumer: %w", err)
 			}
 			res := struct {
-				Consumer *model.Consumer
-				Group    *model.ConsumerGroup
+				Consumer      *model.Consumer
+				Group         *model.ConsumerGroup
+				TopicNotFound bool
 			}{
-				Consumer: consumer,
-				Group:    consumerGroup,
+				Consumer:      consumer,
+				Group:         consumerGroup,
+				TopicNotFound: false,
 			}
 			resultBytes, err := json.Marshal(res)
 			if err != nil {

@@ -152,7 +152,7 @@ func (q *Queue) CreateTopic(
 	if err := json.Unmarshal(res.Data[8:], &topic); err != nil {
 		return nil, fmt.Errorf("un marshall result: %w", err)
 	}
-	// get all the partitions of the topic create a shard per partition, randomly add 3 nodes per partition
+	// get all the partitions of the topic, create a shard per partition, randomly add 3 nodes per partition
 	cmd = Cmd{
 		CommandType: PartitionsCommands.PartitionsForTopic,
 		Args:        [][]byte{[]byte(topic.Name)},
@@ -338,11 +338,15 @@ func (q *Queue) Connect(
 		return nil, nil, fmt.Errorf("propose connect consumer: %w", err)
 	}
 	var result struct {
-		Consumer *model.Consumer
-		Group    *model.ConsumerGroup
+		Consumer      *model.Consumer      `json:"Consumer,omitempty"`
+		Group         *model.ConsumerGroup `json:"Group,omitempty"`
+		TopicNotFound bool                 `json:"TopicNotFound"`
 	}
 	if err := json.Unmarshal(res.Data, &result); err != nil {
 		return nil, nil, fmt.Errorf("un marshall result: %w", err)
+	}
+	if result.TopicNotFound {
+		return nil, nil, errors.ErrTopicNotFound
 	}
 	return result.Consumer, result.Group, nil
 }

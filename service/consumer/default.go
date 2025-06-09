@@ -71,7 +71,8 @@ func (d *DefaultConsumerService) Connect(
 		return nil, nil, fmt.Errorf("failed to get topics: %w", err)
 	}
 	if len(topics) != len(topicNames) {
-		return nil, nil, fmt.Errorf("not all topics exist")
+		return nil, nil, errors.ErrTopicNotFound
+
 	}
 	tx, err := d.MetadataStorage.BeginTransaction(ctx, true)
 	if err != nil {

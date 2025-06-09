@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"log"
 	"strconv"
 	"time"
@@ -78,6 +80,10 @@ func (c *Client) CreateTopic(
 	_, err := c.brokerProxyClient.CreateTopic(ctx, createTopicReq)
 	cancel()
 	if err != nil {
+		s, _ := status.FromError(err)
+		if s.Code() == codes.AlreadyExists {
+			return nil
+		}
 		return err
 	}
 	return nil
