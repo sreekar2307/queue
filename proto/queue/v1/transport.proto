@@ -14,8 +14,7 @@
 
 syntax = "proto3";
 
-option go_package = "queue/transport/grpc/transportpb";
-
+import "buf/validate/validate.proto";
 package transportpb;
 
 service Transport {
@@ -30,7 +29,10 @@ service Transport {
 }
 
 message HealthCheckRequest {
-  string consumer_id = 1;
+  string consumer_id = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
   int64 ping_at = 2;
 }
 
@@ -78,9 +80,18 @@ message ReceiveMessageForPartitionIDRequest {
 }
 
 message CreateTopicRequest {
-  string topic = 1;
-  uint64 number_of_partitions = 2;
-  uint64 replication_factor = 3;
+  string topic = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
+  uint64 number_of_partitions = 2  [
+    (buf.validate.field).uint64.gt = 0,
+    (buf.validate.field).uint64.lte = 10
+  ];
+  uint64 replication_factor = 3 [
+    (buf.validate.field).uint64.gt = 0,
+    (buf.validate.field).uint64.lte = 10
+  ];
 }
 
 message CreateTopicResponse {

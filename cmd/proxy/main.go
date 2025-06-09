@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	pb "github.com/sreekar2307/queue/transport/grpc/transportpb"
+	pb "github.com/sreekar2307/queue/gen/queue/v1"
 	"github.com/sreekar2307/queue/util"
 
 	"github.com/mwitkow/grpc-proxy/proxy"
@@ -109,8 +109,7 @@ func director(ctx context.Context, _ string) (context.Context, *grpc.ClientConn,
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// You can modify metadata here too if needed
+	ctx = metadata.AppendToOutgoingContext(ctx, "x-proxied-by", "grpc-proxy")
 	return ctx, conn, nil
 }
 

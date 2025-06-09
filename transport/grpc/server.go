@@ -4,20 +4,23 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
-	"github.com/sreekar2307/queue/storage/errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io"
 	"log"
 	"net"
 	"time"
 
+	"github.com/sreekar2307/queue/storage/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"google.golang.org/grpc/metadata"
 
+	"buf.build/go/protovalidate"
+	provalidateInterceptor "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/protovalidate"
 	"github.com/sreekar2307/queue/config"
+	pb "github.com/sreekar2307/queue/gen/queue/v1"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service"
-	pb "github.com/sreekar2307/queue/transport/grpc/transportpb"
 	"github.com/sreekar2307/queue/util"
 
 	"google.golang.org/grpc"
@@ -39,8 +42,16 @@ func NewTransport(
 		queue:  queue,
 		config: config,
 	}
+	// Create a Protovalidate Validator
+	pv, err := protovalidate.New()
+	if err != nil {
+		return nil, fmt.Errorf("create protovalidate validator: %w", err)
+	}
 
-	server := grpc.NewServer()
+	interceptor := provalidateInterceptor.UnaryServerInterceptor(pv)
+	server := grpc.NewServer(
+		grpc.UnaryInterceptor(interceptor),
+	)
 	server.RegisterService(&pb.Transport_ServiceDesc, g)
 	g.server = server
 	return g, nil
@@ -181,6 +192,10 @@ func (g *GRPC) ReceiveMessageForPartitionID(
 }
 
 func (g *GRPC) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb.CreateTopicResponse, error) {
+	err := protovalidate.Validate(req)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "validate request: %v", err)
+	}
 	topic, err := g.queue.CreateTopic(ctx,
 		req.GetTopic(),
 		req.GetNumberOfPartitions(),

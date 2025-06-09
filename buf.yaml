@@ -1,0 +1,12 @@
+version: v2
+modules:
+  - path: proto
+    name: buf.build/sreekar2307/queue 
+deps:
+   - buf.build/bufbuild/protovalidate:v0.12.0
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE
