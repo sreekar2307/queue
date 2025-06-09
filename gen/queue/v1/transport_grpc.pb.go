@@ -33,20 +33,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Transport_HealthCheck_FullMethodName                  = "/transportpb.Transport/HealthCheck"
-	Transport_AckMessage_FullMethodName                   = "/transportpb.Transport/AckMessage"
-	Transport_SendMessage_FullMethodName                  = "/transportpb.Transport/SendMessage"
-	Transport_ReceiveMessage_FullMethodName               = "/transportpb.Transport/ReceiveMessage"
-	Transport_ReceiveMessageForPartitionID_FullMethodName = "/transportpb.Transport/ReceiveMessageForPartitionID"
-	Transport_CreateTopic_FullMethodName                  = "/transportpb.Transport/CreateTopic"
-	Transport_Connect_FullMethodName                      = "/transportpb.Transport/Connect"
-	Transport_ShardInfo_FullMethodName                    = "/transportpb.Transport/ShardInfo"
+	Queue_HealthCheck_FullMethodName                  = "/queue.Queue/HealthCheck"
+	Queue_AckMessage_FullMethodName                   = "/queue.Queue/AckMessage"
+	Queue_SendMessage_FullMethodName                  = "/queue.Queue/SendMessage"
+	Queue_ReceiveMessage_FullMethodName               = "/queue.Queue/ReceiveMessage"
+	Queue_ReceiveMessageForPartitionID_FullMethodName = "/queue.Queue/ReceiveMessageForPartitionID"
+	Queue_CreateTopic_FullMethodName                  = "/queue.Queue/CreateTopic"
+	Queue_Connect_FullMethodName                      = "/queue.Queue/Connect"
+	Queue_ShardInfo_FullMethodName                    = "/queue.Queue/ShardInfo"
 )
 
-// TransportClient is the client API for Transport service.
+// QueueClient is the client API for Queue service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type TransportClient interface {
+type QueueClient interface {
 	HealthCheck(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[HealthCheckRequest, HealthCheckResponse], error)
 	AckMessage(ctx context.Context, in *AckMessageRequest, opts ...grpc.CallOption) (*AckMessageResponse, error)
 	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error)
@@ -57,17 +57,17 @@ type TransportClient interface {
 	ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error)
 }
 
-type transportClient struct {
+type queueClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewTransportClient(cc grpc.ClientConnInterface) TransportClient {
-	return &transportClient{cc}
+func NewQueueClient(cc grpc.ClientConnInterface) QueueClient {
+	return &queueClient{cc}
 }
 
-func (c *transportClient) HealthCheck(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[HealthCheckRequest, HealthCheckResponse], error) {
+func (c *queueClient) HealthCheck(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[HealthCheckRequest, HealthCheckResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Transport_ServiceDesc.Streams[0], Transport_HealthCheck_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Queue_ServiceDesc.Streams[0], Queue_HealthCheck_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -76,82 +76,82 @@ func (c *transportClient) HealthCheck(ctx context.Context, opts ...grpc.CallOpti
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Transport_HealthCheckClient = grpc.BidiStreamingClient[HealthCheckRequest, HealthCheckResponse]
+type Queue_HealthCheckClient = grpc.BidiStreamingClient[HealthCheckRequest, HealthCheckResponse]
 
-func (c *transportClient) AckMessage(ctx context.Context, in *AckMessageRequest, opts ...grpc.CallOption) (*AckMessageResponse, error) {
+func (c *queueClient) AckMessage(ctx context.Context, in *AckMessageRequest, opts ...grpc.CallOption) (*AckMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AckMessageResponse)
-	err := c.cc.Invoke(ctx, Transport_AckMessage_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Queue_AckMessage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *transportClient) SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error) {
+func (c *queueClient) SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SendMessageResponse)
-	err := c.cc.Invoke(ctx, Transport_SendMessage_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Queue_SendMessage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *transportClient) ReceiveMessage(ctx context.Context, in *ReceiveMessageRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error) {
+func (c *queueClient) ReceiveMessage(ctx context.Context, in *ReceiveMessageRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ReceiveMessageResponse)
-	err := c.cc.Invoke(ctx, Transport_ReceiveMessage_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Queue_ReceiveMessage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *transportClient) ReceiveMessageForPartitionID(ctx context.Context, in *ReceiveMessageForPartitionIDRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error) {
+func (c *queueClient) ReceiveMessageForPartitionID(ctx context.Context, in *ReceiveMessageForPartitionIDRequest, opts ...grpc.CallOption) (*ReceiveMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ReceiveMessageResponse)
-	err := c.cc.Invoke(ctx, Transport_ReceiveMessageForPartitionID_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Queue_ReceiveMessageForPartitionID_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *transportClient) CreateTopic(ctx context.Context, in *CreateTopicRequest, opts ...grpc.CallOption) (*CreateTopicResponse, error) {
+func (c *queueClient) CreateTopic(ctx context.Context, in *CreateTopicRequest, opts ...grpc.CallOption) (*CreateTopicResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateTopicResponse)
-	err := c.cc.Invoke(ctx, Transport_CreateTopic_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Queue_CreateTopic_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *transportClient) Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error) {
+func (c *queueClient) Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ConnectResponse)
-	err := c.cc.Invoke(ctx, Transport_Connect_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Queue_Connect_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *transportClient) ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error) {
+func (c *queueClient) ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ShardInfoResponse)
-	err := c.cc.Invoke(ctx, Transport_ShardInfo_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Queue_ShardInfo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// TransportServer is the server API for Transport service.
-// All implementations must embed UnimplementedTransportServer
+// QueueServer is the server API for Queue service.
+// All implementations must embed UnimplementedQueueServer
 // for forward compatibility.
-type TransportServer interface {
+type QueueServer interface {
 	HealthCheck(grpc.BidiStreamingServer[HealthCheckRequest, HealthCheckResponse]) error
 	AckMessage(context.Context, *AckMessageRequest) (*AckMessageResponse, error)
 	SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error)
@@ -160,234 +160,234 @@ type TransportServer interface {
 	CreateTopic(context.Context, *CreateTopicRequest) (*CreateTopicResponse, error)
 	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
 	ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error)
-	mustEmbedUnimplementedTransportServer()
+	mustEmbedUnimplementedQueueServer()
 }
 
-// UnimplementedTransportServer must be embedded to have
+// UnimplementedQueueServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedTransportServer struct{}
+type UnimplementedQueueServer struct{}
 
-func (UnimplementedTransportServer) HealthCheck(grpc.BidiStreamingServer[HealthCheckRequest, HealthCheckResponse]) error {
+func (UnimplementedQueueServer) HealthCheck(grpc.BidiStreamingServer[HealthCheckRequest, HealthCheckResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method HealthCheck not implemented")
 }
-func (UnimplementedTransportServer) AckMessage(context.Context, *AckMessageRequest) (*AckMessageResponse, error) {
+func (UnimplementedQueueServer) AckMessage(context.Context, *AckMessageRequest) (*AckMessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AckMessage not implemented")
 }
-func (UnimplementedTransportServer) SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error) {
+func (UnimplementedQueueServer) SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
 }
-func (UnimplementedTransportServer) ReceiveMessage(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error) {
+func (UnimplementedQueueServer) ReceiveMessage(context.Context, *ReceiveMessageRequest) (*ReceiveMessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReceiveMessage not implemented")
 }
-func (UnimplementedTransportServer) ReceiveMessageForPartitionID(context.Context, *ReceiveMessageForPartitionIDRequest) (*ReceiveMessageResponse, error) {
+func (UnimplementedQueueServer) ReceiveMessageForPartitionID(context.Context, *ReceiveMessageForPartitionIDRequest) (*ReceiveMessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReceiveMessageForPartitionID not implemented")
 }
-func (UnimplementedTransportServer) CreateTopic(context.Context, *CreateTopicRequest) (*CreateTopicResponse, error) {
+func (UnimplementedQueueServer) CreateTopic(context.Context, *CreateTopicRequest) (*CreateTopicResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTopic not implemented")
 }
-func (UnimplementedTransportServer) Connect(context.Context, *ConnectRequest) (*ConnectResponse, error) {
+func (UnimplementedQueueServer) Connect(context.Context, *ConnectRequest) (*ConnectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Connect not implemented")
 }
-func (UnimplementedTransportServer) ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error) {
+func (UnimplementedQueueServer) ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ShardInfo not implemented")
 }
-func (UnimplementedTransportServer) mustEmbedUnimplementedTransportServer() {}
-func (UnimplementedTransportServer) testEmbeddedByValue()                   {}
+func (UnimplementedQueueServer) mustEmbedUnimplementedQueueServer() {}
+func (UnimplementedQueueServer) testEmbeddedByValue()               {}
 
-// UnsafeTransportServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to TransportServer will
+// UnsafeQueueServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to QueueServer will
 // result in compilation errors.
-type UnsafeTransportServer interface {
-	mustEmbedUnimplementedTransportServer()
+type UnsafeQueueServer interface {
+	mustEmbedUnimplementedQueueServer()
 }
 
-func RegisterTransportServer(s grpc.ServiceRegistrar, srv TransportServer) {
-	// If the following call pancis, it indicates UnimplementedTransportServer was
+func RegisterQueueServer(s grpc.ServiceRegistrar, srv QueueServer) {
+	// If the following call pancis, it indicates UnimplementedQueueServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&Transport_ServiceDesc, srv)
+	s.RegisterService(&Queue_ServiceDesc, srv)
 }
 
-func _Transport_HealthCheck_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(TransportServer).HealthCheck(&grpc.GenericServerStream[HealthCheckRequest, HealthCheckResponse]{ServerStream: stream})
+func _Queue_HealthCheck_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(QueueServer).HealthCheck(&grpc.GenericServerStream[HealthCheckRequest, HealthCheckResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Transport_HealthCheckServer = grpc.BidiStreamingServer[HealthCheckRequest, HealthCheckResponse]
+type Queue_HealthCheckServer = grpc.BidiStreamingServer[HealthCheckRequest, HealthCheckResponse]
 
-func _Transport_AckMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Queue_AckMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AckMessageRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TransportServer).AckMessage(ctx, in)
+		return srv.(QueueServer).AckMessage(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Transport_AckMessage_FullMethodName,
+		FullMethod: Queue_AckMessage_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransportServer).AckMessage(ctx, req.(*AckMessageRequest))
+		return srv.(QueueServer).AckMessage(ctx, req.(*AckMessageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Transport_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Queue_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SendMessageRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TransportServer).SendMessage(ctx, in)
+		return srv.(QueueServer).SendMessage(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Transport_SendMessage_FullMethodName,
+		FullMethod: Queue_SendMessage_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransportServer).SendMessage(ctx, req.(*SendMessageRequest))
+		return srv.(QueueServer).SendMessage(ctx, req.(*SendMessageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Transport_ReceiveMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Queue_ReceiveMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReceiveMessageRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TransportServer).ReceiveMessage(ctx, in)
+		return srv.(QueueServer).ReceiveMessage(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Transport_ReceiveMessage_FullMethodName,
+		FullMethod: Queue_ReceiveMessage_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransportServer).ReceiveMessage(ctx, req.(*ReceiveMessageRequest))
+		return srv.(QueueServer).ReceiveMessage(ctx, req.(*ReceiveMessageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Transport_ReceiveMessageForPartitionID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Queue_ReceiveMessageForPartitionID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReceiveMessageForPartitionIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TransportServer).ReceiveMessageForPartitionID(ctx, in)
+		return srv.(QueueServer).ReceiveMessageForPartitionID(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Transport_ReceiveMessageForPartitionID_FullMethodName,
+		FullMethod: Queue_ReceiveMessageForPartitionID_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransportServer).ReceiveMessageForPartitionID(ctx, req.(*ReceiveMessageForPartitionIDRequest))
+		return srv.(QueueServer).ReceiveMessageForPartitionID(ctx, req.(*ReceiveMessageForPartitionIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Transport_CreateTopic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Queue_CreateTopic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateTopicRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TransportServer).CreateTopic(ctx, in)
+		return srv.(QueueServer).CreateTopic(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Transport_CreateTopic_FullMethodName,
+		FullMethod: Queue_CreateTopic_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransportServer).CreateTopic(ctx, req.(*CreateTopicRequest))
+		return srv.(QueueServer).CreateTopic(ctx, req.(*CreateTopicRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Transport_Connect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Queue_Connect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ConnectRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TransportServer).Connect(ctx, in)
+		return srv.(QueueServer).Connect(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Transport_Connect_FullMethodName,
+		FullMethod: Queue_Connect_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransportServer).Connect(ctx, req.(*ConnectRequest))
+		return srv.(QueueServer).Connect(ctx, req.(*ConnectRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Transport_ShardInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Queue_ShardInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ShardInfoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TransportServer).ShardInfo(ctx, in)
+		return srv.(QueueServer).ShardInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Transport_ShardInfo_FullMethodName,
+		FullMethod: Queue_ShardInfo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransportServer).ShardInfo(ctx, req.(*ShardInfoRequest))
+		return srv.(QueueServer).ShardInfo(ctx, req.(*ShardInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Transport_ServiceDesc is the grpc.ServiceDesc for Transport service.
+// Queue_ServiceDesc is the grpc.ServiceDesc for Queue service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Transport_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "transportpb.Transport",
-	HandlerType: (*TransportServer)(nil),
+var Queue_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "queue.Queue",
+	HandlerType: (*QueueServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "AckMessage",
-			Handler:    _Transport_AckMessage_Handler,
+			Handler:    _Queue_AckMessage_Handler,
 		},
 		{
 			MethodName: "SendMessage",
-			Handler:    _Transport_SendMessage_Handler,
+			Handler:    _Queue_SendMessage_Handler,
 		},
 		{
 			MethodName: "ReceiveMessage",
-			Handler:    _Transport_ReceiveMessage_Handler,
+			Handler:    _Queue_ReceiveMessage_Handler,
 		},
 		{
 			MethodName: "ReceiveMessageForPartitionID",
-			Handler:    _Transport_ReceiveMessageForPartitionID_Handler,
+			Handler:    _Queue_ReceiveMessageForPartitionID_Handler,
 		},
 		{
 			MethodName: "CreateTopic",
-			Handler:    _Transport_CreateTopic_Handler,
+			Handler:    _Queue_CreateTopic_Handler,
 		},
 		{
 			MethodName: "Connect",
-			Handler:    _Transport_Connect_Handler,
+			Handler:    _Queue_Connect_Handler,
 		},
 		{
 			MethodName: "ShardInfo",
-			Handler:    _Transport_ShardInfo_Handler,
+			Handler:    _Queue_ShardInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "HealthCheck",
-			Handler:       _Transport_HealthCheck_Handler,
+			Handler:       _Queue_HealthCheck_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

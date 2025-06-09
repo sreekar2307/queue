@@ -1043,7 +1043,7 @@ func (x *ShardInfoResponse) GetBrokers() []*Broker {
 
 type ShardInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardType     ShardType              `protobuf:"varint,1,opt,name=shard_type,json=shardType,proto3,enum=transportpb.ShardType" json:"shard_type,omitempty"`
+	ShardType     ShardType              `protobuf:"varint,1,opt,name=shard_type,json=shardType,proto3,enum=queue.ShardType" json:"shard_type,omitempty"`
 	ShardId       uint64                 `protobuf:"varint,2,opt,name=shard_id,json=shardId,proto3" json:"shard_id,omitempty"`
 	Topic         string                 `protobuf:"bytes,3,opt,name=topic,proto3" json:"topic,omitempty"`
 	PartitionId   string                 `protobuf:"bytes,4,opt,name=partition_id,json=partitionId,proto3" json:"partition_id,omitempty"`
@@ -1189,7 +1189,7 @@ var File_queue_v1_transport_proto protoreflect.FileDescriptor
 
 const file_queue_v1_transport_proto_rawDesc = "" +
 	"\n" +
-	"\x18queue/v1/transport.proto\x12\vtransportpb\x1a\x1bbuf/validate/validate.proto\"Y\n" +
+	"\x18queue/v1/transport.proto\x12\x05queue\x1a\x1bbuf/validate/validate.proto\"Y\n" +
 	"\x12HealthCheckRequest\x12*\n" +
 	"\vconsumer_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\n" +
 	"consumerId\x12\x17\n" +
@@ -1241,10 +1241,10 @@ const file_queue_v1_transport_proto_rawDesc = "" +
 	"\vconsumer_id\x18\x01 \x01(\tR\n" +
 	"consumerId\x12%\n" +
 	"\x0econsumer_group\x18\x02 \x01(\tR\rconsumerGroup\x12\x16\n" +
-	"\x06topics\x18\x03 \x03(\tR\x06topics\"\x87\x01\n" +
-	"\x0fConnectResponse\x121\n" +
-	"\bconsumer\x18\x01 \x01(\v2\x15.transportpb.ConsumerR\bconsumer\x12A\n" +
-	"\x0econsumer_group\x18\x02 \x01(\v2\x1a.transportpb.ConsumerGroupR\rconsumerGroup\"\x96\x01\n" +
+	"\x06topics\x18\x03 \x03(\tR\x06topics\"{\n" +
+	"\x0fConnectResponse\x12+\n" +
+	"\bconsumer\x18\x01 \x01(\v2\x0f.queue.ConsumerR\bconsumer\x12;\n" +
+	"\x0econsumer_group\x18\x02 \x01(\v2\x14.queue.ConsumerGroupR\rconsumerGroup\"\x96\x01\n" +
 	"\bConsumer\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0econsumer_group\x18\x02 \x01(\tR\rconsumerGroup\x12\x1e\n" +
@@ -1258,21 +1258,21 @@ const file_queue_v1_transport_proto_rawDesc = "" +
 	"\tconsumers\x18\x02 \x03(\tR\tconsumers\x12\x16\n" +
 	"\x06topics\x18\x03 \x03(\tR\x06topics\"*\n" +
 	"\x10ShardInfoRequest\x12\x16\n" +
-	"\x06topics\x18\x01 \x03(\tR\x06topics\"\xe6\x01\n" +
-	"\x11ShardInfoResponse\x12L\n" +
+	"\x06topics\x18\x01 \x03(\tR\x06topics\"\xd4\x01\n" +
+	"\x11ShardInfoResponse\x12F\n" +
 	"\n" +
-	"shard_info\x18\x01 \x03(\v2-.transportpb.ShardInfoResponse.ShardInfoEntryR\tshardInfo\x12-\n" +
-	"\abrokers\x18\x02 \x03(\v2\x13.transportpb.BrokerR\abrokers\x1aT\n" +
+	"shard_info\x18\x01 \x03(\v2'.queue.ShardInfoResponse.ShardInfoEntryR\tshardInfo\x12'\n" +
+	"\abrokers\x18\x02 \x03(\v2\r.queue.BrokerR\abrokers\x1aN\n" +
 	"\x0eShardInfoEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.transportpb.ShardInfoR\x05value:\x028\x01\"\xc5\x01\n" +
-	"\tShardInfo\x125\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12&\n" +
+	"\x05value\x18\x02 \x01(\v2\x10.queue.ShardInfoR\x05value:\x028\x01\"\xb9\x01\n" +
+	"\tShardInfo\x12/\n" +
 	"\n" +
-	"shard_type\x18\x01 \x01(\x0e2\x16.transportpb.ShardTypeR\tshardType\x12\x19\n" +
+	"shard_type\x18\x01 \x01(\x0e2\x10.queue.ShardTypeR\tshardType\x12\x19\n" +
 	"\bshard_id\x18\x02 \x01(\x04R\ashardId\x12\x14\n" +
 	"\x05topic\x18\x03 \x01(\tR\x05topic\x12!\n" +
-	"\fpartition_id\x18\x04 \x01(\tR\vpartitionId\x12-\n" +
-	"\abrokers\x18\x05 \x03(\v2\x13.transportpb.BrokerR\abrokers\"\x81\x01\n" +
+	"\fpartition_id\x18\x04 \x01(\tR\vpartitionId\x12'\n" +
+	"\abrokers\x18\x05 \x03(\v2\r.queue.BrokerR\abrokers\"\x81\x01\n" +
 	"\x06Broker\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12!\n" +
 	"\fraft_address\x18\x02 \x01(\tR\vraftAddress\x12!\n" +
@@ -1281,18 +1281,18 @@ const file_queue_v1_transport_proto_rawDesc = "" +
 	"\tShardType\x12\x16\n" +
 	"\x12SHARD_TYPE_UNKNOWN\x10\x00\x12\x16\n" +
 	"\x12SHARD_TYPE_BROKERS\x10\x01\x12\x19\n" +
-	"\x15SHARD_TYPE_PARTITIONS\x10\x022\xb8\x05\n" +
-	"\tTransport\x12T\n" +
-	"\vHealthCheck\x12\x1f.transportpb.HealthCheckRequest\x1a .transportpb.HealthCheckResponse(\x010\x01\x12M\n" +
+	"\x15SHARD_TYPE_PARTITIONS\x10\x022\xd4\x04\n" +
+	"\x05Queue\x12H\n" +
+	"\vHealthCheck\x12\x19.queue.HealthCheckRequest\x1a\x1a.queue.HealthCheckResponse(\x010\x01\x12A\n" +
 	"\n" +
-	"AckMessage\x12\x1e.transportpb.AckMessageRequest\x1a\x1f.transportpb.AckMessageResponse\x12P\n" +
-	"\vSendMessage\x12\x1f.transportpb.SendMessageRequest\x1a .transportpb.SendMessageResponse\x12Y\n" +
-	"\x0eReceiveMessage\x12\".transportpb.ReceiveMessageRequest\x1a#.transportpb.ReceiveMessageResponse\x12u\n" +
-	"\x1cReceiveMessageForPartitionID\x120.transportpb.ReceiveMessageForPartitionIDRequest\x1a#.transportpb.ReceiveMessageResponse\x12P\n" +
-	"\vCreateTopic\x12\x1f.transportpb.CreateTopicRequest\x1a .transportpb.CreateTopicResponse\x12D\n" +
-	"\aConnect\x12\x1b.transportpb.ConnectRequest\x1a\x1c.transportpb.ConnectResponse\x12J\n" +
-	"\tShardInfo\x12\x1d.transportpb.ShardInfoRequest\x1a\x1e.transportpb.ShardInfoResponseB\x98\x01\n" +
-	"\x0fcom.transportpbB\x0eTransportProtoP\x01Z)github.com/sreekar2307/queue/gen/queue/v1\xa2\x02\x03TXX\xaa\x02\vTransportpb\xca\x02\vTransportpb\xe2\x02\x17Transportpb\\GPBMetadata\xea\x02\vTransportpbb\x06proto3"
+	"AckMessage\x12\x18.queue.AckMessageRequest\x1a\x19.queue.AckMessageResponse\x12D\n" +
+	"\vSendMessage\x12\x19.queue.SendMessageRequest\x1a\x1a.queue.SendMessageResponse\x12M\n" +
+	"\x0eReceiveMessage\x12\x1c.queue.ReceiveMessageRequest\x1a\x1d.queue.ReceiveMessageResponse\x12i\n" +
+	"\x1cReceiveMessageForPartitionID\x12*.queue.ReceiveMessageForPartitionIDRequest\x1a\x1d.queue.ReceiveMessageResponse\x12D\n" +
+	"\vCreateTopic\x12\x19.queue.CreateTopicRequest\x1a\x1a.queue.CreateTopicResponse\x128\n" +
+	"\aConnect\x12\x15.queue.ConnectRequest\x1a\x16.queue.ConnectResponse\x12>\n" +
+	"\tShardInfo\x12\x17.queue.ShardInfoRequest\x1a\x18.queue.ShardInfoResponseBz\n" +
+	"\tcom.queueB\x0eTransportProtoP\x01Z)github.com/sreekar2307/queue/gen/queue/v1\xa2\x02\x03QXX\xaa\x02\x05Queue\xca\x02\x05Queue\xe2\x02\x11Queue\\GPBMetadata\xea\x02\x05Queueb\x06proto3"
 
 var (
 	file_queue_v1_transport_proto_rawDescOnce sync.Once
@@ -1309,52 +1309,52 @@ func file_queue_v1_transport_proto_rawDescGZIP() []byte {
 var file_queue_v1_transport_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_queue_v1_transport_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_queue_v1_transport_proto_goTypes = []any{
-	(ShardType)(0),                              // 0: transportpb.ShardType
-	(*HealthCheckRequest)(nil),                  // 1: transportpb.HealthCheckRequest
-	(*HealthCheckResponse)(nil),                 // 2: transportpb.HealthCheckResponse
-	(*AckMessageRequest)(nil),                   // 3: transportpb.AckMessageRequest
-	(*AckMessageResponse)(nil),                  // 4: transportpb.AckMessageResponse
-	(*SendMessageRequest)(nil),                  // 5: transportpb.SendMessageRequest
-	(*SendMessageResponse)(nil),                 // 6: transportpb.SendMessageResponse
-	(*ReceiveMessageRequest)(nil),               // 7: transportpb.ReceiveMessageRequest
-	(*ReceiveMessageResponse)(nil),              // 8: transportpb.ReceiveMessageResponse
-	(*ReceiveMessageForPartitionIDRequest)(nil), // 9: transportpb.ReceiveMessageForPartitionIDRequest
-	(*CreateTopicRequest)(nil),                  // 10: transportpb.CreateTopicRequest
-	(*CreateTopicResponse)(nil),                 // 11: transportpb.CreateTopicResponse
-	(*ConnectRequest)(nil),                      // 12: transportpb.ConnectRequest
-	(*ConnectResponse)(nil),                     // 13: transportpb.ConnectResponse
-	(*Consumer)(nil),                            // 14: transportpb.Consumer
-	(*ConsumerGroup)(nil),                       // 15: transportpb.ConsumerGroup
-	(*ShardInfoRequest)(nil),                    // 16: transportpb.ShardInfoRequest
-	(*ShardInfoResponse)(nil),                   // 17: transportpb.ShardInfoResponse
-	(*ShardInfo)(nil),                           // 18: transportpb.ShardInfo
-	(*Broker)(nil),                              // 19: transportpb.Broker
-	nil,                                         // 20: transportpb.ShardInfoResponse.ShardInfoEntry
+	(ShardType)(0),                              // 0: queue.ShardType
+	(*HealthCheckRequest)(nil),                  // 1: queue.HealthCheckRequest
+	(*HealthCheckResponse)(nil),                 // 2: queue.HealthCheckResponse
+	(*AckMessageRequest)(nil),                   // 3: queue.AckMessageRequest
+	(*AckMessageResponse)(nil),                  // 4: queue.AckMessageResponse
+	(*SendMessageRequest)(nil),                  // 5: queue.SendMessageRequest
+	(*SendMessageResponse)(nil),                 // 6: queue.SendMessageResponse
+	(*ReceiveMessageRequest)(nil),               // 7: queue.ReceiveMessageRequest
+	(*ReceiveMessageResponse)(nil),              // 8: queue.ReceiveMessageResponse
+	(*ReceiveMessageForPartitionIDRequest)(nil), // 9: queue.ReceiveMessageForPartitionIDRequest
+	(*CreateTopicRequest)(nil),                  // 10: queue.CreateTopicRequest
+	(*CreateTopicResponse)(nil),                 // 11: queue.CreateTopicResponse
+	(*ConnectRequest)(nil),                      // 12: queue.ConnectRequest
+	(*ConnectResponse)(nil),                     // 13: queue.ConnectResponse
+	(*Consumer)(nil),                            // 14: queue.Consumer
+	(*ConsumerGroup)(nil),                       // 15: queue.ConsumerGroup
+	(*ShardInfoRequest)(nil),                    // 16: queue.ShardInfoRequest
+	(*ShardInfoResponse)(nil),                   // 17: queue.ShardInfoResponse
+	(*ShardInfo)(nil),                           // 18: queue.ShardInfo
+	(*Broker)(nil),                              // 19: queue.Broker
+	nil,                                         // 20: queue.ShardInfoResponse.ShardInfoEntry
 }
 var file_queue_v1_transport_proto_depIdxs = []int32{
-	14, // 0: transportpb.ConnectResponse.consumer:type_name -> transportpb.Consumer
-	15, // 1: transportpb.ConnectResponse.consumer_group:type_name -> transportpb.ConsumerGroup
-	20, // 2: transportpb.ShardInfoResponse.shard_info:type_name -> transportpb.ShardInfoResponse.ShardInfoEntry
-	19, // 3: transportpb.ShardInfoResponse.brokers:type_name -> transportpb.Broker
-	0,  // 4: transportpb.ShardInfo.shard_type:type_name -> transportpb.ShardType
-	19, // 5: transportpb.ShardInfo.brokers:type_name -> transportpb.Broker
-	18, // 6: transportpb.ShardInfoResponse.ShardInfoEntry.value:type_name -> transportpb.ShardInfo
-	1,  // 7: transportpb.Transport.HealthCheck:input_type -> transportpb.HealthCheckRequest
-	3,  // 8: transportpb.Transport.AckMessage:input_type -> transportpb.AckMessageRequest
-	5,  // 9: transportpb.Transport.SendMessage:input_type -> transportpb.SendMessageRequest
-	7,  // 10: transportpb.Transport.ReceiveMessage:input_type -> transportpb.ReceiveMessageRequest
-	9,  // 11: transportpb.Transport.ReceiveMessageForPartitionID:input_type -> transportpb.ReceiveMessageForPartitionIDRequest
-	10, // 12: transportpb.Transport.CreateTopic:input_type -> transportpb.CreateTopicRequest
-	12, // 13: transportpb.Transport.Connect:input_type -> transportpb.ConnectRequest
-	16, // 14: transportpb.Transport.ShardInfo:input_type -> transportpb.ShardInfoRequest
-	2,  // 15: transportpb.Transport.HealthCheck:output_type -> transportpb.HealthCheckResponse
-	4,  // 16: transportpb.Transport.AckMessage:output_type -> transportpb.AckMessageResponse
-	6,  // 17: transportpb.Transport.SendMessage:output_type -> transportpb.SendMessageResponse
-	8,  // 18: transportpb.Transport.ReceiveMessage:output_type -> transportpb.ReceiveMessageResponse
-	8,  // 19: transportpb.Transport.ReceiveMessageForPartitionID:output_type -> transportpb.ReceiveMessageResponse
-	11, // 20: transportpb.Transport.CreateTopic:output_type -> transportpb.CreateTopicResponse
-	13, // 21: transportpb.Transport.Connect:output_type -> transportpb.ConnectResponse
-	17, // 22: transportpb.Transport.ShardInfo:output_type -> transportpb.ShardInfoResponse
+	14, // 0: queue.ConnectResponse.consumer:type_name -> queue.Consumer
+	15, // 1: queue.ConnectResponse.consumer_group:type_name -> queue.ConsumerGroup
+	20, // 2: queue.ShardInfoResponse.shard_info:type_name -> queue.ShardInfoResponse.ShardInfoEntry
+	19, // 3: queue.ShardInfoResponse.brokers:type_name -> queue.Broker
+	0,  // 4: queue.ShardInfo.shard_type:type_name -> queue.ShardType
+	19, // 5: queue.ShardInfo.brokers:type_name -> queue.Broker
+	18, // 6: queue.ShardInfoResponse.ShardInfoEntry.value:type_name -> queue.ShardInfo
+	1,  // 7: queue.Queue.HealthCheck:input_type -> queue.HealthCheckRequest
+	3,  // 8: queue.Queue.AckMessage:input_type -> queue.AckMessageRequest
+	5,  // 9: queue.Queue.SendMessage:input_type -> queue.SendMessageRequest
+	7,  // 10: queue.Queue.ReceiveMessage:input_type -> queue.ReceiveMessageRequest
+	9,  // 11: queue.Queue.ReceiveMessageForPartitionID:input_type -> queue.ReceiveMessageForPartitionIDRequest
+	10, // 12: queue.Queue.CreateTopic:input_type -> queue.CreateTopicRequest
+	12, // 13: queue.Queue.Connect:input_type -> queue.ConnectRequest
+	16, // 14: queue.Queue.ShardInfo:input_type -> queue.ShardInfoRequest
+	2,  // 15: queue.Queue.HealthCheck:output_type -> queue.HealthCheckResponse
+	4,  // 16: queue.Queue.AckMessage:output_type -> queue.AckMessageResponse
+	6,  // 17: queue.Queue.SendMessage:output_type -> queue.SendMessageResponse
+	8,  // 18: queue.Queue.ReceiveMessage:output_type -> queue.ReceiveMessageResponse
+	8,  // 19: queue.Queue.ReceiveMessageForPartitionID:output_type -> queue.ReceiveMessageResponse
+	11, // 20: queue.Queue.CreateTopic:output_type -> queue.CreateTopicResponse
+	13, // 21: queue.Queue.Connect:output_type -> queue.ConnectResponse
+	17, // 22: queue.Queue.ShardInfo:output_type -> queue.ShardInfoResponse
 	15, // [15:23] is the sub-list for method output_type
 	7,  // [7:15] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name

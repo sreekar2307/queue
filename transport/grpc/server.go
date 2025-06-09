@@ -27,7 +27,7 @@ import (
 )
 
 type GRPC struct {
-	pb.UnimplementedTransportServer
+	pb.UnimplementedQueueServer
 	queue  *service.Queue
 	server *grpc.Server
 	config config.GRPC
@@ -52,7 +52,7 @@ func NewTransport(
 	server := grpc.NewServer(
 		grpc.UnaryInterceptor(interceptor),
 	)
-	server.RegisterService(&pb.Transport_ServiceDesc, g)
+	server.RegisterService(&pb.Queue_ServiceDesc, g)
 	g.server = server
 	return g, nil
 }

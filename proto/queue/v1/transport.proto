@@ -15,9 +15,9 @@
 syntax = "proto3";
 
 import "buf/validate/validate.proto";
-package transportpb;
+package queue;
 
-service Transport {
+service Queue{
   rpc HealthCheck(stream HealthCheckRequest) returns (stream HealthCheckResponse);
   rpc AckMessage(AckMessageRequest) returns (AckMessageResponse);
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
