@@ -16,9 +16,9 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: queue/v1/transport.proto
+// source: queue/v1/queue.proto
 
-package v1
+package queuev1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
@@ -39,22 +39,22 @@ const (
 type ShardType int32
 
 const (
-	ShardType_SHARD_TYPE_UNKNOWN    ShardType = 0
-	ShardType_SHARD_TYPE_BROKERS    ShardType = 1
-	ShardType_SHARD_TYPE_PARTITIONS ShardType = 2
+	ShardType_SHARD_TYPE_UNSPECIFIED ShardType = 0
+	ShardType_SHARD_TYPE_BROKERS     ShardType = 1
+	ShardType_SHARD_TYPE_PARTITIONS  ShardType = 2
 )
 
 // Enum value maps for ShardType.
 var (
 	ShardType_name = map[int32]string{
-		0: "SHARD_TYPE_UNKNOWN",
+		0: "SHARD_TYPE_UNSPECIFIED",
 		1: "SHARD_TYPE_BROKERS",
 		2: "SHARD_TYPE_PARTITIONS",
 	}
 	ShardType_value = map[string]int32{
-		"SHARD_TYPE_UNKNOWN":    0,
-		"SHARD_TYPE_BROKERS":    1,
-		"SHARD_TYPE_PARTITIONS": 2,
+		"SHARD_TYPE_UNSPECIFIED": 0,
+		"SHARD_TYPE_BROKERS":     1,
+		"SHARD_TYPE_PARTITIONS":  2,
 	}
 )
 
@@ -69,11 +69,11 @@ func (x ShardType) String() string {
 }
 
 func (ShardType) Descriptor() protoreflect.EnumDescriptor {
-	return file_queue_v1_transport_proto_enumTypes[0].Descriptor()
+	return file_queue_v1_queue_proto_enumTypes[0].Descriptor()
 }
 
 func (ShardType) Type() protoreflect.EnumType {
-	return &file_queue_v1_transport_proto_enumTypes[0]
+	return &file_queue_v1_queue_proto_enumTypes[0]
 }
 
 func (x ShardType) Number() protoreflect.EnumNumber {
@@ -82,7 +82,7 @@ func (x ShardType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ShardType.Descriptor instead.
 func (ShardType) EnumDescriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{0}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{0}
 }
 
 type HealthCheckRequest struct {
@@ -95,7 +95,7 @@ type HealthCheckRequest struct {
 
 func (x *HealthCheckRequest) Reset() {
 	*x = HealthCheckRequest{}
-	mi := &file_queue_v1_transport_proto_msgTypes[0]
+	mi := &file_queue_v1_queue_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -107,7 +107,7 @@ func (x *HealthCheckRequest) String() string {
 func (*HealthCheckRequest) ProtoMessage() {}
 
 func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[0]
+	mi := &file_queue_v1_queue_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -120,7 +120,7 @@ func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckRequest.ProtoReflect.Descriptor instead.
 func (*HealthCheckRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{0}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *HealthCheckRequest) GetConsumerId() string {
@@ -146,7 +146,7 @@ type HealthCheckResponse struct {
 
 func (x *HealthCheckResponse) Reset() {
 	*x = HealthCheckResponse{}
-	mi := &file_queue_v1_transport_proto_msgTypes[1]
+	mi := &file_queue_v1_queue_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -158,7 +158,7 @@ func (x *HealthCheckResponse) String() string {
 func (*HealthCheckResponse) ProtoMessage() {}
 
 func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[1]
+	mi := &file_queue_v1_queue_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -171,7 +171,7 @@ func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckResponse.ProtoReflect.Descriptor instead.
 func (*HealthCheckResponse) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{1}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *HealthCheckResponse) GetMessage() string {
@@ -192,7 +192,7 @@ type AckMessageRequest struct {
 
 func (x *AckMessageRequest) Reset() {
 	*x = AckMessageRequest{}
-	mi := &file_queue_v1_transport_proto_msgTypes[2]
+	mi := &file_queue_v1_queue_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -204,7 +204,7 @@ func (x *AckMessageRequest) String() string {
 func (*AckMessageRequest) ProtoMessage() {}
 
 func (x *AckMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[2]
+	mi := &file_queue_v1_queue_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -217,7 +217,7 @@ func (x *AckMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AckMessageRequest.ProtoReflect.Descriptor instead.
 func (*AckMessageRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{2}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *AckMessageRequest) GetConsumerId() string {
@@ -249,7 +249,7 @@ type AckMessageResponse struct {
 
 func (x *AckMessageResponse) Reset() {
 	*x = AckMessageResponse{}
-	mi := &file_queue_v1_transport_proto_msgTypes[3]
+	mi := &file_queue_v1_queue_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -261,7 +261,7 @@ func (x *AckMessageResponse) String() string {
 func (*AckMessageResponse) ProtoMessage() {}
 
 func (x *AckMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[3]
+	mi := &file_queue_v1_queue_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -274,7 +274,7 @@ func (x *AckMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AckMessageResponse.ProtoReflect.Descriptor instead.
 func (*AckMessageResponse) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{3}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{3}
 }
 
 type SendMessageRequest struct {
@@ -288,7 +288,7 @@ type SendMessageRequest struct {
 
 func (x *SendMessageRequest) Reset() {
 	*x = SendMessageRequest{}
-	mi := &file_queue_v1_transport_proto_msgTypes[4]
+	mi := &file_queue_v1_queue_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -300,7 +300,7 @@ func (x *SendMessageRequest) String() string {
 func (*SendMessageRequest) ProtoMessage() {}
 
 func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[4]
+	mi := &file_queue_v1_queue_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -313,7 +313,7 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{4}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SendMessageRequest) GetTopic() string {
@@ -350,7 +350,7 @@ type SendMessageResponse struct {
 
 func (x *SendMessageResponse) Reset() {
 	*x = SendMessageResponse{}
-	mi := &file_queue_v1_transport_proto_msgTypes[5]
+	mi := &file_queue_v1_queue_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -362,7 +362,7 @@ func (x *SendMessageResponse) String() string {
 func (*SendMessageResponse) ProtoMessage() {}
 
 func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[5]
+	mi := &file_queue_v1_queue_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -375,7 +375,7 @@ func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageResponse.ProtoReflect.Descriptor instead.
 func (*SendMessageResponse) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{5}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SendMessageResponse) GetTopic() string {
@@ -422,7 +422,7 @@ type ReceiveMessageRequest struct {
 
 func (x *ReceiveMessageRequest) Reset() {
 	*x = ReceiveMessageRequest{}
-	mi := &file_queue_v1_transport_proto_msgTypes[6]
+	mi := &file_queue_v1_queue_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -434,7 +434,7 @@ func (x *ReceiveMessageRequest) String() string {
 func (*ReceiveMessageRequest) ProtoMessage() {}
 
 func (x *ReceiveMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[6]
+	mi := &file_queue_v1_queue_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -447,7 +447,7 @@ func (x *ReceiveMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReceiveMessageRequest.ProtoReflect.Descriptor instead.
 func (*ReceiveMessageRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{6}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReceiveMessageRequest) GetConsumerId() string {
@@ -457,7 +457,7 @@ func (x *ReceiveMessageRequest) GetConsumerId() string {
 	return ""
 }
 
-type ReceiveMessageResponse struct {
+type ReceiveMessageForPartitionIDResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Topic         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
 	MessageId     []byte                 `protobuf:"bytes,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
@@ -468,21 +468,21 @@ type ReceiveMessageResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ReceiveMessageResponse) Reset() {
-	*x = ReceiveMessageResponse{}
-	mi := &file_queue_v1_transport_proto_msgTypes[7]
+func (x *ReceiveMessageForPartitionIDResponse) Reset() {
+	*x = ReceiveMessageForPartitionIDResponse{}
+	mi := &file_queue_v1_queue_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ReceiveMessageResponse) String() string {
+func (x *ReceiveMessageForPartitionIDResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReceiveMessageResponse) ProtoMessage() {}
+func (*ReceiveMessageForPartitionIDResponse) ProtoMessage() {}
 
-func (x *ReceiveMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[7]
+func (x *ReceiveMessageForPartitionIDResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_queue_v1_queue_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -493,40 +493,40 @@ func (x *ReceiveMessageResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReceiveMessageResponse.ProtoReflect.Descriptor instead.
-func (*ReceiveMessageResponse) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{7}
+// Deprecated: Use ReceiveMessageForPartitionIDResponse.ProtoReflect.Descriptor instead.
+func (*ReceiveMessageForPartitionIDResponse) Descriptor() ([]byte, []int) {
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ReceiveMessageResponse) GetTopic() string {
+func (x *ReceiveMessageForPartitionIDResponse) GetTopic() string {
 	if x != nil {
 		return x.Topic
 	}
 	return ""
 }
 
-func (x *ReceiveMessageResponse) GetMessageId() []byte {
+func (x *ReceiveMessageForPartitionIDResponse) GetMessageId() []byte {
 	if x != nil {
 		return x.MessageId
 	}
 	return nil
 }
 
-func (x *ReceiveMessageResponse) GetPartitionId() string {
+func (x *ReceiveMessageForPartitionIDResponse) GetPartitionId() string {
 	if x != nil {
 		return x.PartitionId
 	}
 	return ""
 }
 
-func (x *ReceiveMessageResponse) GetPartitionKey() string {
+func (x *ReceiveMessageForPartitionIDResponse) GetPartitionKey() string {
 	if x != nil {
 		return x.PartitionKey
 	}
 	return ""
 }
 
-func (x *ReceiveMessageResponse) GetData() []byte {
+func (x *ReceiveMessageForPartitionIDResponse) GetData() []byte {
 	if x != nil {
 		return x.Data
 	}
@@ -543,7 +543,7 @@ type ReceiveMessageForPartitionIDRequest struct {
 
 func (x *ReceiveMessageForPartitionIDRequest) Reset() {
 	*x = ReceiveMessageForPartitionIDRequest{}
-	mi := &file_queue_v1_transport_proto_msgTypes[8]
+	mi := &file_queue_v1_queue_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -555,7 +555,7 @@ func (x *ReceiveMessageForPartitionIDRequest) String() string {
 func (*ReceiveMessageForPartitionIDRequest) ProtoMessage() {}
 
 func (x *ReceiveMessageForPartitionIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[8]
+	mi := &file_queue_v1_queue_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -568,7 +568,7 @@ func (x *ReceiveMessageForPartitionIDRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ReceiveMessageForPartitionIDRequest.ProtoReflect.Descriptor instead.
 func (*ReceiveMessageForPartitionIDRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{8}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ReceiveMessageForPartitionIDRequest) GetConsumerId() string {
@@ -596,7 +596,7 @@ type CreateTopicRequest struct {
 
 func (x *CreateTopicRequest) Reset() {
 	*x = CreateTopicRequest{}
-	mi := &file_queue_v1_transport_proto_msgTypes[9]
+	mi := &file_queue_v1_queue_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -608,7 +608,7 @@ func (x *CreateTopicRequest) String() string {
 func (*CreateTopicRequest) ProtoMessage() {}
 
 func (x *CreateTopicRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[9]
+	mi := &file_queue_v1_queue_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -621,7 +621,7 @@ func (x *CreateTopicRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTopicRequest.ProtoReflect.Descriptor instead.
 func (*CreateTopicRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{9}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CreateTopicRequest) GetTopic() string {
@@ -655,7 +655,7 @@ type CreateTopicResponse struct {
 
 func (x *CreateTopicResponse) Reset() {
 	*x = CreateTopicResponse{}
-	mi := &file_queue_v1_transport_proto_msgTypes[10]
+	mi := &file_queue_v1_queue_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -667,7 +667,7 @@ func (x *CreateTopicResponse) String() string {
 func (*CreateTopicResponse) ProtoMessage() {}
 
 func (x *CreateTopicResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[10]
+	mi := &file_queue_v1_queue_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -680,7 +680,7 @@ func (x *CreateTopicResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTopicResponse.ProtoReflect.Descriptor instead.
 func (*CreateTopicResponse) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{10}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateTopicResponse) GetName() string {
@@ -708,7 +708,7 @@ type ConnectRequest struct {
 
 func (x *ConnectRequest) Reset() {
 	*x = ConnectRequest{}
-	mi := &file_queue_v1_transport_proto_msgTypes[11]
+	mi := &file_queue_v1_queue_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -720,7 +720,7 @@ func (x *ConnectRequest) String() string {
 func (*ConnectRequest) ProtoMessage() {}
 
 func (x *ConnectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[11]
+	mi := &file_queue_v1_queue_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -733,7 +733,7 @@ func (x *ConnectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectRequest.ProtoReflect.Descriptor instead.
 func (*ConnectRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{11}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ConnectRequest) GetConsumerId() string {
@@ -767,7 +767,7 @@ type ConnectResponse struct {
 
 func (x *ConnectResponse) Reset() {
 	*x = ConnectResponse{}
-	mi := &file_queue_v1_transport_proto_msgTypes[12]
+	mi := &file_queue_v1_queue_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -779,7 +779,7 @@ func (x *ConnectResponse) String() string {
 func (*ConnectResponse) ProtoMessage() {}
 
 func (x *ConnectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[12]
+	mi := &file_queue_v1_queue_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -792,7 +792,7 @@ func (x *ConnectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectResponse.ProtoReflect.Descriptor instead.
 func (*ConnectResponse) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{12}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ConnectResponse) GetConsumer() *Consumer {
@@ -822,7 +822,7 @@ type Consumer struct {
 
 func (x *Consumer) Reset() {
 	*x = Consumer{}
-	mi := &file_queue_v1_transport_proto_msgTypes[13]
+	mi := &file_queue_v1_queue_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -834,7 +834,7 @@ func (x *Consumer) String() string {
 func (*Consumer) ProtoMessage() {}
 
 func (x *Consumer) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[13]
+	mi := &file_queue_v1_queue_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -847,7 +847,7 @@ func (x *Consumer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Consumer.ProtoReflect.Descriptor instead.
 func (*Consumer) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{13}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Consumer) GetId() string {
@@ -896,7 +896,7 @@ type ConsumerGroup struct {
 
 func (x *ConsumerGroup) Reset() {
 	*x = ConsumerGroup{}
-	mi := &file_queue_v1_transport_proto_msgTypes[14]
+	mi := &file_queue_v1_queue_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -908,7 +908,7 @@ func (x *ConsumerGroup) String() string {
 func (*ConsumerGroup) ProtoMessage() {}
 
 func (x *ConsumerGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[14]
+	mi := &file_queue_v1_queue_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -921,7 +921,7 @@ func (x *ConsumerGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsumerGroup.ProtoReflect.Descriptor instead.
 func (*ConsumerGroup) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{14}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ConsumerGroup) GetId() string {
@@ -954,7 +954,7 @@ type ShardInfoRequest struct {
 
 func (x *ShardInfoRequest) Reset() {
 	*x = ShardInfoRequest{}
-	mi := &file_queue_v1_transport_proto_msgTypes[15]
+	mi := &file_queue_v1_queue_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +966,7 @@ func (x *ShardInfoRequest) String() string {
 func (*ShardInfoRequest) ProtoMessage() {}
 
 func (x *ShardInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[15]
+	mi := &file_queue_v1_queue_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +979,7 @@ func (x *ShardInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShardInfoRequest.ProtoReflect.Descriptor instead.
 func (*ShardInfoRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{15}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ShardInfoRequest) GetTopics() []string {
@@ -999,7 +999,7 @@ type ShardInfoResponse struct {
 
 func (x *ShardInfoResponse) Reset() {
 	*x = ShardInfoResponse{}
-	mi := &file_queue_v1_transport_proto_msgTypes[16]
+	mi := &file_queue_v1_queue_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1011,7 +1011,7 @@ func (x *ShardInfoResponse) String() string {
 func (*ShardInfoResponse) ProtoMessage() {}
 
 func (x *ShardInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[16]
+	mi := &file_queue_v1_queue_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1024,7 +1024,7 @@ func (x *ShardInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShardInfoResponse.ProtoReflect.Descriptor instead.
 func (*ShardInfoResponse) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{16}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ShardInfoResponse) GetShardInfo() map[string]*ShardInfo {
@@ -1043,7 +1043,7 @@ func (x *ShardInfoResponse) GetBrokers() []*Broker {
 
 type ShardInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardType     ShardType              `protobuf:"varint,1,opt,name=shard_type,json=shardType,proto3,enum=queue.ShardType" json:"shard_type,omitempty"`
+	ShardType     ShardType              `protobuf:"varint,1,opt,name=shard_type,json=shardType,proto3,enum=queue.v1.ShardType" json:"shard_type,omitempty"`
 	ShardId       uint64                 `protobuf:"varint,2,opt,name=shard_id,json=shardId,proto3" json:"shard_id,omitempty"`
 	Topic         string                 `protobuf:"bytes,3,opt,name=topic,proto3" json:"topic,omitempty"`
 	PartitionId   string                 `protobuf:"bytes,4,opt,name=partition_id,json=partitionId,proto3" json:"partition_id,omitempty"`
@@ -1054,7 +1054,7 @@ type ShardInfo struct {
 
 func (x *ShardInfo) Reset() {
 	*x = ShardInfo{}
-	mi := &file_queue_v1_transport_proto_msgTypes[17]
+	mi := &file_queue_v1_queue_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1066,7 +1066,7 @@ func (x *ShardInfo) String() string {
 func (*ShardInfo) ProtoMessage() {}
 
 func (x *ShardInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[17]
+	mi := &file_queue_v1_queue_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1079,14 +1079,14 @@ func (x *ShardInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShardInfo.ProtoReflect.Descriptor instead.
 func (*ShardInfo) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{17}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ShardInfo) GetShardType() ShardType {
 	if x != nil {
 		return x.ShardType
 	}
-	return ShardType_SHARD_TYPE_UNKNOWN
+	return ShardType_SHARD_TYPE_UNSPECIFIED
 }
 
 func (x *ShardInfo) GetShardId() uint64 {
@@ -1129,7 +1129,7 @@ type Broker struct {
 
 func (x *Broker) Reset() {
 	*x = Broker{}
-	mi := &file_queue_v1_transport_proto_msgTypes[18]
+	mi := &file_queue_v1_queue_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1141,7 +1141,7 @@ func (x *Broker) String() string {
 func (*Broker) ProtoMessage() {}
 
 func (x *Broker) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_transport_proto_msgTypes[18]
+	mi := &file_queue_v1_queue_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1154,7 +1154,7 @@ func (x *Broker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Broker.ProtoReflect.Descriptor instead.
 func (*Broker) Descriptor() ([]byte, []int) {
-	return file_queue_v1_transport_proto_rawDescGZIP(), []int{18}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Broker) GetId() uint64 {
@@ -1185,11 +1185,11 @@ func (x *Broker) GetHttpAddress() string {
 	return ""
 }
 
-var File_queue_v1_transport_proto protoreflect.FileDescriptor
+var File_queue_v1_queue_proto protoreflect.FileDescriptor
 
-const file_queue_v1_transport_proto_rawDesc = "" +
+const file_queue_v1_queue_proto_rawDesc = "" +
 	"\n" +
-	"\x18queue/v1/transport.proto\x12\x05queue\x1a\x1bbuf/validate/validate.proto\"Y\n" +
+	"\x14queue/v1/queue.proto\x12\bqueue.v1\x1a\x1bbuf/validate/validate.proto\"Y\n" +
 	"\x12HealthCheckRequest\x12*\n" +
 	"\vconsumer_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\n" +
 	"consumerId\x12\x17\n" +
@@ -1216,8 +1216,8 @@ const file_queue_v1_transport_proto_rawDesc = "" +
 	"\x04data\x18\x05 \x01(\fR\x04data\"8\n" +
 	"\x15ReceiveMessageRequest\x12\x1f\n" +
 	"\vconsumer_id\x18\x01 \x01(\tR\n" +
-	"consumerId\"\xa9\x01\n" +
-	"\x16ReceiveMessageResponse\x12\x14\n" +
+	"consumerId\"\xb7\x01\n" +
+	"$ReceiveMessageForPartitionIDResponse\x12\x14\n" +
 	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x02 \x01(\fR\tmessageId\x12!\n" +
@@ -1241,10 +1241,10 @@ const file_queue_v1_transport_proto_rawDesc = "" +
 	"\vconsumer_id\x18\x01 \x01(\tR\n" +
 	"consumerId\x12%\n" +
 	"\x0econsumer_group\x18\x02 \x01(\tR\rconsumerGroup\x12\x16\n" +
-	"\x06topics\x18\x03 \x03(\tR\x06topics\"{\n" +
-	"\x0fConnectResponse\x12+\n" +
-	"\bconsumer\x18\x01 \x01(\v2\x0f.queue.ConsumerR\bconsumer\x12;\n" +
-	"\x0econsumer_group\x18\x02 \x01(\v2\x14.queue.ConsumerGroupR\rconsumerGroup\"\x96\x01\n" +
+	"\x06topics\x18\x03 \x03(\tR\x06topics\"\x81\x01\n" +
+	"\x0fConnectResponse\x12.\n" +
+	"\bconsumer\x18\x01 \x01(\v2\x12.queue.v1.ConsumerR\bconsumer\x12>\n" +
+	"\x0econsumer_group\x18\x02 \x01(\v2\x17.queue.v1.ConsumerGroupR\rconsumerGroup\"\x96\x01\n" +
 	"\bConsumer\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0econsumer_group\x18\x02 \x01(\tR\rconsumerGroup\x12\x1e\n" +
@@ -1258,131 +1258,129 @@ const file_queue_v1_transport_proto_rawDesc = "" +
 	"\tconsumers\x18\x02 \x03(\tR\tconsumers\x12\x16\n" +
 	"\x06topics\x18\x03 \x03(\tR\x06topics\"*\n" +
 	"\x10ShardInfoRequest\x12\x16\n" +
-	"\x06topics\x18\x01 \x03(\tR\x06topics\"\xd4\x01\n" +
-	"\x11ShardInfoResponse\x12F\n" +
+	"\x06topics\x18\x01 \x03(\tR\x06topics\"\xdd\x01\n" +
+	"\x11ShardInfoResponse\x12I\n" +
 	"\n" +
-	"shard_info\x18\x01 \x03(\v2'.queue.ShardInfoResponse.ShardInfoEntryR\tshardInfo\x12'\n" +
-	"\abrokers\x18\x02 \x03(\v2\r.queue.BrokerR\abrokers\x1aN\n" +
+	"shard_info\x18\x01 \x03(\v2*.queue.v1.ShardInfoResponse.ShardInfoEntryR\tshardInfo\x12*\n" +
+	"\abrokers\x18\x02 \x03(\v2\x10.queue.v1.BrokerR\abrokers\x1aQ\n" +
 	"\x0eShardInfoEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12&\n" +
-	"\x05value\x18\x02 \x01(\v2\x10.queue.ShardInfoR\x05value:\x028\x01\"\xb9\x01\n" +
-	"\tShardInfo\x12/\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12)\n" +
+	"\x05value\x18\x02 \x01(\v2\x13.queue.v1.ShardInfoR\x05value:\x028\x01\"\xbf\x01\n" +
+	"\tShardInfo\x122\n" +
 	"\n" +
-	"shard_type\x18\x01 \x01(\x0e2\x10.queue.ShardTypeR\tshardType\x12\x19\n" +
+	"shard_type\x18\x01 \x01(\x0e2\x13.queue.v1.ShardTypeR\tshardType\x12\x19\n" +
 	"\bshard_id\x18\x02 \x01(\x04R\ashardId\x12\x14\n" +
 	"\x05topic\x18\x03 \x01(\tR\x05topic\x12!\n" +
-	"\fpartition_id\x18\x04 \x01(\tR\vpartitionId\x12'\n" +
-	"\abrokers\x18\x05 \x03(\v2\r.queue.BrokerR\abrokers\"\x81\x01\n" +
+	"\fpartition_id\x18\x04 \x01(\tR\vpartitionId\x12*\n" +
+	"\abrokers\x18\x05 \x03(\v2\x10.queue.v1.BrokerR\abrokers\"\x81\x01\n" +
 	"\x06Broker\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12!\n" +
 	"\fraft_address\x18\x02 \x01(\tR\vraftAddress\x12!\n" +
 	"\fgrpc_address\x18\x03 \x01(\tR\vgrpcAddress\x12!\n" +
-	"\fhttp_address\x18\x04 \x01(\tR\vhttpAddress*V\n" +
-	"\tShardType\x12\x16\n" +
-	"\x12SHARD_TYPE_UNKNOWN\x10\x00\x12\x16\n" +
+	"\fhttp_address\x18\x04 \x01(\tR\vhttpAddress*Z\n" +
+	"\tShardType\x12\x1a\n" +
+	"\x16SHARD_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12SHARD_TYPE_BROKERS\x10\x01\x12\x19\n" +
-	"\x15SHARD_TYPE_PARTITIONS\x10\x022\xd4\x04\n" +
-	"\x05Queue\x12H\n" +
-	"\vHealthCheck\x12\x19.queue.HealthCheckRequest\x1a\x1a.queue.HealthCheckResponse(\x010\x01\x12A\n" +
+	"\x15SHARD_TYPE_PARTITIONS\x10\x022\xc4\x04\n" +
+	"\fQueueService\x12N\n" +
+	"\vHealthCheck\x12\x1c.queue.v1.HealthCheckRequest\x1a\x1d.queue.v1.HealthCheckResponse(\x010\x01\x12G\n" +
 	"\n" +
-	"AckMessage\x12\x18.queue.AckMessageRequest\x1a\x19.queue.AckMessageResponse\x12D\n" +
-	"\vSendMessage\x12\x19.queue.SendMessageRequest\x1a\x1a.queue.SendMessageResponse\x12M\n" +
-	"\x0eReceiveMessage\x12\x1c.queue.ReceiveMessageRequest\x1a\x1d.queue.ReceiveMessageResponse\x12i\n" +
-	"\x1cReceiveMessageForPartitionID\x12*.queue.ReceiveMessageForPartitionIDRequest\x1a\x1d.queue.ReceiveMessageResponse\x12D\n" +
-	"\vCreateTopic\x12\x19.queue.CreateTopicRequest\x1a\x1a.queue.CreateTopicResponse\x128\n" +
-	"\aConnect\x12\x15.queue.ConnectRequest\x1a\x16.queue.ConnectResponse\x12>\n" +
-	"\tShardInfo\x12\x17.queue.ShardInfoRequest\x1a\x18.queue.ShardInfoResponseBz\n" +
-	"\tcom.queueB\x0eTransportProtoP\x01Z)github.com/sreekar2307/queue/gen/queue/v1\xa2\x02\x03QXX\xaa\x02\x05Queue\xca\x02\x05Queue\xe2\x02\x11Queue\\GPBMetadata\xea\x02\x05Queueb\x06proto3"
+	"AckMessage\x12\x1b.queue.v1.AckMessageRequest\x1a\x1c.queue.v1.AckMessageResponse\x12J\n" +
+	"\vSendMessage\x12\x1c.queue.v1.SendMessageRequest\x1a\x1d.queue.v1.SendMessageResponse\x12}\n" +
+	"\x1cReceiveMessageForPartitionID\x12-.queue.v1.ReceiveMessageForPartitionIDRequest\x1a..queue.v1.ReceiveMessageForPartitionIDResponse\x12J\n" +
+	"\vCreateTopic\x12\x1c.queue.v1.CreateTopicRequest\x1a\x1d.queue.v1.CreateTopicResponse\x12>\n" +
+	"\aConnect\x12\x18.queue.v1.ConnectRequest\x1a\x19.queue.v1.ConnectResponse\x12D\n" +
+	"\tShardInfo\x12\x1a.queue.v1.ShardInfoRequest\x1a\x1b.queue.v1.ShardInfoResponseB\x8e\x01\n" +
+	"\fcom.queue.v1B\n" +
+	"QueueProtoP\x01Z1github.com/sreekar2307/queue/gen/queue/v1;queuev1\xa2\x02\x03QXX\xaa\x02\bQueue.V1\xca\x02\bQueue\\V1\xe2\x02\x14Queue\\V1\\GPBMetadata\xea\x02\tQueue::V1b\x06proto3"
 
 var (
-	file_queue_v1_transport_proto_rawDescOnce sync.Once
-	file_queue_v1_transport_proto_rawDescData []byte
+	file_queue_v1_queue_proto_rawDescOnce sync.Once
+	file_queue_v1_queue_proto_rawDescData []byte
 )
 
-func file_queue_v1_transport_proto_rawDescGZIP() []byte {
-	file_queue_v1_transport_proto_rawDescOnce.Do(func() {
-		file_queue_v1_transport_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_queue_v1_transport_proto_rawDesc), len(file_queue_v1_transport_proto_rawDesc)))
+func file_queue_v1_queue_proto_rawDescGZIP() []byte {
+	file_queue_v1_queue_proto_rawDescOnce.Do(func() {
+		file_queue_v1_queue_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_queue_v1_queue_proto_rawDesc), len(file_queue_v1_queue_proto_rawDesc)))
 	})
-	return file_queue_v1_transport_proto_rawDescData
+	return file_queue_v1_queue_proto_rawDescData
 }
 
-var file_queue_v1_transport_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_queue_v1_transport_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
-var file_queue_v1_transport_proto_goTypes = []any{
-	(ShardType)(0),                              // 0: queue.ShardType
-	(*HealthCheckRequest)(nil),                  // 1: queue.HealthCheckRequest
-	(*HealthCheckResponse)(nil),                 // 2: queue.HealthCheckResponse
-	(*AckMessageRequest)(nil),                   // 3: queue.AckMessageRequest
-	(*AckMessageResponse)(nil),                  // 4: queue.AckMessageResponse
-	(*SendMessageRequest)(nil),                  // 5: queue.SendMessageRequest
-	(*SendMessageResponse)(nil),                 // 6: queue.SendMessageResponse
-	(*ReceiveMessageRequest)(nil),               // 7: queue.ReceiveMessageRequest
-	(*ReceiveMessageResponse)(nil),              // 8: queue.ReceiveMessageResponse
-	(*ReceiveMessageForPartitionIDRequest)(nil), // 9: queue.ReceiveMessageForPartitionIDRequest
-	(*CreateTopicRequest)(nil),                  // 10: queue.CreateTopicRequest
-	(*CreateTopicResponse)(nil),                 // 11: queue.CreateTopicResponse
-	(*ConnectRequest)(nil),                      // 12: queue.ConnectRequest
-	(*ConnectResponse)(nil),                     // 13: queue.ConnectResponse
-	(*Consumer)(nil),                            // 14: queue.Consumer
-	(*ConsumerGroup)(nil),                       // 15: queue.ConsumerGroup
-	(*ShardInfoRequest)(nil),                    // 16: queue.ShardInfoRequest
-	(*ShardInfoResponse)(nil),                   // 17: queue.ShardInfoResponse
-	(*ShardInfo)(nil),                           // 18: queue.ShardInfo
-	(*Broker)(nil),                              // 19: queue.Broker
-	nil,                                         // 20: queue.ShardInfoResponse.ShardInfoEntry
+var file_queue_v1_queue_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_queue_v1_queue_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_queue_v1_queue_proto_goTypes = []any{
+	(ShardType)(0),                               // 0: queue.v1.ShardType
+	(*HealthCheckRequest)(nil),                   // 1: queue.v1.HealthCheckRequest
+	(*HealthCheckResponse)(nil),                  // 2: queue.v1.HealthCheckResponse
+	(*AckMessageRequest)(nil),                    // 3: queue.v1.AckMessageRequest
+	(*AckMessageResponse)(nil),                   // 4: queue.v1.AckMessageResponse
+	(*SendMessageRequest)(nil),                   // 5: queue.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),                  // 6: queue.v1.SendMessageResponse
+	(*ReceiveMessageRequest)(nil),                // 7: queue.v1.ReceiveMessageRequest
+	(*ReceiveMessageForPartitionIDResponse)(nil), // 8: queue.v1.ReceiveMessageForPartitionIDResponse
+	(*ReceiveMessageForPartitionIDRequest)(nil),  // 9: queue.v1.ReceiveMessageForPartitionIDRequest
+	(*CreateTopicRequest)(nil),                   // 10: queue.v1.CreateTopicRequest
+	(*CreateTopicResponse)(nil),                  // 11: queue.v1.CreateTopicResponse
+	(*ConnectRequest)(nil),                       // 12: queue.v1.ConnectRequest
+	(*ConnectResponse)(nil),                      // 13: queue.v1.ConnectResponse
+	(*Consumer)(nil),                             // 14: queue.v1.Consumer
+	(*ConsumerGroup)(nil),                        // 15: queue.v1.ConsumerGroup
+	(*ShardInfoRequest)(nil),                     // 16: queue.v1.ShardInfoRequest
+	(*ShardInfoResponse)(nil),                    // 17: queue.v1.ShardInfoResponse
+	(*ShardInfo)(nil),                            // 18: queue.v1.ShardInfo
+	(*Broker)(nil),                               // 19: queue.v1.Broker
+	nil,                                          // 20: queue.v1.ShardInfoResponse.ShardInfoEntry
 }
-var file_queue_v1_transport_proto_depIdxs = []int32{
-	14, // 0: queue.ConnectResponse.consumer:type_name -> queue.Consumer
-	15, // 1: queue.ConnectResponse.consumer_group:type_name -> queue.ConsumerGroup
-	20, // 2: queue.ShardInfoResponse.shard_info:type_name -> queue.ShardInfoResponse.ShardInfoEntry
-	19, // 3: queue.ShardInfoResponse.brokers:type_name -> queue.Broker
-	0,  // 4: queue.ShardInfo.shard_type:type_name -> queue.ShardType
-	19, // 5: queue.ShardInfo.brokers:type_name -> queue.Broker
-	18, // 6: queue.ShardInfoResponse.ShardInfoEntry.value:type_name -> queue.ShardInfo
-	1,  // 7: queue.Queue.HealthCheck:input_type -> queue.HealthCheckRequest
-	3,  // 8: queue.Queue.AckMessage:input_type -> queue.AckMessageRequest
-	5,  // 9: queue.Queue.SendMessage:input_type -> queue.SendMessageRequest
-	7,  // 10: queue.Queue.ReceiveMessage:input_type -> queue.ReceiveMessageRequest
-	9,  // 11: queue.Queue.ReceiveMessageForPartitionID:input_type -> queue.ReceiveMessageForPartitionIDRequest
-	10, // 12: queue.Queue.CreateTopic:input_type -> queue.CreateTopicRequest
-	12, // 13: queue.Queue.Connect:input_type -> queue.ConnectRequest
-	16, // 14: queue.Queue.ShardInfo:input_type -> queue.ShardInfoRequest
-	2,  // 15: queue.Queue.HealthCheck:output_type -> queue.HealthCheckResponse
-	4,  // 16: queue.Queue.AckMessage:output_type -> queue.AckMessageResponse
-	6,  // 17: queue.Queue.SendMessage:output_type -> queue.SendMessageResponse
-	8,  // 18: queue.Queue.ReceiveMessage:output_type -> queue.ReceiveMessageResponse
-	8,  // 19: queue.Queue.ReceiveMessageForPartitionID:output_type -> queue.ReceiveMessageResponse
-	11, // 20: queue.Queue.CreateTopic:output_type -> queue.CreateTopicResponse
-	13, // 21: queue.Queue.Connect:output_type -> queue.ConnectResponse
-	17, // 22: queue.Queue.ShardInfo:output_type -> queue.ShardInfoResponse
-	15, // [15:23] is the sub-list for method output_type
-	7,  // [7:15] is the sub-list for method input_type
+var file_queue_v1_queue_proto_depIdxs = []int32{
+	14, // 0: queue.v1.ConnectResponse.consumer:type_name -> queue.v1.Consumer
+	15, // 1: queue.v1.ConnectResponse.consumer_group:type_name -> queue.v1.ConsumerGroup
+	20, // 2: queue.v1.ShardInfoResponse.shard_info:type_name -> queue.v1.ShardInfoResponse.ShardInfoEntry
+	19, // 3: queue.v1.ShardInfoResponse.brokers:type_name -> queue.v1.Broker
+	0,  // 4: queue.v1.ShardInfo.shard_type:type_name -> queue.v1.ShardType
+	19, // 5: queue.v1.ShardInfo.brokers:type_name -> queue.v1.Broker
+	18, // 6: queue.v1.ShardInfoResponse.ShardInfoEntry.value:type_name -> queue.v1.ShardInfo
+	1,  // 7: queue.v1.QueueService.HealthCheck:input_type -> queue.v1.HealthCheckRequest
+	3,  // 8: queue.v1.QueueService.AckMessage:input_type -> queue.v1.AckMessageRequest
+	5,  // 9: queue.v1.QueueService.SendMessage:input_type -> queue.v1.SendMessageRequest
+	9,  // 10: queue.v1.QueueService.ReceiveMessageForPartitionID:input_type -> queue.v1.ReceiveMessageForPartitionIDRequest
+	10, // 11: queue.v1.QueueService.CreateTopic:input_type -> queue.v1.CreateTopicRequest
+	12, // 12: queue.v1.QueueService.Connect:input_type -> queue.v1.ConnectRequest
+	16, // 13: queue.v1.QueueService.ShardInfo:input_type -> queue.v1.ShardInfoRequest
+	2,  // 14: queue.v1.QueueService.HealthCheck:output_type -> queue.v1.HealthCheckResponse
+	4,  // 15: queue.v1.QueueService.AckMessage:output_type -> queue.v1.AckMessageResponse
+	6,  // 16: queue.v1.QueueService.SendMessage:output_type -> queue.v1.SendMessageResponse
+	8,  // 17: queue.v1.QueueService.ReceiveMessageForPartitionID:output_type -> queue.v1.ReceiveMessageForPartitionIDResponse
+	11, // 18: queue.v1.QueueService.CreateTopic:output_type -> queue.v1.CreateTopicResponse
+	13, // 19: queue.v1.QueueService.Connect:output_type -> queue.v1.ConnectResponse
+	17, // 20: queue.v1.QueueService.ShardInfo:output_type -> queue.v1.ShardInfoResponse
+	14, // [14:21] is the sub-list for method output_type
+	7,  // [7:14] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name
 	7,  // [7:7] is the sub-list for extension extendee
 	0,  // [0:7] is the sub-list for field type_name
 }
 
-func init() { file_queue_v1_transport_proto_init() }
-func file_queue_v1_transport_proto_init() {
-	if File_queue_v1_transport_proto != nil {
+func init() { file_queue_v1_queue_proto_init() }
+func file_queue_v1_queue_proto_init() {
+	if File_queue_v1_queue_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_queue_v1_transport_proto_rawDesc), len(file_queue_v1_transport_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_queue_v1_queue_proto_rawDesc), len(file_queue_v1_queue_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_queue_v1_transport_proto_goTypes,
-		DependencyIndexes: file_queue_v1_transport_proto_depIdxs,
-		EnumInfos:         file_queue_v1_transport_proto_enumTypes,
-		MessageInfos:      file_queue_v1_transport_proto_msgTypes,
+		GoTypes:           file_queue_v1_queue_proto_goTypes,
+		DependencyIndexes: file_queue_v1_queue_proto_depIdxs,
+		EnumInfos:         file_queue_v1_queue_proto_enumTypes,
+		MessageInfos:      file_queue_v1_queue_proto_msgTypes,
 	}.Build()
-	File_queue_v1_transport_proto = out.File
-	file_queue_v1_transport_proto_goTypes = nil
-	file_queue_v1_transport_proto_depIdxs = nil
+	File_queue_v1_queue_proto = out.File
+	file_queue_v1_queue_proto_goTypes = nil
+	file_queue_v1_queue_proto_depIdxs = nil
 }

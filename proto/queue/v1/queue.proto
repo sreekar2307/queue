@@ -15,14 +15,13 @@
 syntax = "proto3";
 
 import "buf/validate/validate.proto";
-package queue;
+package queue.v1;
 
-service Queue{
+service QueueService{
   rpc HealthCheck(stream HealthCheckRequest) returns (stream HealthCheckResponse);
   rpc AckMessage(AckMessageRequest) returns (AckMessageResponse);
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
-  rpc ReceiveMessage(ReceiveMessageRequest) returns (ReceiveMessageResponse);
-  rpc ReceiveMessageForPartitionID(ReceiveMessageForPartitionIDRequest) returns (ReceiveMessageResponse);
+  rpc ReceiveMessageForPartitionID(ReceiveMessageForPartitionIDRequest) returns (ReceiveMessageForPartitionIDResponse);
   rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
   rpc Connect(ConnectRequest) returns (ConnectResponse);
   rpc ShardInfo(ShardInfoRequest) returns (ShardInfoResponse);
@@ -66,7 +65,7 @@ message ReceiveMessageRequest {
   string consumer_id = 1;
 }
 
-message ReceiveMessageResponse {
+message ReceiveMessageForPartitionIDResponse {
   string topic = 1;
   bytes message_id = 2;
   string partition_id = 3;
@@ -134,7 +133,7 @@ message ShardInfoResponse {
 }
 
 enum ShardType {
-  SHARD_TYPE_UNKNOWN = 0;
+  SHARD_TYPE_UNSPECIFIED = 0;
   SHARD_TYPE_BROKERS = 1;
   SHARD_TYPE_PARTITIONS = 2;
 }

@@ -27,7 +27,7 @@ import (
 )
 
 type GRPC struct {
-	pb.UnimplementedQueueServer
+	pb.UnimplementedQueueServiceServer
 	queue  *service.Queue
 	server *grpc.Server
 	config config.GRPC
@@ -52,7 +52,7 @@ func NewTransport(
 	server := grpc.NewServer(
 		grpc.UnaryInterceptor(interceptor),
 	)
-	server.RegisterService(&pb.Queue_ServiceDesc, g)
+	server.RegisterService(&pb.QueueService_ServiceDesc, g)
 	g.server = server
 	return g, nil
 }
@@ -139,32 +139,10 @@ func (g *GRPC) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb
 	}, nil
 }
 
-func (g *GRPC) ReceiveMessage(ctx context.Context, req *pb.ReceiveMessageRequest) (*pb.ReceiveMessageResponse, error) {
-	msg, err := g.queue.ReceiveMessage(ctx, req.GetConsumerId())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "receive message: %v", err)
-	}
-	if msg == nil {
-		return nil, nil
-	}
-	md := metadata.Pairs(
-		TopicMetadataKey, msg.Topic,
-		PartitionMetadataKey, msg.PartitionID,
-	)
-	_ = grpc.SetTrailer(ctx, md)
-	return &pb.ReceiveMessageResponse{
-		Topic:        msg.Topic,
-		PartitionKey: msg.PartitionKey,
-		Data:         msg.Data,
-		PartitionId:  msg.PartitionID,
-		MessageId:    msg.ID,
-	}, nil
-}
-
 func (g *GRPC) ReceiveMessageForPartitionID(
 	ctx context.Context,
 	req *pb.ReceiveMessageForPartitionIDRequest,
-) (*pb.ReceiveMessageResponse, error) {
+) (*pb.ReceiveMessageForPartitionIDResponse, error) {
 	msg, err := g.queue.ReceiveMessageForPartition(
 		ctx,
 		req.GetConsumerId(),
@@ -182,7 +160,7 @@ func (g *GRPC) ReceiveMessageForPartitionID(
 	)
 	_ = grpc.SetTrailer(ctx, md)
 	_ = grpc.SetHeader(ctx, md)
-	return &pb.ReceiveMessageResponse{
+	return &pb.ReceiveMessageForPartitionIDResponse{
 		Topic:        msg.Topic,
 		PartitionKey: msg.PartitionKey,
 		Data:         msg.Data,
