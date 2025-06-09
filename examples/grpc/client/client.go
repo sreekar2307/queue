@@ -13,14 +13,14 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"buf.build/gen/go/sreekar2307/queue/grpc/go/queue/v1/v1grpc"
+	"buf.build/gen/go/sreekar2307/queue/grpc/go/queue/v1/queuev1grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Client struct {
 	initialBrokerAddr string
-	brokerProxyClient v1grpc.QueueClient
+	brokerProxyClient queuev1grpc.QueueServiceClient
 	brokerProxyConn   *grpc.ClientConn
 	consumer          *pb.Consumer
 }
@@ -38,7 +38,7 @@ func NewClient(_ context.Context, initialBrokerAddr string) (*Client, error) {
 		return nil, err
 	}
 	c.brokerProxyConn = initialConn
-	c.brokerProxyClient = v1grpc.NewQueueClient(initialConn)
+	c.brokerProxyClient = queuev1grpc.NewQueueServiceClient(initialConn)
 
 	return c, nil
 }

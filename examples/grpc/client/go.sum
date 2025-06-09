@@ -1,7 +1,10 @@
 buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250603165357-b52ab10f4468.1 h1:uwSqFkn8DDTzNlaV9TxgSXY5OCaNdb4rH+Axd2FujkE=
 buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250603165357-b52ab10f4468.1/go.mod h1:avRlCjnFzl98VPaeCtJ24RrV/wwHFzB8sWXhj26+n/U=
+buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-00000000000000-73c4b2cefcf1.2 h1:r6ZJzyHXJLZsQaegMq/8D5Dama2iazFawLllQ1ij7eM=
+buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-00000000000000-73c4b2cefcf1.2/go.mod h1:GNOXfB5Ksums/OXMt30tpYIfT4zK31+01hu0aktWsg4=
 buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-20250609124107-4389261b6d0e.2 h1:KTsrxLE/s4ABWz8eKtiOljKBkm6Oy7i0zth2Ne6gHJA=
 buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-20250609124107-4389261b6d0e.2/go.mod h1:bsemar3dOhdLwdzGBnjNjxphh9fgWgLHOT6O1py0i68=
+buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.1-00000000000000-73c4b2cefcf1.1 h1:7JD1sgE5EAXYgd7riNcHF1t8Wt3p1rn+DQq3IpdkNRI=
 buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.1-20250609124107-4389261b6d0e.1 h1:zU5LmIG3VqwDMW/KtR73RYu5j4Zmg6/324SB6coVr30=
 buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.1-20250609124107-4389261b6d0e.1/go.mod h1:/GA2ThRMBHrppDvkjqw5duafCDQCL+LtjQl3Vj7FM00=
 buf.build/go/protovalidate v0.12.0 h1:4GKJotbspQjRCcqZMGVSuC8SjwZ/FmgtSuKDpKUTZew=
