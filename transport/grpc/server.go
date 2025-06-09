@@ -4,14 +4,12 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
-	"io"
-	"log"
-	"net"
-	"time"
-
 	"github.com/sreekar2307/queue/storage/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io"
+	"log"
+	"net"
 
 	"google.golang.org/grpc/metadata"
 
@@ -88,7 +86,7 @@ func (g *GRPC) HealthCheck(biStream grpc.BidiStreamingServer[pb.HealthCheckReque
 		default:
 		}
 
-		pingAt := time.Unix(req.GetPingAt(), 0).In(time.UTC)
+		pingAt := req.GetPingAt().AsTime()
 
 		if _, err := g.queue.HealthCheck(ctx, req.GetConsumerId(), pingAt); err != nil {
 			return err

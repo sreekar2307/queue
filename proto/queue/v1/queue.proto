@@ -15,6 +15,7 @@
 syntax = "proto3";
 
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 package queue.v1;
 
 service QueueService{
@@ -32,7 +33,11 @@ message HealthCheckRequest {
       (buf.validate.field).string.min_len = 1,
       (buf.validate.field).string.max_len = 50
   ];
-  int64 ping_at = 2;
+  google.protobuf.Timestamp ping_at = 2 [(buf.validate.field).cel = {
+     id: "ping_at.less_than_and_equal_to_now"
+     message: "Ping at must be less than or equal to now"
+     expression: "this <= now" 
+  }];
 }
 
 message HealthCheckResponse {
@@ -40,17 +45,26 @@ message HealthCheckResponse {
 }
 
 message AckMessageRequest {
-  string consumer_id = 1;
-  string partition_id = 2;
+  string consumer_id = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
+  string partition_id = 2 ;
   bytes message_id = 3;
 }
 
 message AckMessageResponse {}
 
 message SendMessageRequest {
-  string topic = 1;
+  string topic = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
   bytes data = 2;
-  string partition_key = 3;
+  string partition_key = 3 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
 }
 
 message SendMessageResponse {
@@ -62,7 +76,10 @@ message SendMessageResponse {
 }
 
 message ReceiveMessageRequest {
-  string consumer_id = 1;
+  string consumer_id = 1 [
+     (buf.validate.field).string.min_len = 1,
+     (buf.validate.field).string.max_len = 50
+  ];
 }
 
 message ReceiveMessageForPartitionIDResponse {
@@ -99,8 +116,14 @@ message CreateTopicResponse {
 }
 
 message ConnectRequest {
-  string consumer_id = 1;
-  string consumer_group = 2;
+  string consumer_id = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 50
+  ];
+  string consumer_group = 2 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 50
+  ];
   repeated string topics = 3;
 }
 

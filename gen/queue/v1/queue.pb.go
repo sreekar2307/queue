@@ -24,6 +24,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -88,7 +89,7 @@ func (ShardType) EnumDescriptor() ([]byte, []int) {
 type HealthCheckRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ConsumerId    string                 `protobuf:"bytes,1,opt,name=consumer_id,json=consumerId,proto3" json:"consumer_id,omitempty"`
-	PingAt        int64                  `protobuf:"varint,2,opt,name=ping_at,json=pingAt,proto3" json:"ping_at,omitempty"`
+	PingAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ping_at,json=pingAt,proto3" json:"ping_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -130,11 +131,11 @@ func (x *HealthCheckRequest) GetConsumerId() string {
 	return ""
 }
 
-func (x *HealthCheckRequest) GetPingAt() int64 {
+func (x *HealthCheckRequest) GetPingAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.PingAt
 	}
-	return 0
+	return nil
 }
 
 type HealthCheckResponse struct {
@@ -1189,33 +1190,34 @@ var File_queue_v1_queue_proto protoreflect.FileDescriptor
 
 const file_queue_v1_queue_proto_rawDesc = "" +
 	"\n" +
-	"\x14queue/v1/queue.proto\x12\bqueue.v1\x1a\x1bbuf/validate/validate.proto\"Y\n" +
+	"\x14queue/v1/queue.proto\x12\bqueue.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xda\x01\n" +
 	"\x12HealthCheckRequest\x12*\n" +
 	"\vconsumer_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\n" +
-	"consumerId\x12\x17\n" +
-	"\aping_at\x18\x02 \x01(\x03R\x06pingAt\"/\n" +
+	"consumerId\x12\x97\x01\n" +
+	"\aping_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampBb\xbaH_\xba\x01\\\n" +
+	"\"ping_at.less_than_and_equal_to_now\x12)Ping at must be less than or equal to now\x1a\vthis <= nowR\x06pingAt\"/\n" +
 	"\x13HealthCheckResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"v\n" +
-	"\x11AckMessageRequest\x12\x1f\n" +
-	"\vconsumer_id\x18\x01 \x01(\tR\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\x81\x01\n" +
+	"\x11AckMessageRequest\x12*\n" +
+	"\vconsumer_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\n" +
 	"consumerId\x12!\n" +
 	"\fpartition_id\x18\x02 \x01(\tR\vpartitionId\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x03 \x01(\fR\tmessageId\"\x14\n" +
-	"\x12AckMessageResponse\"c\n" +
-	"\x12SendMessageRequest\x12\x14\n" +
-	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\x12#\n" +
-	"\rpartition_key\x18\x03 \x01(\tR\fpartitionKey\"\xa6\x01\n" +
+	"\x12AckMessageResponse\"y\n" +
+	"\x12SendMessageRequest\x12\x1f\n" +
+	"\x05topic\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\x05topic\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\x12.\n" +
+	"\rpartition_key\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\fpartitionKey\"\xa6\x01\n" +
 	"\x13SendMessageResponse\x12\x14\n" +
 	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x02 \x01(\fR\tmessageId\x12!\n" +
 	"\fpartition_id\x18\x03 \x01(\tR\vpartitionId\x12#\n" +
 	"\rpartition_key\x18\x04 \x01(\tR\fpartitionKey\x12\x12\n" +
-	"\x04data\x18\x05 \x01(\fR\x04data\"8\n" +
-	"\x15ReceiveMessageRequest\x12\x1f\n" +
-	"\vconsumer_id\x18\x01 \x01(\tR\n" +
+	"\x04data\x18\x05 \x01(\fR\x04data\"C\n" +
+	"\x15ReceiveMessageRequest\x12*\n" +
+	"\vconsumer_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\n" +
 	"consumerId\"\xb7\x01\n" +
 	"$ReceiveMessageForPartitionIDResponse\x12\x14\n" +
 	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x1d\n" +
@@ -1236,11 +1238,11 @@ const file_queue_v1_queue_proto_rawDesc = "" +
 	" \x00R\x11replicationFactor\"[\n" +
 	"\x13CreateTopicResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
-	"\x14number_of_partitions\x18\x02 \x01(\x04R\x12numberOfPartitions\"p\n" +
-	"\x0eConnectRequest\x12\x1f\n" +
-	"\vconsumer_id\x18\x01 \x01(\tR\n" +
-	"consumerId\x12%\n" +
-	"\x0econsumer_group\x18\x02 \x01(\tR\rconsumerGroup\x12\x16\n" +
+	"\x14number_of_partitions\x18\x02 \x01(\x04R\x12numberOfPartitions\"\x86\x01\n" +
+	"\x0eConnectRequest\x12*\n" +
+	"\vconsumer_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\n" +
+	"consumerId\x120\n" +
+	"\x0econsumer_group\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\rconsumerGroup\x12\x16\n" +
 	"\x06topics\x18\x03 \x03(\tR\x06topics\"\x81\x01\n" +
 	"\x0fConnectResponse\x12.\n" +
 	"\bconsumer\x18\x01 \x01(\v2\x12.queue.v1.ConsumerR\bconsumer\x12>\n" +
@@ -1330,34 +1332,36 @@ var file_queue_v1_queue_proto_goTypes = []any{
 	(*ShardInfo)(nil),                            // 18: queue.v1.ShardInfo
 	(*Broker)(nil),                               // 19: queue.v1.Broker
 	nil,                                          // 20: queue.v1.ShardInfoResponse.ShardInfoEntry
+	(*timestamppb.Timestamp)(nil),                // 21: google.protobuf.Timestamp
 }
 var file_queue_v1_queue_proto_depIdxs = []int32{
-	14, // 0: queue.v1.ConnectResponse.consumer:type_name -> queue.v1.Consumer
-	15, // 1: queue.v1.ConnectResponse.consumer_group:type_name -> queue.v1.ConsumerGroup
-	20, // 2: queue.v1.ShardInfoResponse.shard_info:type_name -> queue.v1.ShardInfoResponse.ShardInfoEntry
-	19, // 3: queue.v1.ShardInfoResponse.brokers:type_name -> queue.v1.Broker
-	0,  // 4: queue.v1.ShardInfo.shard_type:type_name -> queue.v1.ShardType
-	19, // 5: queue.v1.ShardInfo.brokers:type_name -> queue.v1.Broker
-	18, // 6: queue.v1.ShardInfoResponse.ShardInfoEntry.value:type_name -> queue.v1.ShardInfo
-	1,  // 7: queue.v1.QueueService.HealthCheck:input_type -> queue.v1.HealthCheckRequest
-	3,  // 8: queue.v1.QueueService.AckMessage:input_type -> queue.v1.AckMessageRequest
-	5,  // 9: queue.v1.QueueService.SendMessage:input_type -> queue.v1.SendMessageRequest
-	9,  // 10: queue.v1.QueueService.ReceiveMessageForPartitionID:input_type -> queue.v1.ReceiveMessageForPartitionIDRequest
-	10, // 11: queue.v1.QueueService.CreateTopic:input_type -> queue.v1.CreateTopicRequest
-	12, // 12: queue.v1.QueueService.Connect:input_type -> queue.v1.ConnectRequest
-	16, // 13: queue.v1.QueueService.ShardInfo:input_type -> queue.v1.ShardInfoRequest
-	2,  // 14: queue.v1.QueueService.HealthCheck:output_type -> queue.v1.HealthCheckResponse
-	4,  // 15: queue.v1.QueueService.AckMessage:output_type -> queue.v1.AckMessageResponse
-	6,  // 16: queue.v1.QueueService.SendMessage:output_type -> queue.v1.SendMessageResponse
-	8,  // 17: queue.v1.QueueService.ReceiveMessageForPartitionID:output_type -> queue.v1.ReceiveMessageForPartitionIDResponse
-	11, // 18: queue.v1.QueueService.CreateTopic:output_type -> queue.v1.CreateTopicResponse
-	13, // 19: queue.v1.QueueService.Connect:output_type -> queue.v1.ConnectResponse
-	17, // 20: queue.v1.QueueService.ShardInfo:output_type -> queue.v1.ShardInfoResponse
-	14, // [14:21] is the sub-list for method output_type
-	7,  // [7:14] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	21, // 0: queue.v1.HealthCheckRequest.ping_at:type_name -> google.protobuf.Timestamp
+	14, // 1: queue.v1.ConnectResponse.consumer:type_name -> queue.v1.Consumer
+	15, // 2: queue.v1.ConnectResponse.consumer_group:type_name -> queue.v1.ConsumerGroup
+	20, // 3: queue.v1.ShardInfoResponse.shard_info:type_name -> queue.v1.ShardInfoResponse.ShardInfoEntry
+	19, // 4: queue.v1.ShardInfoResponse.brokers:type_name -> queue.v1.Broker
+	0,  // 5: queue.v1.ShardInfo.shard_type:type_name -> queue.v1.ShardType
+	19, // 6: queue.v1.ShardInfo.brokers:type_name -> queue.v1.Broker
+	18, // 7: queue.v1.ShardInfoResponse.ShardInfoEntry.value:type_name -> queue.v1.ShardInfo
+	1,  // 8: queue.v1.QueueService.HealthCheck:input_type -> queue.v1.HealthCheckRequest
+	3,  // 9: queue.v1.QueueService.AckMessage:input_type -> queue.v1.AckMessageRequest
+	5,  // 10: queue.v1.QueueService.SendMessage:input_type -> queue.v1.SendMessageRequest
+	9,  // 11: queue.v1.QueueService.ReceiveMessageForPartitionID:input_type -> queue.v1.ReceiveMessageForPartitionIDRequest
+	10, // 12: queue.v1.QueueService.CreateTopic:input_type -> queue.v1.CreateTopicRequest
+	12, // 13: queue.v1.QueueService.Connect:input_type -> queue.v1.ConnectRequest
+	16, // 14: queue.v1.QueueService.ShardInfo:input_type -> queue.v1.ShardInfoRequest
+	2,  // 15: queue.v1.QueueService.HealthCheck:output_type -> queue.v1.HealthCheckResponse
+	4,  // 16: queue.v1.QueueService.AckMessage:output_type -> queue.v1.AckMessageResponse
+	6,  // 17: queue.v1.QueueService.SendMessage:output_type -> queue.v1.SendMessageResponse
+	8,  // 18: queue.v1.QueueService.ReceiveMessageForPartitionID:output_type -> queue.v1.ReceiveMessageForPartitionIDResponse
+	11, // 19: queue.v1.QueueService.CreateTopic:output_type -> queue.v1.CreateTopicResponse
+	13, // 20: queue.v1.QueueService.Connect:output_type -> queue.v1.ConnectResponse
+	17, // 21: queue.v1.QueueService.ShardInfo:output_type -> queue.v1.ShardInfoResponse
+	15, // [15:22] is the sub-list for method output_type
+	8,  // [8:15] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_queue_v1_queue_proto_init() }
