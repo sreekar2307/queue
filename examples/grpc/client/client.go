@@ -1,24 +1,26 @@
 package main
 
 import (
+	pb "buf.build/gen/go/sreekar2307/queue/protocolbuffers/go/queue/v1"
 	"context"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
+	"github.com/sreekar2307/queue/util"
 	"log"
 	"strconv"
 	"time"
 
-	pb "github.com/sreekar2307/queue/transport/grpc/transportpb"
-	"github.com/sreekar2307/queue/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+
+	"buf.build/gen/go/sreekar2307/queue/grpc/go/queue/v1/v1grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Client struct {
 	initialBrokerAddr string
-	brokerProxyClient pb.TransportClient
+	brokerProxyClient v1grpc.QueueClient
 	brokerProxyConn   *grpc.ClientConn
 	consumer          *pb.Consumer
 }
@@ -36,7 +38,7 @@ func NewClient(_ context.Context, initialBrokerAddr string) (*Client, error) {
 		return nil, err
 	}
 	c.brokerProxyConn = initialConn
-	c.brokerProxyClient = pb.NewTransportClient(initialConn)
+	c.brokerProxyClient = v1grpc.NewQueueClient(initialConn)
 
 	return c, nil
 }
