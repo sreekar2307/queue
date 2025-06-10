@@ -2,8 +2,12 @@ buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-2025060316535
 buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.6-20250603165357-b52ab10f4468.1/go.mod h1:avRlCjnFzl98VPaeCtJ24RrV/wwHFzB8sWXhj26+n/U=
 buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-00000000000000-e77000edb68e.2 h1:0KHuIUdUvb2QTk6GJrNag5ME/aQod88axp0YYODOnHY=
 buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-00000000000000-e77000edb68e.2/go.mod h1:BgnzraMVC9gz0bsSKx7Wk4ODCiET+Wob8KBaFEAFN30=
+buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-20250610175147-9fb3bbc1230c.2 h1:Uoi3K8il1aegcdaBHY0CK6CoZ5GNuCZeWKNE95Fi3jw=
+buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-20250610175147-9fb3bbc1230c.2/go.mod h1:AG0AvvgdGuI2/vH4iiMJMH4mwLxnVXyi71kithS5F/0=
 buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.1-00000000000000-e77000edb68e.1 h1:/l16aTb8lkPFcypTq8PMjug0Yd6hLfE3SvHYYwyhrqk=
 buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.1-00000000000000-e77000edb68e.1/go.mod h1:wAz28bt661NQ9OIVzwgSXIc+1OBePZ/qwnhTIEDGrng=
+buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.1-20250610175147-9fb3bbc1230c.1 h1:gmUd2zmwq/je4Wz/yh7IQf183PZnwdMM1t62VmtXFhc=
+buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.1-20250610175147-9fb3bbc1230c.1/go.mod h1:wAz28bt661NQ9OIVzwgSXIc+1OBePZ/qwnhTIEDGrng=
 github.com/go-logr/logr v1.4.2 h1:6pFjapn8bFcIbiKo3XT4j/BhANplGihG6tvd+8rYgrY=
 github.com/go-logr/logr v1.4.2/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
