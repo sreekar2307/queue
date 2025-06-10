@@ -44,6 +44,7 @@ var (
 	grpcClient      *grpc.ClientConn
 	transportClient pb.QueueServiceClient
 	lc              = make(chan lookupResource)
+	lcRes           = make(chan *clusterDetails)
 )
 
 func main() {
@@ -66,9 +67,11 @@ func main() {
 		defer grpcClient.Close()
 		transportClient = pb.NewQueueServiceClient(grpcClient)
 	}
-	go watcher(ctx, lc)
+	go lookupRefresh(ctx)
 
 	lc <- lookupResource{} // Trigger initial lookup
+	cd := <-lcRes
+	clusterD.Store(cd)
 
 	lis, err := net.Listen("tcp", *proxyAddr)
 	if err != nil {
@@ -90,6 +93,7 @@ func director(ctx context.Context, _ string) (context.Context, *grpc.ClientConn,
 	var (
 		partitionID string
 		topic       string
+		toLeader    bool
 	)
 	if vals := md.Get("partition"); len(vals) > 0 {
 		partitionID = vals[0]
@@ -97,8 +101,11 @@ func director(ctx context.Context, _ string) (context.Context, *grpc.ClientConn,
 	if vals := md.Get("topic"); len(vals) > 0 {
 		topic = vals[0]
 	}
+	if vals := md.Get("to-leader"); len(vals) > 0 && vals[0] == "true" {
+		toLeader = true
+	}
 
-	backendAddr, err := routeToBroker(topic, partitionID)
+	backendAddr, err := routeToBroker(toLeader, topic, partitionID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to route to broker for partition %s: %w", partitionID, err)
 	}
@@ -113,7 +120,65 @@ func director(ctx context.Context, _ string) (context.Context, *grpc.ClientConn,
 	return ctx, conn, nil
 }
 
-func watcher(ctx context.Context, lc chan lookupResource) {
+func routeToBroker(toLeader bool, topic, partitionID string) (string, error) {
+	log.Println("broker lookup for topic:", topic, "partitionID:", partitionID)
+	clusterInfo := clusterD.Load()
+	if clusterInfo == nil {
+		return "", fmt.Errorf("shard info not available, please retry later")
+	}
+	if len(clusterInfo.Brokers) == 0 {
+		return "", fmt.Errorf("no brokers available")
+	}
+	var brokers []broker
+
+	if toLeader {
+		return clusterInfo.LeaderBroker.GrpcAddress, nil
+	}
+
+	if len(partitionID) == 0 && len(topic) == 0 {
+		brokers = clusterInfo.Brokers
+		if len(brokers) == 0 {
+			lc <- lookupResource{} // Trigger a lookup if no brokers are available
+			clusterInfo = <-lcRes
+			clusterD.Store(clusterInfo)
+		}
+		if len(clusterInfo.Brokers) == 0 {
+			return "", fmt.Errorf("no brokers available, please retry later")
+		}
+		brokers = clusterInfo.Brokers
+	} else if len(partitionID) == 0 {
+		_, ok := clusterInfo.BrokersForTopic[topic]
+		if !ok {
+			lc <- lookupResource{
+				Topic: topic,
+			} // Trigger a lookup if topic is not found
+			clusterInfo = <-lcRes
+			clusterD.Store(clusterInfo)
+		}
+		brokersForTopic, _ := clusterInfo.BrokersForTopic[topic]
+		if len(brokersForTopic) == 0 {
+			return "", fmt.Errorf("no brokers available, for topic %s", topic)
+		}
+		brokers = brokersForTopic
+	} else {
+		_, ok := clusterInfo.BrokersForPartition[partitionID]
+		if !ok {
+			lc <- lookupResource{
+				Partition: partitionID,
+			} // Trigger a lookup if partition is not found
+			clusterInfo = <-lcRes
+			clusterD.Store(clusterInfo)
+		}
+		brokersForPartition, _ := clusterInfo.BrokersForPartition[partitionID]
+		if len(brokersForPartition) == 0 {
+			return "", fmt.Errorf("no brokers available, for partition  %s", partitionID)
+		}
+		brokers = brokersForPartition
+	}
+
+	return brokers[rand.Intn(len(brokers))].GrpcAddress, nil
+}
+func lookupRefresh(ctx context.Context) {
 	var lastLookupAt *time.Time
 
 	initiateLookup := func(lr lookupResource) {
@@ -136,66 +201,29 @@ func watcher(ctx context.Context, lc chan lookupResource) {
 		case lr := <-lc:
 			initiateLookup(lr)
 		case <-time.After(*minDurationBtwLookups):
+			go func() {
+				cd := <-lcRes
+				clusterD.Store(cd)
+			}()
 			initiateLookup(lookupResource{})
 		}
-	}
-}
 
-func routeToBroker(topic, partitionID string) (string, error) {
-	log.Println("broker lookup for topic:", topic, "partitionID:", partitionID)
-	clusterInfo := clusterD.Load()
-	if clusterInfo == nil {
-		return "", fmt.Errorf("shard info not available, please retry later")
 	}
-	if len(clusterInfo.Brokers) == 0 {
-		return "", fmt.Errorf("no brokers available")
-	}
-	var brokers []broker
-
-	if len(partitionID) == 0 && len(topic) == 0 {
-		brokers = clusterInfo.Brokers
-		return clusterInfo.Brokers[rand.Intn(len(clusterInfo.Brokers))].GrpcAddress, nil
-	} else if len(partitionID) == 0 {
-		_, ok := clusterInfo.BrokersForTopic[topic]
-		if !ok {
-			lc <- lookupResource{
-				Topic: topic,
-			} // Trigger a lookup if topic is not found
-		}
-		clusterInfo = clusterD.Load()
-		brokersForTopic, _ := clusterInfo.BrokersForTopic[topic]
-		if len(brokersForTopic) == 0 {
-			return "", fmt.Errorf("no brokers available, for topic %s", topic)
-		}
-		brokers = brokersForTopic
-	} else {
-		_, ok := clusterInfo.BrokersForPartition[partitionID]
-		if !ok {
-			lc <- lookupResource{
-				Partition: partitionID,
-			} // Trigger a lookup if partition is not found
-		}
-		clusterInfo = clusterD.Load()
-		brokersForPartition, _ := clusterInfo.BrokersForPartition[partitionID]
-		if len(brokersForPartition) == 0 {
-			return "", fmt.Errorf("no brokers available, for partition  %s", partitionID)
-		}
-		brokers = brokersForPartition
-	}
-
-	return brokers[rand.Intn(len(brokers))].GrpcAddress, nil
 }
 
 func lookupWithBackoff(ctx context.Context, lr lookupResource) error {
 	for i := 0; i < *maxLookupRetries; i++ {
-		if err := lookup(ctx); err != nil {
+		cd, err := lookup(ctx)
+		if err != nil {
 			backoff := durationToBackoff(i, deffaultBackOffConfig)
 			time.Sleep(backoff)
 			continue
+		} else {
+			lcRes <- cd
 		}
-		cd := clusterD.Load()
 		if lr.Topic != "" {
 			if _, ok := cd.BrokersForTopic[lr.Topic]; !ok {
+				log.Println("brokers for topic not found, retrying lookup", lr.Topic)
 				backoff := durationToBackoff(i, deffaultBackOffConfig)
 				time.Sleep(backoff)
 				continue
@@ -203,36 +231,43 @@ func lookupWithBackoff(ctx context.Context, lr lookupResource) error {
 		}
 		if lr.Partition != "" {
 			if _, ok := cd.BrokersForPartition[lr.Partition]; !ok {
+				log.Println("brokers not found for partition, retrying lookup", lr.Partition)
 				backoff := durationToBackoff(i, deffaultBackOffConfig)
 				time.Sleep(backoff)
 				continue
 			}
 		}
-		log.Println("Successfully fetched shard info")
+		log.Println("Successfully fetched shard info", cd)
 		return nil
 	}
 	return fmt.Errorf("failed to fetch shard info after %d retries", *maxLookupRetries)
 }
 
-func lookup(pCtx context.Context) error {
+func lookup(pCtx context.Context) (*clusterDetails, error) {
 	if transportClient != nil {
 		return lookupGrpc(pCtx)
 	}
 	return lookupHttp(pCtx)
 }
 
-func lookupGrpc(pCtx context.Context) error {
+func lookupGrpc(pCtx context.Context) (*clusterDetails, error) {
 	ctx, cancel := context.WithTimeout(pCtx, *shardsInfoReqTimeout)
 	defer cancel()
 	req := &pb.ShardInfoRequest{}
 	resp, err := transportClient.ShardInfo(ctx, req)
 	if err != nil {
-		return fmt.Errorf("failed to fetch shard info: %w", err)
+		return nil, fmt.Errorf("failed to fetch shard info: %w", err)
 	}
 	cd := clusterDetails{
 		BrokersForPartition: make(map[string][]broker),
 		BrokersForTopic:     make(map[string][]broker),
 		Brokers:             make([]broker, 0),
+		LeaderBroker: broker{
+			Id:          resp.Leader.Id,
+			RaftAddress: resp.Leader.RaftAddress,
+			GrpcAddress: resp.Leader.GrpcAddress,
+			HttpAddress: resp.Leader.HttpAddress,
+		},
 	}
 	for partitionID, shardInfo := range resp.ShardInfo {
 		brokers := make([]broker, len(shardInfo.Brokers))
@@ -256,35 +291,35 @@ func lookupGrpc(pCtx context.Context) error {
 		}
 	})
 	cd = sanitizeClusterDetails(cd)
-	clusterD.Store(&cd)
-	return nil
+	return &cd, nil
 }
 
-func lookupHttp(pCtx context.Context) error {
+func lookupHttp(pCtx context.Context) (*clusterDetails, error) {
 	ctx, cancel := context.WithTimeout(pCtx, *shardsInfoReqTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodGet, fmt.Sprintf("%s%s", *brokerHttpAddr, *shardsInfoPath), nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to fetch shard info: %s", resp.Status)
+		return nil, fmt.Errorf("failed to fetch shard info: %s", resp.Status)
 	}
 	var sr shardsInfo
 	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
-		return err
+		return nil, err
 	}
 	cd := clusterDetails{
 		BrokersForPartition: make(map[string][]broker),
 		BrokersForTopic:     make(map[string][]broker),
 		Brokers:             make([]broker, 0),
+		LeaderBroker:        sr.Leader,
 	}
 	for partitionID, details := range sr.ShardInfo {
 		brokers := make([]broker, len(details.Brokers))
@@ -292,7 +327,6 @@ func lookupHttp(pCtx context.Context) error {
 			brokers[i] = broker{
 				Id:          b.Id,
 				RaftAddress: b.RaftAddress,
-
 				GrpcAddress: b.GrpcAddress,
 				HttpAddress: b.HttpAddress,
 			}
@@ -302,8 +336,7 @@ func lookupHttp(pCtx context.Context) error {
 	}
 	cd.Brokers = sr.Brokers
 	cd = sanitizeClusterDetails(cd)
-	clusterD.Store(&cd)
-	return nil
+	return &cd, nil
 }
 
 func sanitizeClusterDetails(cd clusterDetails) clusterDetails {

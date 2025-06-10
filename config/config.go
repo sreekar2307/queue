@@ -39,6 +39,7 @@ type (
 	RaftConfig struct {
 		ReplicaID     uint64            `mapstructure:"replica_id"`
 		Addr          string            `mapstructure:"addr"`
+		Join          bool              `mapstructure:"join"`
 		InviteMembers map[uint64]string `mapstructure:"invite_members"`
 		LogsDataDir   string            `mapstructure:"logs_data_dir"`
 		Metadata      MetadataFSMConfig `mapstructure:"metadata_fsm"`
@@ -70,9 +71,10 @@ func init() {
 
 		pflag.Int("raft.replica_id", 1, "ReplicaID to use")
 		pflag.String("config", "config", "Path to config file")
-		pflag.String("raft.addr", "0.0.0.0:63001", "Raft Nodehost address")
+		pflag.String("raft.addr", "localhost:63001", "Raft Nodehost address")
 		pflag.String("grpc.listener_addr", "", "GRPC listener address")
 		pflag.String("http.listener_addr", "", "HTTP listener address")
+		pflag.Bool("raft.join", false, "Join the Raft cluster if true")
 		pflag.Parse()
 		pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 

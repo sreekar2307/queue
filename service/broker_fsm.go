@@ -536,6 +536,34 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 		}
 		return clusterInfoBytes, nil
 
+	} else if cmd.CommandType == BrokerCommands.BrokerForID {
+		if len(cmd.Args) != 1 {
+			return nil, fmt.Errorf("invalid command args")
+		}
+		brokerID, err := strconv.ParseUint(string(cmd.Args[0]), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid command args: %w", err)
+		}
+		broker, err := f.brokerService.GetBroker(ctx, brokerID)
+		if err != nil {
+			if stdErrors.Is(err, errors.ErrBrokerNotFound) {
+				res := struct {
+					Found bool `json:"found"`
+				}{
+					Found: false,
+				}
+				return json.Marshal(res)
+			}
+			return nil, fmt.Errorf("get broker: %w", err)
+		}
+		res := struct {
+			Found  bool          `json:"found"`
+			Broker *model.Broker `json:"broker"`
+		}{
+			Found:  true,
+			Broker: broker,
+		}
+		return json.Marshal(res)
 	}
 	return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
 }

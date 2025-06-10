@@ -279,7 +279,7 @@ func (h *Http) healthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *Http) shardsInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	queryParams := r.URL.Query()
-	shardInfo, brokers, err := h.queue.ShardsInfo(ctx, queryParams["topics"])
+	shardInfo, brokers, leaderBroker, err := h.queue.ShardsInfo(ctx, queryParams["topics"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -287,9 +287,11 @@ func (h *Http) shardsInfo(w http.ResponseWriter, r *http.Request) {
 	responseBody, err := json.Marshal(struct {
 		ShardInfo map[string]*model.ShardInfo `json:"shardInfo"`
 		Brokers   []*model.Broker             `json:"brokers"`
+		Leader    *model.Broker               `json:"leader,omitempty"`
 	}{
 		ShardInfo: shardInfo,
 		Brokers:   brokers,
+		Leader:    leaderBroker,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

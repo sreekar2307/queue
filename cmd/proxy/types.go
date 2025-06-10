@@ -6,12 +6,14 @@ type lookupResource struct {
 }
 
 type clusterDetails struct {
+	LeaderBroker        broker
 	BrokersForPartition map[string][]broker
 	BrokersForTopic     map[string][]broker
 	Brokers             []broker
 }
 
 type shardsInfo struct {
+	Leader    broker                      `json:"leader"`
 	Brokers   []broker                    `json:"brokers"`
 	ShardInfo map[string]partitionDetails `json:"shardInfo"`
 }

@@ -13,4 +13,6 @@ var (
 	ErrNoMessageFound = errors.New("messages not found")
 
 	ErrDuplicateCommand = errors.New("duplicate command")
+
+	ErrBrokerNotFound = errors.New("broker not found")
 )

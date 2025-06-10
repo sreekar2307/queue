@@ -4,12 +4,14 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
-	"github.com/sreekar2307/queue/storage/errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io"
 	"log"
 	"net"
+
+	"google.golang.org/grpc/reflection"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"google.golang.org/grpc/metadata"
 
@@ -19,6 +21,7 @@ import (
 	pb "github.com/sreekar2307/queue/gen/queue/v1"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service"
+	"github.com/sreekar2307/queue/service/errors"
 	"github.com/sreekar2307/queue/util"
 
 	"google.golang.org/grpc"
@@ -52,6 +55,7 @@ func NewTransport(
 	)
 	server.RegisterService(&pb.QueueService_ServiceDesc, g)
 	g.server = server
+	reflection.Register(server)
 	return g, nil
 }
 
@@ -226,7 +230,7 @@ func (g *GRPC) Close(ctx context.Context) error {
 }
 
 func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.ShardInfoResponse, error) {
-	shardsInfo, brokers, err := g.queue.ShardsInfo(ctx, req.GetTopics())
+	shardsInfo, brokers, leader, err := g.queue.ShardsInfo(ctx, req.GetTopics())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "shard info: %v", err)
 	}
@@ -240,6 +244,12 @@ func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.Sha
 				HttpAddress: broker.ReachHttpAddress,
 			}
 		}),
+		Leader: &pb.Broker{
+			Id:          leader.ID,
+			RaftAddress: leader.RaftAddress,
+			GrpcAddress: leader.ReachGrpcAddress,
+			HttpAddress: leader.ReachHttpAddress,
+		},
 	}
 	for partitionID, shardInfo := range shardsInfo {
 		shardType := pb.ShardType_SHARD_TYPE_BROKERS
@@ -263,4 +273,18 @@ func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.Sha
 	}
 
 	return res, nil
+}
+
+func (g *GRPC) RegisterNewBroker(ctx context.Context, req *pb.RegisterNewBrokerRequest) (*pb.RegisterNewBrokerResponse, error) {
+	if err := g.queue.RegisterNewNode(
+		ctx,
+		req.GetReplicaId(),
+		req.GetTargetAddress(),
+	); err != nil {
+		if stdErrors.Is(err, errors.ErrCurrentNodeNotLeader) {
+			return nil, status.Errorf(codes.FailedPrecondition, "current node is not the leader")
+		}
+		return nil, status.Errorf(codes.Internal, "register new broker: %v", err)
+	}
+	return &pb.RegisterNewBrokerResponse{}, nil
 }

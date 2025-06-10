@@ -9,13 +9,16 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
+
+	"github.com/lni/dragonboat/v4/raftio"
 
 	"github.com/sreekar2307/queue/config"
 	"github.com/sreekar2307/queue/model"
+	"github.com/sreekar2307/queue/service/errors"
 	topicServ "github.com/sreekar2307/queue/service/topic"
 	"github.com/sreekar2307/queue/storage"
-	"github.com/sreekar2307/queue/storage/errors"
 	metadataStorage "github.com/sreekar2307/queue/storage/metadata"
 	"github.com/sreekar2307/queue/util"
 
@@ -26,7 +29,7 @@ import (
 )
 
 const (
-	brokerSharID = 1
+	brokerSharID = 101
 )
 
 type Queue struct {
@@ -35,6 +38,11 @@ type Queue struct {
 	mdStorage      storage.MetadataStorage
 	topicService   TopicService
 	messageService MessageService
+	pCtx           context.Context
+
+	mu                       sync.Mutex
+	deactivateConsumerCancel context.CancelFunc
+	prevBrokerShardLeaderID  uint64
 }
 
 func NewQueue(
@@ -45,14 +53,6 @@ func NewQueue(
 	dir := filepath.Join(raftConfig.LogsDataDir, strconv.FormatUint(raftConfig.ReplicaID, 10))
 	if err := os.MkdirAll(dir, 0777); err != nil {
 		return nil, fmt.Errorf("failed to create data dir: %w", err)
-	}
-	nh, err := dragonboat.NewNodeHost(drConfig.NodeHostConfig{
-		RaftAddress:    raftConfig.Addr,
-		NodeHostDir:    dir,
-		RTTMillisecond: 100,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create replica host: %w", err)
 	}
 	metadataPath := filepath.Join(conf.MetadataPath, strconv.FormatUint(raftConfig.ReplicaID, 10))
 	if err := os.MkdirAll(metadataPath, 0777); err != nil {
@@ -68,29 +68,45 @@ func NewQueue(
 		ReachGrpcAddress: conf.GRPC.ListenerAddr,
 		ReachHttpAddress: conf.HTTP.ListenerAddr,
 	}
-	broker.SetNodeHost(nh)
-	broker.SetBrokerShardId(brokerSharID)
 	q := &Queue{
 		broker:       broker,
 		mdStorage:    mdStorage,
 		topicService: topicServ.NewDefaultTopicService(mdStorage),
+		pCtx:         pCtx,
 	}
+	nh, err := dragonboat.NewNodeHost(drConfig.NodeHostConfig{
+		RaftAddress:       raftConfig.Addr,
+		NodeHostDir:       dir,
+		RTTMillisecond:    100,
+		RaftEventListener: q,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create replica host: %w", err)
+	}
+	broker.SetNodeHost(nh)
+	broker.SetBrokerShardId(brokerSharID)
+
 	factory := func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
 		return NewBrokerFSM(shardID, replicaID, broker, mdStorage)
 	}
-	err = nh.StartOnDiskReplica(raftConfig.InviteMembers, false, factory, drConfig.Config{
-		ReplicaID:          raftConfig.ReplicaID,
-		ShardID:            brokerSharID,
-		ElectionRTT:        10,
-		HeartbeatRTT:       1,
-		CheckQuorum:        true,
-		SnapshotEntries:    raftConfig.Metadata.SnapshotEntries,
-		CompactionOverhead: raftConfig.Metadata.CompactionOverhead,
+	inviteMembers := raftConfig.InviteMembers
+	if raftConfig.Join {
+		inviteMembers = nil
+	}
+	err = nh.StartOnDiskReplica(inviteMembers, raftConfig.Join, factory, drConfig.Config{
+		ReplicaID:           raftConfig.ReplicaID,
+		ShardID:             broker.BrokerShardId(),
+		ElectionRTT:         10,
+		HeartbeatRTT:        1,
+		CheckQuorum:         true,
+		OrderedConfigChange: true,
+		SnapshotEntries:     raftConfig.Metadata.SnapshotEntries,
+		CompactionOverhead:  raftConfig.Metadata.CompactionOverhead,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start replica: %w", err)
 	}
-	if err := q.blockTillLeaderSet(pCtx, brokerSharID); err != nil {
+	if _, err := q.blockTillLeaderSet(pCtx, broker.BrokerShardId()); err != nil {
 		return nil, fmt.Errorf("block till leader set: %w", err)
 	}
 	if err := q.registerBroker(pCtx); err != nil {
@@ -99,16 +115,6 @@ func NewQueue(
 	if err := q.reShardExistingPartitions(pCtx); err != nil {
 		return nil, fmt.Errorf("failed to re shard existing partitions: %w", err)
 	}
-	stop, stopCancel := context.WithCancel(pCtx)
-	q.onBrokerLeaderChange(pCtx, func(prevLeaderID, currentLeaderID uint64) error {
-		if prevLeaderID == broker.ID && currentLeaderID != broker.ID {
-			stopCancel()
-			stop, stopCancel = context.WithCancel(pCtx)
-		} else if prevLeaderID != broker.ID && currentLeaderID == broker.ID {
-			q.disconnectInActiveConsumers(pCtx, stop)
-		}
-		return nil
-	})
 	return q, nil
 }
 
@@ -132,7 +138,7 @@ func (q *Queue) CreateTopic(
 		Args: [][]byte{
 			[]byte(name),
 			[]byte(strconv.FormatUint(numberOfPartitions, 10)),
-			[]byte(strconv.FormatUint(brokerSharID+1, 10)),
+			[]byte(strconv.FormatUint(q.broker.BrokerShardId()+1, 10)),
 		},
 	}
 	cmdBytes, err := json.Marshal(cmd)
@@ -204,7 +210,7 @@ func (q *Queue) CreateTopic(
 		}
 		if _, ok := brokerTargets[q.broker.ID]; ok {
 			// block for leader set only if current broker is member of the shard
-			if err := q.blockTillLeaderSet(pCtx, partition.ShardID); err != nil {
+			if _, err := q.blockTillLeaderSet(pCtx, partition.ShardID); err != nil {
 				return nil, err
 			}
 		}
@@ -213,48 +219,51 @@ func (q *Queue) CreateTopic(
 	return &topic, nil
 }
 
-func (q *Queue) disconnectInActiveConsumers(pCtx context.Context, stopCtx context.Context) {
-	go func() {
-		ticker := time.NewTicker(config.Conf.ConsumerHealthCheckInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-stopCtx.Done():
+func (q *Queue) disconnectInActiveConsumers(pCtx context.Context) {
+	ticker := time.NewTicker(config.Conf.ConsumerHealthCheckInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-pCtx.Done():
+			return
+		case <-ticker.C:
+			cmd := Cmd{
+				CommandType: ConsumerCommands.Consumers,
+			}
+			cmdBytes, err := json.Marshal(cmd)
+			if err != nil {
+				log.Println("failed to marshal cmd: ", err)
 				return
-			case <-ticker.C:
-				cmd := Cmd{
-					CommandType: ConsumerCommands.Consumers,
-				}
-				cmdBytes, err := json.Marshal(cmd)
-				if err != nil {
-					log.Println("failed to marshal cmd: ", err)
-					return
-				}
-				nh := q.broker.NodeHost()
-				ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
-				res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
-				cancelFunc()
-				if err != nil {
-					log.Println("failed to propose health check: ", err)
-					return
-				}
-				consumers := make([]*model.Consumer, 0)
-				if err := json.Unmarshal(res.([]byte), &consumers); err != nil {
-					log.Println("failed to unmarshal consumers: ", err)
-					return
-				}
-				for _, consumer := range consumers {
-					if consumer.LastHealthCheckAt < time.Now().Add(-config.Conf.ConsumerLostTime).Unix() {
-						if err := q.disconnect(pCtx, consumer.ID); err != nil {
-							log.Println("failed to disconnect consumer: ", consumer.ID)
-						} else {
-							log.Println("disconnected consumer: ", consumer.ID)
-						}
+			}
+			nh := q.broker.NodeHost()
+			ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+			res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+			cancelFunc()
+			if err != nil {
+				log.Println("failed to propose health check: ", err)
+				return
+			}
+			select {
+			case <-pCtx.Done():
+				return
+			default:
+			}
+			consumers := make([]*model.Consumer, 0)
+			if err := json.Unmarshal(res.([]byte), &consumers); err != nil {
+				log.Println("failed to unmarshal consumers: ", err)
+				return
+			}
+			for _, consumer := range consumers {
+				if consumer.LastHealthCheckAt < time.Now().Add(-config.Conf.ConsumerLostTime).Unix() {
+					if err := q.disconnect(pCtx, consumer.ID); err != nil {
+						log.Println("failed to disconnect consumer: ", consumer.ID)
+					} else {
+						log.Println("disconnected consumer: ", consumer.ID)
 					}
 				}
 			}
 		}
-	}()
+	}
 }
 
 func (q *Queue) SendMessage(
@@ -609,24 +618,24 @@ func (q *Queue) HealthCheck(
 func (q *Queue) ShardsInfo(
 	pCtx context.Context,
 	topics []string,
-) (map[string]*model.ShardInfo, []*model.Broker, error) {
+) (map[string]*model.ShardInfo, []*model.Broker, *model.Broker, error) {
 	cmd := Cmd{
 		CommandType: PartitionsCommands.AllPartitions,
 	}
 	cmdBytes, err := json.Marshal(cmd)
 	if err != nil {
-		return nil, nil, fmt.Errorf("marshal cmd: %w", err)
+		return nil, nil, nil, fmt.Errorf("marshal cmd: %w", err)
 	}
 	nh := q.broker.NodeHost()
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
 	cancelFunc()
 	if err != nil {
-		return nil, nil, fmt.Errorf("propose get consumer for ID: %w", err)
+		return nil, nil, nil, fmt.Errorf("propose get consumer for ID: %w", err)
 	}
 	partitions := make([]*model.Partition, 0)
 	if err := json.Unmarshal(res.([]byte), &partitions); err != nil {
-		return nil, nil, fmt.Errorf("un marshall result: %w", err)
+		return nil, nil, nil, fmt.Errorf("un marshall result: %w", err)
 	}
 	if len(topics) != 0 {
 		topicsSet := util.ToSet(topics)
@@ -634,43 +643,123 @@ func (q *Queue) ShardsInfo(
 			return topicsSet[p.TopicName]
 		})
 		if len(partitions) == 0 {
-			return nil, nil, fmt.Errorf("no partitions found for topics: %v", topics)
+			return nil, nil, nil, fmt.Errorf("no partitions found for topics: %v", topics)
 		}
 	}
 	partitionsBytes, err := json.Marshal(partitions)
 	if err != nil {
-		return nil, nil, fmt.Errorf("marshal partitions: %w", err)
+		return nil, nil, nil, fmt.Errorf("marshal partitions: %w", err)
 	}
-	cmd = Cmd{
-		CommandType: BrokerCommands.ShardInfoForPartitions,
-		Args: [][]byte{
-			partitionsBytes,
-		},
+	var (
+		wg             sync.WaitGroup
+		shardInfoErr   error
+		clusterDetails struct {
+			ShardInfo map[string]*model.ShardInfo `json:"shardInfo"`
+			Brokers   []*model.Broker             `json:"brokers"`
+		}
+		leaderBrokerID  uint64
+		leaderBroker    *model.Broker
+		leaderBrokerErr error
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		cmd = Cmd{
+			CommandType: BrokerCommands.ShardInfoForPartitions,
+			Args: [][]byte{
+				partitionsBytes,
+			},
+		}
+		cmdBytes, err = json.Marshal(cmd)
+		if err != nil {
+			shardInfoErr = fmt.Errorf("marshal cmd: %w", err)
+			return
+		}
+		ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
+		defer cancelFunc()
+		res, err = nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+		if err != nil {
+			shardInfoErr = fmt.Errorf("propose get consumer for ID: %w", err)
+			return
+		}
+		if err := json.Unmarshal(res.([]byte), &clusterDetails); err != nil {
+			shardInfoErr = fmt.Errorf("un marshall result: %w", err)
+			return
+		}
+		return
+	}()
+
+	go func() {
+		defer wg.Done()
+		leaderID, err := q.blockTillLeaderSet(pCtx, q.broker.BrokerShardId())
+		if err != nil {
+			leaderBrokerErr = err
+			return
+		}
+		leaderBrokerID = leaderID
+	}()
+	wg.Wait()
+	if shardInfoErr != nil || leaderBrokerErr != nil {
+		return nil, nil, nil, fmt.Errorf(
+			"failed to get shard info or leader broker: %w, %w",
+			shardInfoErr,
+			leaderBrokerErr,
+		)
 	}
-	cmdBytes, err = json.Marshal(cmd)
+	for _, broker := range clusterDetails.Brokers {
+		if broker.ID == leaderBrokerID {
+			leaderBroker = broker
+		}
+	}
+	if leaderBrokerID != 0 && leaderBroker == nil {
+		return nil, nil, nil, fmt.Errorf("leader broker not found for ID: %d", leaderBrokerID)
+	}
+	return clusterDetails.ShardInfo, clusterDetails.Brokers, leaderBroker, nil
+}
+
+func (q *Queue) RegisterNewNode(
+	pCtx context.Context,
+	newNodeID uint64,
+	targetNodeAddr string,
+) error {
+	nh := q.broker.NodeHost()
+	leaderID, _, _, err := nh.GetLeaderID(q.broker.BrokerShardId())
 	if err != nil {
-		return nil, nil, fmt.Errorf("marshal cmd: %w", err)
+		return fmt.Errorf("failed to get leader ID: %w", err)
 	}
-	ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
+	if leaderID != q.broker.ID {
+		return errors.ErrCurrentNodeNotLeader
+	}
+	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
-	res, err = nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+	membership, err := nh.SyncGetShardMembership(ctx, q.broker.BrokerShardId())
 	if err != nil {
-		return nil, nil, fmt.Errorf("propose get consumer for ID: %w", err)
+		return fmt.Errorf("failed to get shard membership: %w", err)
 	}
-	var clusterDetails struct {
-		ShardInfo map[string]*model.ShardInfo `json:"shardInfo"`
-		Brokers   []*model.Broker             `json:"brokers"`
+	if err := nh.SyncRequestAddReplica(
+		ctx,
+		q.broker.BrokerShardId(),
+		newNodeID,
+		targetNodeAddr,
+		membership.ConfigChangeID,
+	); err != nil {
+		return fmt.Errorf("failed to add new replica: %w", err)
 	}
-	if err := json.Unmarshal(res.([]byte), &clusterDetails); err != nil {
-		return nil, nil, fmt.Errorf("un marshall result: %w", err)
-	}
-	return clusterDetails.ShardInfo, clusterDetails.Brokers, nil
+	_, err = q.blockTillLeaderSet(pCtx, q.broker.BrokerShardId())
+	return err
 }
 
 func (q *Queue) blockTillLeaderSet(
 	pCtx context.Context,
 	shardID uint64,
-) error {
+) (uint64, error) {
+	leaderID, _, ok, err := q.broker.NodeHost().GetLeaderID(shardID)
+	if err != nil {
+		return 0, fmt.Errorf("leader for broker shard: %w", err)
+	}
+	if ok {
+		return leaderID, nil
+	}
 	ctx, cancelFunc := context.WithTimeout(pCtx, config.Conf.ShardLeaderWaitTime)
 	ticker := time.NewTicker(config.Conf.ShardLeaderSetReCheckInterval)
 	log.Println("finding leader for shardID: ", shardID)
@@ -679,49 +768,17 @@ func (q *Queue) blockTillLeaderSet(
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timeout waiting for leader to be set")
+			return 0, fmt.Errorf("timeout waiting for leader to be set")
 		case <-ticker.C:
-			_, _, ok, err := q.broker.NodeHost().GetLeaderID(shardID)
+			leaderID, _, ok, err := q.broker.NodeHost().GetLeaderID(shardID)
 			if err != nil {
-				return fmt.Errorf("leader for broker shard: %w", err)
+				return 0, fmt.Errorf("leader for broker shard: %w", err)
 			}
 			if ok {
-				return nil
+				return leaderID, nil
 			}
 		}
 	}
-}
-
-func (q *Queue) onBrokerLeaderChange(
-	pCtx context.Context,
-	onChange func(prevLeaderID, currentLeaderID uint64) error,
-) {
-	go func() {
-		var prevLeaderID uint64
-		nh := q.broker.NodeHost()
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-pCtx.Done():
-				return
-			case <-ticker.C:
-				leaderID, _, valid, err := nh.GetLeaderID(q.broker.BrokerShardId())
-				if err != nil {
-					log.Println("failed to get leader ID: ", err)
-					return
-				}
-				if valid {
-					if prevLeaderID != leaderID {
-						if err := onChange(prevLeaderID, leaderID); err != nil {
-							log.Println("failed to handle leader change: ", err)
-						}
-						prevLeaderID = leaderID
-					}
-				}
-			}
-		}
-	}()
 }
 
 func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
@@ -780,7 +837,7 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 		); err != nil {
 			return fmt.Errorf("failed to start replica: %w", err)
 		}
-		if err := q.blockTillLeaderSet(pCtx, shardID); err != nil {
+		if _, err := q.blockTillLeaderSet(pCtx, shardID); err != nil {
 			return fmt.Errorf("block till leader set: %w, for shardID: %d", err, shardID)
 		}
 	}
@@ -811,4 +868,23 @@ func (q *Queue) registerBroker(pCtx context.Context) error {
 		return fmt.Errorf("propose register broker: %w", err)
 	}
 	return nil
+}
+
+func (q *Queue) LeaderUpdated(info raftio.LeaderInfo) {
+	if info.ShardID != q.broker.BrokerShardId() {
+		return
+	}
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.prevBrokerShardLeaderID == q.broker.ID && info.LeaderID != q.broker.ID {
+		if q.deactivateConsumerCancel != nil {
+			q.deactivateConsumerCancel()
+			q.deactivateConsumerCancel = nil
+		}
+	} else if q.prevBrokerShardLeaderID != q.broker.ID && info.LeaderID == q.broker.ID {
+		ctx, cancel := context.WithCancel(q.pCtx)
+		q.deactivateConsumerCancel = cancel
+		go q.disconnectInActiveConsumers(ctx)
+	}
+	q.prevBrokerShardLeaderID = info.LeaderID
 }

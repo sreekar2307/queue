@@ -61,6 +61,34 @@ func (b *Bolt) CreateBrokerInTx(
 	return nil
 }
 
+func (b *Bolt) GetBroker(
+	ctx context.Context,
+	brokerID uint64,
+) (*model.Broker, error) {
+	var broker model.Broker
+	err := b.db.View(func(tx *boltDB.Tx) error {
+		bucket := tx.Bucket([]byte(brokersBucketKey))
+		if bucket == nil {
+			return nil
+		}
+		data := bucket.Get(binary.BigEndian.AppendUint64(nil, brokerID))
+		if data == nil {
+			return nil
+		}
+		if err := json.Unmarshal(data, &broker); err != nil {
+			return fmt.Errorf("failed to unmarshal broker: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get broker: %w", err)
+	}
+	if broker.ID == 0 {
+		return nil, errors.ErrBrokerNotFound
+	}
+	return &broker, nil
+}
+
 func (b *Bolt) GetBrokers(ctx context.Context, brokerIDs map[uint64]bool) ([]*model.Broker, error) {
 	var brokers []*model.Broker
 	err := b.db.View(func(tx *boltDB.Tx) error {

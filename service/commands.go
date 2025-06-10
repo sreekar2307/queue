@@ -11,9 +11,11 @@ var TopicCommands = struct {
 var BrokerCommands = struct {
 	RegisterBroker         string
 	ShardInfoForPartitions string
+	BrokerForID            string
 }{
 	RegisterBroker:         "RegisterBroker",
 	ShardInfoForPartitions: "ShardInfoForPartitions",
+	BrokerForID:            "BrokerForID",
 }
 
 var ConsumerCommands = struct {

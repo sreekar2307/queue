@@ -16,6 +16,7 @@ type MetadataStorage interface {
 
 	CreateBrokerInTx(context.Context, Transaction, *model.Broker) error
 	GetBrokers(context.Context, map[uint64]bool) ([]*model.Broker, error)
+	GetBroker(context.Context, uint64) (*model.Broker, error)
 	GetAllBrokers(context.Context) ([]*model.Broker, error)
 
 	CheckCommandAppliedInTx(context.Context, Transaction, uint64) error

@@ -45,6 +45,20 @@ func (b *DefaultBroker) RegisterBroker(
 	return broker, tx.Commit()
 }
 
+func (b *DefaultBroker) GetBroker(
+	ctx context.Context,
+	brokerID uint64,
+) (*model.Broker, error) {
+	broker, err := b.MetaDataStorage.GetBroker(ctx, brokerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get broker %d: %w", brokerID, err)
+	}
+	if broker == nil {
+		return nil, fmt.Errorf("broker %d not found", brokerID)
+	}
+	return broker, nil
+}
+
 func (b *DefaultBroker) ShardInfoForPartitions(
 	ctx context.Context,
 	partitions []*model.Partition,

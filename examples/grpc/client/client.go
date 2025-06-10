@@ -108,7 +108,7 @@ func (c *Client) WriteSomeMessages(pCtx context.Context, topic string) error {
 		}
 
 		// Send the message
-		ctx, cancel := context.WithTimeout(pCtx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(pCtx, 10*time.Second)
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("topic", topic))
 		_, err := c.brokerProxyClient.SendMessage(ctx, req)
 		cancel()
@@ -134,7 +134,7 @@ label:
 				ConsumerId:  c.consumer.Id,
 				PartitionId: partitionId,
 			}
-			ctx, cancel := context.WithTimeout(pCtx, 5*time.Second)
+			ctx, cancel := context.WithTimeout(pCtx, 10*time.Second)
 			ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("partition", partitionId))
 			recvRes, err := c.brokerProxyClient.ReceiveMessageForPartitionID(ctx, recvReq)
 			cancel()
@@ -149,7 +149,7 @@ label:
 					PartitionId: recvRes.PartitionId,
 					MessageId:   recvRes.MessageId,
 				}
-				ctx, cancel = context.WithTimeout(pCtx, 5*time.Second)
+				ctx, cancel = context.WithTimeout(pCtx, 10*time.Second)
 				ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("partition", recvRes.PartitionId))
 				_, err = c.brokerProxyClient.AckMessage(ctx, ackReq)
 				cancel()
