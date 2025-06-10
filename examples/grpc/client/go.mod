@@ -3,7 +3,7 @@ module github.com/sreekar2307/queue/examples/grpc/client
 go 1.24
 
 require (
-	github.com/sreekar2307/queue v0.1.9
+	github.com/sreekar2307/queue v0.1.12
 	google.golang.org/grpc v1.72.0
 )
 

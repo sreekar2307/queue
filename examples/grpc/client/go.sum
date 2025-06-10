@@ -138,6 +138,8 @@ github.com/sreekar2307/queue v0.1.6 h1:lWJkR5twm/ZbwnKk1nzrraMefAfvNhE1GT0uUfUGD
 github.com/sreekar2307/queue v0.1.6/go.mod h1:kmr814azgquY6TNHO5j3XKHJNfRnzFLNnbOolgH/tLk=
 github.com/sreekar2307/queue v0.1.9 h1:wr/s/i2UmkJo0d2dMoDD8fNJ+FFj7NQsqPyXSjoFM00=
 github.com/sreekar2307/queue v0.1.9/go.mod h1:KwYs8jbZF/Ukuztsphq7cJSZLeuPmRYV9OjelEAWZ2g=
+github.com/sreekar2307/queue v0.1.12 h1:5EMBvWlgDZKOigm7OMCsg5C3hvdhqEv2D6DuDInWNfg=
+github.com/sreekar2307/queue v0.1.12/go.mod h1:KwYs8jbZF/Ukuztsphq7cJSZLeuPmRYV9OjelEAWZ2g=
 github.com/stoewer/go-strcase v1.3.0 h1:g0eASXYtp+yvN9fK8sH94oCIk0fau9uV1/ZdJ0AVEzs=
 github.com/stoewer/go-strcase v1.3.0/go.mod h1:fAH5hQ5pehh+j3nZfvwdk2RgEgQjAoM8wodgtPmh1xo=
 github.com/subosito/gotenv v1.6.0 h1:9NlTDc1FTs4qu0DDq7AEtTPNw6SVm7uBMsUCUjABIf8=
