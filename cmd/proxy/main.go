@@ -42,7 +42,7 @@ var (
 
 	clusterD        atomic.Pointer[clusterDetails]
 	grpcClient      *grpc.ClientConn
-	transportClient pb.QueueClient
+	transportClient pb.QueueServiceClient
 	lc              = make(chan lookupResource)
 )
 
@@ -64,7 +64,7 @@ func main() {
 			log.Fatalf("failed to create grpc client: %v", err)
 		}
 		defer grpcClient.Close()
-		transportClient = pb.NewQueueClient(grpcClient)
+		transportClient = pb.NewQueueServiceClient(grpcClient)
 	}
 	go watcher(ctx, lc)
 
