@@ -38,7 +38,7 @@ BoltDB for per-partition storage, and features consumer groups with sticky re-ba
 $ go build -o queue cmd/queue && ./queue
 ```
 this will start a single broker instance with grpc enabled on 0.0.0.0:8000,
-check out [transportpb.proto](https://github.com/sreekar2307/queue/blob/main/transport/grpc/transportpb/transport.proto) for the proto definition
+check out [queue.proto](https://buf.build/sreekar2307/queue/docs) for the proto definition
 
 
 ---
