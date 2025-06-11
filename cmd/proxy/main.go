@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/pkg/profile"
 	"log"
 	"math/rand"
 	"net"
 	"net/http"
 	"os/signal"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -40,17 +42,19 @@ var (
 	)
 	maxLookupRetries = flag.Int("max_lookup_retries", 5, "Maximum number of retries for lookup")
 
-	clusterD        atomic.Pointer[clusterDetails]
-	grpcClient      *grpc.ClientConn
-	transportClient pb.QueueServiceClient
-	lc              = make(chan lookupResource)
-	lcRes           = make(chan *clusterDetails)
+	clusterD         atomic.Pointer[clusterDetails]
+	grpcClient       *grpc.ClientConn
+	transportClient  pb.QueueServiceClient
+	lc               = make(chan lookupResource)
+	lcRes            = make(chan *clusterDetails)
+	addrToGrpcClient sync.Map
 )
 
 func main() {
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGKILL)
 	defer cancel()
+	defer profile.Start(profile.TraceProfile, profile.ProfilePath("proxy")).Stop()
 
 	if len(*brokerHttpAddr) == 0 || len(*brokerGrpcAddr) == 0 {
 		log.Fatal("broker address and broker grpc address must be provided")
@@ -82,6 +86,18 @@ func main() {
 		grpc.UnknownServiceHandler(proxy.TransparentHandler(director)),
 	)
 
+	go func() {
+		select {
+		case <-ctx.Done():
+			addrToGrpcClient.Range(func(key, value any) bool {
+				c := value.(*grpc.ClientConn)
+				_ = c.Close()
+				addrToGrpcClient.Delete(key)
+				return true
+			})
+		}
+	}()
+
 	if err := server.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
@@ -105,34 +121,48 @@ func director(ctx context.Context, _ string) (context.Context, *grpc.ClientConn,
 		toLeader = true
 	}
 
-	backendAddr, err := routeToBroker(toLeader, topic, partitionID)
+	conn, err := routeToBroker(toLeader, topic, partitionID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to route to broker for partition %s: %w", partitionID, err)
-	}
-	conn, err := grpc.NewClient(
-		backendAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return nil, nil, err
 	}
 	ctx = metadata.AppendToOutgoingContext(ctx, "x-proxied-by", "grpc-proxy")
 	return ctx, conn, nil
 }
 
-func routeToBroker(toLeader bool, topic, partitionID string) (string, error) {
-	log.Println("broker lookup for topic:", topic, "partitionID:", partitionID)
+func routeToBroker(toLeader bool, topic, partitionID string) (*grpc.ClientConn, error) {
+	log.Println(
+		"broker lookup for topic:",
+		topic, "partitionID:",
+		partitionID,
+		"to-leader:", toLeader,
+	)
 	clusterInfo := clusterD.Load()
 	if clusterInfo == nil {
-		return "", fmt.Errorf("shard info not available, please retry later")
+		return nil, fmt.Errorf("shard info not available, please retry later")
 	}
 	if len(clusterInfo.Brokers) == 0 {
-		return "", fmt.Errorf("no brokers available")
+		return nil, fmt.Errorf("no brokers available")
 	}
 	var brokers []broker
 
+	createConn := func(addr string) (*grpc.ClientConn, error) {
+		conn, ok := addrToGrpcClient.Load(addr)
+		if ok {
+			return conn.(*grpc.ClientConn), nil
+		}
+		cc, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create grpc client for address %s: %w", addr, err)
+		}
+		actual, loaded := addrToGrpcClient.LoadOrStore(addr, cc)
+		if loaded {
+			_ = cc.Close()
+		}
+		return actual.(*grpc.ClientConn), nil
+	}
+
 	if toLeader {
-		return clusterInfo.LeaderBroker.GrpcAddress, nil
+		return createConn(clusterInfo.LeaderBroker.GrpcAddress)
 	}
 
 	if len(partitionID) == 0 && len(topic) == 0 {
@@ -143,7 +173,7 @@ func routeToBroker(toLeader bool, topic, partitionID string) (string, error) {
 			clusterD.Store(clusterInfo)
 		}
 		if len(clusterInfo.Brokers) == 0 {
-			return "", fmt.Errorf("no brokers available, please retry later")
+			return nil, fmt.Errorf("no brokers available, please retry later")
 		}
 		brokers = clusterInfo.Brokers
 	} else if len(partitionID) == 0 {
@@ -157,7 +187,7 @@ func routeToBroker(toLeader bool, topic, partitionID string) (string, error) {
 		}
 		brokersForTopic, _ := clusterInfo.BrokersForTopic[topic]
 		if len(brokersForTopic) == 0 {
-			return "", fmt.Errorf("no brokers available, for topic %s", topic)
+			return nil, fmt.Errorf("no brokers available, for topic %s", topic)
 		}
 		brokers = brokersForTopic
 	} else {
@@ -171,12 +201,12 @@ func routeToBroker(toLeader bool, topic, partitionID string) (string, error) {
 		}
 		brokersForPartition, _ := clusterInfo.BrokersForPartition[partitionID]
 		if len(brokersForPartition) == 0 {
-			return "", fmt.Errorf("no brokers available, for partition  %s", partitionID)
+			return nil, fmt.Errorf("no brokers available, for partition  %s", partitionID)
 		}
 		brokers = brokersForPartition
 	}
-
-	return brokers[rand.Intn(len(brokers))].GrpcAddress, nil
+	addr := brokers[rand.Intn(len(brokers))].GrpcAddress
+	return createConn(addr)
 }
 func lookupRefresh(ctx context.Context) {
 	var lastLookupAt *time.Time
@@ -237,7 +267,7 @@ func lookupWithBackoff(ctx context.Context, lr lookupResource) error {
 				continue
 			}
 		}
-		log.Println("Successfully fetched shard info", cd)
+		log.Println("Successfully fetched shard info")
 		return nil
 	}
 	return fmt.Errorf("failed to fetch shard info after %d retries", *maxLookupRetries)

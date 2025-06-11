@@ -115,7 +115,7 @@ func (g *GRPC) AckMessage(ctx context.Context, req *pb.AckMessageRequest) (*pb.A
 		PartitionMetadataKey, req.GetPartitionId(),
 	)
 	_ = grpc.SetTrailer(ctx, md)
-	return &pb.AckMessageResponse{}, nil
+	return nil, nil
 }
 
 func (g *GRPC) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb.SendMessageResponse, error) {
@@ -275,16 +275,29 @@ func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.Sha
 	return res, nil
 }
 
-func (g *GRPC) RegisterNewBroker(ctx context.Context, req *pb.RegisterNewBrokerRequest) (*pb.RegisterNewBrokerResponse, error) {
-	if err := g.queue.RegisterNewNode(
-		ctx,
-		req.GetReplicaId(),
-		req.GetTargetAddress(),
-	); err != nil {
-		if stdErrors.Is(err, errors.ErrCurrentNodeNotLeader) {
-			return nil, status.Errorf(codes.FailedPrecondition, "current node is not the leader")
+func (g *GRPC) ManageBrokers(ctx context.Context, req *pb.ManageBrokersRequest) (*pb.ManageBrokersResponse, error) {
+	if req.GetAction() == pb.ManageBrokersAction_MANAGE_BROKERS_ACTION_ADD {
+		err := g.queue.RegisterNewNode(
+			ctx,
+			req.BrokerAction.GetReplicaId(),
+			req.BrokerAction.GetRaftAddress(),
+		)
+		if err != nil {
+			if stdErrors.Is(err, errors.ErrCurrentNodeNotLeader) {
+				return nil, status.Errorf(
+					codes.FailedPrecondition,
+					"current node is not the leader",
+				)
+			} else if stdErrors.Is(err, errors.ErrBrokerAlreadyExists) {
+				return nil, status.Errorf(
+					codes.AlreadyExists,
+					"broker already exists with id %d",
+					req.BrokerAction.GetReplicaId(),
+				)
+			}
+			return nil, status.Errorf(codes.Internal, "register new broker: %v", err)
 		}
-		return nil, status.Errorf(codes.Internal, "register new broker: %v", err)
+		return nil, nil
 	}
-	return &pb.RegisterNewBrokerResponse{}, nil
+	return nil, status.Errorf(codes.Unimplemented, "action %s is not implemented", req.GetAction().String())
 }

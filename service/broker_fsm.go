@@ -78,6 +78,8 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 		if err := json.Unmarshal(entry.Cmd, &cmd); err != nil {
 			return nil, fmt.Errorf("unmarshing cmd: %w", err)
 		}
+		log.Println("Processing command", cmd.CommandType, "with args", cmd.Args,
+			"at index", entry.Index, "for broker fsm")
 		if cmd.CommandType == TopicCommands.CreateTopic {
 			args := cmd.Args
 			if len(args) != 3 {

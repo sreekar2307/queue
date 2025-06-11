@@ -33,11 +33,11 @@ queue --config config.yaml
 ```
 
 ```bash
-queue --config config.yaml --raft.replica_id 2 --raft.addr localhost:63002 --grpc.listener_addr localhost:8002
+queue --config config.yaml --raft.replica_id 2 --raft.addr localhost:63002 --grpc.listener_addr 0.0.0.0:8002
 ```
 
 ```bash
-queue --config config.yaml --raft.replica_id 3 --raft.addr localhost:63003 --grpc.listener_addr localhost:8003
+queue --config config.yaml --raft.replica_id 3 --raft.addr localhost:63003 --grpc.listener_addr 0.0.0.0:8003
 ```
 
 ### 2. Start the proxy grpc server 

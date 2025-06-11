@@ -62,7 +62,7 @@ func (b *Bolt) CreateBrokerInTx(
 }
 
 func (b *Bolt) GetBroker(
-	ctx context.Context,
+	_ context.Context,
 	brokerID uint64,
 ) (*model.Broker, error) {
 	var broker model.Broker
@@ -89,7 +89,7 @@ func (b *Bolt) GetBroker(
 	return &broker, nil
 }
 
-func (b *Bolt) GetBrokers(ctx context.Context, brokerIDs map[uint64]bool) ([]*model.Broker, error) {
+func (b *Bolt) GetBrokers(_ context.Context, brokerIDs map[uint64]bool) ([]*model.Broker, error) {
 	var brokers []*model.Broker
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(brokersBucketKey))

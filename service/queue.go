@@ -736,6 +736,9 @@ func (q *Queue) RegisterNewNode(
 	if err != nil {
 		return fmt.Errorf("failed to get shard membership: %w", err)
 	}
+	if _, ok := membership.Nodes[newNodeID]; ok {
+		return errors.ErrBrokerAlreadyExists
+	}
 	if err := nh.SyncRequestAddReplica(
 		ctx,
 		q.broker.BrokerShardId(),

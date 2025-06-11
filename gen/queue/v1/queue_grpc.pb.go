@@ -40,7 +40,7 @@ const (
 	QueueService_CreateTopic_FullMethodName                  = "/queue.v1.QueueService/CreateTopic"
 	QueueService_Connect_FullMethodName                      = "/queue.v1.QueueService/Connect"
 	QueueService_ShardInfo_FullMethodName                    = "/queue.v1.QueueService/ShardInfo"
-	QueueService_RegisterNewBroker_FullMethodName            = "/queue.v1.QueueService/RegisterNewBroker"
+	QueueService_ManageBrokers_FullMethodName                = "/queue.v1.QueueService/ManageBrokers"
 )
 
 // QueueServiceClient is the client API for QueueService service.
@@ -54,7 +54,7 @@ type QueueServiceClient interface {
 	CreateTopic(ctx context.Context, in *CreateTopicRequest, opts ...grpc.CallOption) (*CreateTopicResponse, error)
 	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error)
 	ShardInfo(ctx context.Context, in *ShardInfoRequest, opts ...grpc.CallOption) (*ShardInfoResponse, error)
-	RegisterNewBroker(ctx context.Context, in *RegisterNewBrokerRequest, opts ...grpc.CallOption) (*RegisterNewBrokerResponse, error)
+	ManageBrokers(ctx context.Context, in *ManageBrokersRequest, opts ...grpc.CallOption) (*ManageBrokersResponse, error)
 }
 
 type queueServiceClient struct {
@@ -138,10 +138,10 @@ func (c *queueServiceClient) ShardInfo(ctx context.Context, in *ShardInfoRequest
 	return out, nil
 }
 
-func (c *queueServiceClient) RegisterNewBroker(ctx context.Context, in *RegisterNewBrokerRequest, opts ...grpc.CallOption) (*RegisterNewBrokerResponse, error) {
+func (c *queueServiceClient) ManageBrokers(ctx context.Context, in *ManageBrokersRequest, opts ...grpc.CallOption) (*ManageBrokersResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegisterNewBrokerResponse)
-	err := c.cc.Invoke(ctx, QueueService_RegisterNewBroker_FullMethodName, in, out, cOpts...)
+	out := new(ManageBrokersResponse)
+	err := c.cc.Invoke(ctx, QueueService_ManageBrokers_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ type QueueServiceServer interface {
 	CreateTopic(context.Context, *CreateTopicRequest) (*CreateTopicResponse, error)
 	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
 	ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error)
-	RegisterNewBroker(context.Context, *RegisterNewBrokerRequest) (*RegisterNewBrokerResponse, error)
+	ManageBrokers(context.Context, *ManageBrokersRequest) (*ManageBrokersResponse, error)
 	mustEmbedUnimplementedQueueServiceServer()
 }
 
@@ -191,8 +191,8 @@ func (UnimplementedQueueServiceServer) Connect(context.Context, *ConnectRequest)
 func (UnimplementedQueueServiceServer) ShardInfo(context.Context, *ShardInfoRequest) (*ShardInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ShardInfo not implemented")
 }
-func (UnimplementedQueueServiceServer) RegisterNewBroker(context.Context, *RegisterNewBrokerRequest) (*RegisterNewBrokerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RegisterNewBroker not implemented")
+func (UnimplementedQueueServiceServer) ManageBrokers(context.Context, *ManageBrokersRequest) (*ManageBrokersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ManageBrokers not implemented")
 }
 func (UnimplementedQueueServiceServer) mustEmbedUnimplementedQueueServiceServer() {}
 func (UnimplementedQueueServiceServer) testEmbeddedByValue()                      {}
@@ -330,20 +330,20 @@ func _QueueService_ShardInfo_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _QueueService_RegisterNewBroker_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterNewBrokerRequest)
+func _QueueService_ManageBrokers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ManageBrokersRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueueServiceServer).RegisterNewBroker(ctx, in)
+		return srv.(QueueServiceServer).ManageBrokers(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: QueueService_RegisterNewBroker_FullMethodName,
+		FullMethod: QueueService_ManageBrokers_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueueServiceServer).RegisterNewBroker(ctx, req.(*RegisterNewBrokerRequest))
+		return srv.(QueueServiceServer).ManageBrokers(ctx, req.(*ManageBrokersRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -380,8 +380,8 @@ var QueueService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _QueueService_ShardInfo_Handler,
 		},
 		{
-			MethodName: "RegisterNewBroker",
-			Handler:    _QueueService_RegisterNewBroker_Handler,
+			MethodName: "ManageBrokers",
+			Handler:    _QueueService_ManageBrokers_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

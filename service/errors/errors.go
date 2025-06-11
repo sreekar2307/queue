@@ -8,4 +8,5 @@ var (
 	ErrTopicNotFound        = stdErrors.New("topic not found")
 	ErrCurrentNodeNotLeader = stdErrors.New("current node is not the leader")
 	ErrBrokerNotFound       = stdErrors.New("broker not found")
+	ErrBrokerAlreadyExists  = stdErrors.New("broker already exists")
 )

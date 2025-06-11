@@ -26,7 +26,7 @@ service QueueService{
   rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
   rpc Connect(ConnectRequest) returns (ConnectResponse);
   rpc ShardInfo(ShardInfoRequest) returns (ShardInfoResponse);
-  rpc RegisterNewBroker(RegisterNewBrokerRequest) returns (RegisterNewBrokerResponse);
+  rpc ManageBrokers(ManageBrokersRequest) returns (ManageBrokersResponse); 
 }
 
 message HealthCheckRequest {
@@ -157,24 +157,35 @@ message ShardInfoResponse {
   Broker leader = 3;
 }
 
-message RegisterNewBrokerRequest {
+
+
+message ManageBrokersRequest {
+  ManageBrokersAction action = 1;
+  BrokerAction broker_action = 2;
+}
+
+message BrokerAction {
   uint64 replica_id = 1 [
     (buf.validate.field).uint64.gt = 0,
-    (buf.validate.field).uint64.lte = 50 
+    (buf.validate.field).uint64.lte = 50
   ];
-  string target_address = 2 [
+  string raft_address = 2 [
     (buf.validate.field).string.host_and_port = true
   ];
 }
 
-message RegisterNewBrokerResponse {}
-
+message ManageBrokersResponse {}
 
 
 enum ShardType {
   SHARD_TYPE_UNSPECIFIED = 0;
   SHARD_TYPE_BROKERS = 1;
   SHARD_TYPE_PARTITIONS = 2;
+}
+
+enum ManageBrokersAction {
+  MANAGE_BROKERS_ACTION_UNSPECIFIED = 0;
+  MANAGE_BROKERS_ACTION_ADD = 1;
 }
 
 message ShardInfo {
