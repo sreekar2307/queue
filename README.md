@@ -161,3 +161,30 @@ This system uses [Viper](https://github.com/spf13/viper) for configuration loadi
 - **Flags** (via `pflag`)
 - **Environment Variables**
 - **All config types supported by viper**
+
+---
+
+## 🛰️ gRPC Proxy Layer
+
+To simplify client-broker interaction, a gRPC proxy is introduced at the client side.
+
+- The proxy determines the **correct broker** using metadata (Topic, Partition).
+- Routing is abstracted from application logic.
+- Built using a **custom gRPC resolver + load balancer** that:
+  - Fetches broker topology via lightweight **HTTP endpoints**.
+  - Performs **refreshes periodically** to keep metadata in sync.
+- Enables clean and scalable partition-level request routing.
+
+This ensures that the application client simply calls `Poll`, `Ack`, or `Append`, without needing to know broker details.
+
+---
+
+## ➕ Dynamic Broker Addition
+
+The queue system supports **adding brokers dynamically** to the cluster.
+
+- New brokers **can be added without leader restart**
+- New **partitions can be assigned** to the new brokers.
+- Existing partitions are **not rebalanced** — no reshuffling or migration is performed.
+
+This makes horizontal scaling straightforward without introducing complexity or data shuffling overhead.
