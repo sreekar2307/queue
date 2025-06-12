@@ -14,7 +14,6 @@ require (
 )
 
 require (
-	buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-20250611091314-c43ff42a6d93.2 // indirect
 	cel.dev/expr v0.23.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/felixge/fgprof v0.9.3 // indirect
