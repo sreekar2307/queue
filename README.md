@@ -124,8 +124,8 @@ Implements Dragonboat's `IOnDiskStateMachine`:
 
 Domain logic for various operations:
 
-- `BrokerService`: Broker registration, shard info for each partition
-- `ConsumerService`: Consumer group registration, offsets, re-balancing
+- `BrokerService`: Broker registration, shard info for each partition, entire cluster metadata
+- `ConsumerService`: Consumer group registration, re-balancing
 - `TopicService`: Topic creation and introspection
 - `MessageService`: Append, poll, ack, etc.
 
@@ -133,9 +133,8 @@ Domain logic for various operations:
 
 ### 5. Storage Layer
 
-Each partition’s finite state machine (FSM) persists its data in its own BoltDB file. 
-currently hard‑coded the replication factor to three,
-so in a three‑node cluster every message in a partition is stored on its leader plus two additional nodes.
+Each partition’s finite state machine (FSM) persists its data in its own BoltDB file.
+so in a n-node cluster every message in a partition is stored on its leader plus n-1 additional nodes.
 Dragonboat takes care of Raft log replication for these partition shards. Separately,
 all cluster metadata—topic definitions, consumer group state, and shard membership 
 is kept in sync across every broker via a dedicated Raft shard.
