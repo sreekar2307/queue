@@ -121,6 +121,7 @@ func (d *DefaultConsumerService) Connect(
 		connectedConsumer.IsActive = true
 		connectedConsumer.LastHealthCheckAt = time.Now().Unix()
 		connectedConsumer.Topics = topicNames
+		connectedConsumer.ConsumerGroup = consumerGroupID
 		err = d.MetadataStorage.UpdateConsumerInTx(ctx, tx, connectedConsumer)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to update consumer: %w", err)
