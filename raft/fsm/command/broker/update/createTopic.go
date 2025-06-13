@@ -10,7 +10,7 @@ import (
 	"github.com/sreekar2307/queue/raft/fsm/command"
 	cmdErrors "github.com/sreekar2307/queue/raft/fsm/command/errors"
 
-	"github.com/sreekar2307/queue/storage/errors"
+	storageErrors "github.com/sreekar2307/queue/storage/errors"
 
 	stdErrors "errors"
 
@@ -38,7 +38,7 @@ func (c createTopicBuilder) Kind() command.Kind {
 	return kind
 }
 
-func NewCreateTopicBuilder() command.Builder {
+func NewCreateTopicBuilder() command.UpdateBrokerBuilder {
 	return createTopicBuilder{}
 }
 
@@ -89,7 +89,7 @@ func (c createTopic) ExecuteUpdate(
 	)
 	var result command.CreateTopicOutputs
 	if err != nil {
-		if stdErrors.Is(err, errors.ErrTopicAlreadyExists) {
+		if stdErrors.Is(err, storageErrors.ErrTopicAlreadyExists) {
 			resultBytes, err := json.Marshal(result)
 			if err != nil {
 				return empty, fmt.Errorf("marshal result: %w", err)
@@ -102,7 +102,7 @@ func (c createTopic) ExecuteUpdate(
 					Data:  resultBytes,
 				},
 			}, nil
-		} else if stdErrors.Is(err, errors.ErrDuplicateCommand) {
+		} else if stdErrors.Is(err, storageErrors.ErrDuplicateCommand) {
 			resultBytes, err := json.Marshal(result)
 			if err != nil {
 				return empty, fmt.Errorf("marshal result: %w", err)

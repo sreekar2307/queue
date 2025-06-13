@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service"
-	errors2 "github.com/sreekar2307/queue/service/errors"
 	"github.com/sreekar2307/queue/storage"
-	"github.com/sreekar2307/queue/storage/errors"
+	storageErrors "github.com/sreekar2307/queue/storage/errors"
 	"hash/crc32"
 	"io"
 )
@@ -36,14 +35,14 @@ func (d *topicService) CreateTopic(
 	}
 	defer tx.Rollback()
 	if err := d.MetaDataStorage.CheckCommandAppliedInTx(ctx, tx, commandID); err != nil {
-		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-			return nil, stdErrors.Join(err, errors2.ErrDuplicateCommand)
+		if stdErrors.Is(err, storageErrors.ErrDuplicateCommand) {
+			return nil, stdErrors.Join(err, storageErrors.ErrDuplicateCommand)
 		}
 		return nil, fmt.Errorf("failed to check command applied: %w", err)
 	}
 	topic, err := d.MetaDataStorage.TopicInTx(ctx, tx, topicName)
 	if err != nil {
-		if stdErrors.Is(err, errors.ErrTopicNotFound) {
+		if stdErrors.Is(err, storageErrors.ErrTopicNotFound) {
 			topic = &model.Topic{Name: topicName, NumberOfPartitions: numPartitions}
 			err = d.MetaDataStorage.CreateTopicInTx(ctx, tx, topic)
 			if err != nil {
@@ -51,7 +50,7 @@ func (d *topicService) CreateTopic(
 			}
 		}
 	} else {
-		return nil, errors2.ErrTopicAlreadyExists
+		return nil, storageErrors.ErrTopicAlreadyExists
 	}
 	allPartitions, err := d.MetaDataStorage.AllPartitionsInTx(ctx, tx)
 	if err != nil {
@@ -178,8 +177,8 @@ func (d *topicService) UpdatePartition(
 	}
 	defer tx.Rollback()
 	if err := d.MetaDataStorage.CheckCommandAppliedInTx(ctx, tx, commandID); err != nil {
-		if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-			return stdErrors.Join(err, errors2.ErrDuplicateCommand)
+		if stdErrors.Is(err, storageErrors.ErrDuplicateCommand) {
+			return stdErrors.Join(err, storageErrors.ErrDuplicateCommand)
 		}
 		return fmt.Errorf("failed to check command applied: %w", err)
 	}

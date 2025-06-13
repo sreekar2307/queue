@@ -106,7 +106,7 @@ func (f *fsm) Update(entries []statemachine.Entry) (results []statemachine.Entry
 		log.Println("Processing command", cmd.CommandType, "with args", cmd.Args,
 			"at index", entry.Index, "for broker fsm")
 		if cmd.CommandType == command.TopicCommands.CreateTopic {
-			updator, err := factory.GetBrokerExecuteUpdate(cmd.CommandType, f)
+			updator, err := factory.BrokerExecuteUpdate(cmd.CommandType, f)
 			if err != nil {
 				return nil, fmt.Errorf("get update for command %s: %w", cmd.CommandType, err)
 			}
@@ -411,7 +411,7 @@ func (f *fsm) Lookup(i any) (any, error) {
 		}
 	}
 	if cmd.CommandType == command.TopicCommands.TopicForID {
-		lookup, err := factory.GetBrokerLookup(cmd.CommandType, f)
+		lookup, err := factory.BrokerLookup(cmd.CommandType, f)
 		if err != nil {
 			return nil, fmt.Errorf("get lookup for command %s: %w", cmd.CommandType, err)
 		}

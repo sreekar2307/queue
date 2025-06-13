@@ -137,7 +137,7 @@ func (q *Queue) CreateTopic(
 	numberOfPartitions uint64,
 	replicationFactor uint64,
 ) (*model.Topic, error) {
-	encoderDecoder, err := factory.GetBrokerEncoderDecoder(command.TopicCommands.CreateTopic)
+	encoderDecoder, err := factory.BrokerEncoderDecoder(command.TopicCommands.CreateTopic)
 	if err != nil {
 		return nil, fmt.Errorf("get encoder decoder for create topic: %w", err)
 	}

@@ -48,9 +48,14 @@ type (
 		Lookup(context.Context, []byte) ([]byte, error)
 	}
 
-	LookupBuilder interface {
+	LookupBrokerBuilder interface {
 		Builder
 		NewLookup(BrokerFSM) Lookup
+	}
+
+	LookupMessageBuilder interface {
+		Builder
+		NewLookup(fsm MessageFSM) Lookup
 	}
 
 	BrokerFSM interface {

@@ -34,7 +34,7 @@ func (c topicForIDBuilder) Kind() command.Kind {
 	return kind
 }
 
-func NewTopicForIDBuilder() command.Builder {
+func NewTopicForIDBuilder() command.LookupBrokerBuilder {
 	return topicForIDBuilder{}
 }
 
