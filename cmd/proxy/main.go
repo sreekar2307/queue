@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/pkg/profile"
 	"log"
 	"math/rand"
 	"net"
@@ -54,7 +53,6 @@ func main() {
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGKILL)
 	defer cancel()
-	defer profile.Start(profile.TraceProfile, profile.ProfilePath("proxy")).Stop()
 
 	if len(*brokerHttpAddr) == 0 || len(*brokerGrpcAddr) == 0 {
 		log.Fatal("broker address and broker grpc address must be provided")
@@ -208,6 +206,7 @@ func routeToBroker(toLeader bool, topic, partitionID string) (*grpc.ClientConn, 
 	addr := brokers[rand.Intn(len(brokers))].GrpcAddress
 	return createConn(addr)
 }
+
 func lookupRefresh(ctx context.Context) {
 	var lastLookupAt *time.Time
 
@@ -237,7 +236,6 @@ func lookupRefresh(ctx context.Context) {
 			}()
 			initiateLookup(lookupResource{})
 		}
-
 	}
 }
 

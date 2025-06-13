@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"github.com/sreekar2307/queue/model"
-	"github.com/sreekar2307/queue/service/consumer"
 )
 
 type ConsumerService interface {
@@ -24,5 +23,3 @@ type ConsumerService interface {
 	AllConsumers(context.Context) ([]*model.Consumer, error)
 	Disconnect(context.Context, uint64, string) error
 }
-
-var _ ConsumerService = (*consumer.DefaultConsumerService)(nil)

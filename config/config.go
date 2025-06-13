@@ -94,7 +94,7 @@ func init() {
 		v.SetDefault("raft.replica_id", 1)
 		v.SetDefault("metadata_path", "metadata")
 		v.SetDefault("partitions_path", "partitions")
-		v.SetDefault("raft.logs_data_dir", "raft")
+		v.SetDefault("raft.logs_data_dir", "raft_logs")
 		v.SetDefault("raft.invite_members", map[uint64]string{
 			v.GetUint64("raft.replica_id"): v.GetString("raft.addr"),
 		})

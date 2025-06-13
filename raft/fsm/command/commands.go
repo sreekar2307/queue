@@ -1,17 +1,17 @@
-package service
+package command
 
 var TopicCommands = struct {
-	CreateTopic string
-	TopicForID  string
+	CreateTopic Kind
+	TopicForID  Kind
 }{
 	CreateTopic: "CreateTopic",
 	TopicForID:  "TopicForID",
 }
 
 var BrokerCommands = struct {
-	RegisterBroker         string
-	ShardInfoForPartitions string
-	BrokerForID            string
+	RegisterBroker         Kind
+	ShardInfoForPartitions Kind
+	BrokerForID            Kind
 }{
 	RegisterBroker:         "RegisterBroker",
 	ShardInfoForPartitions: "ShardInfoForPartitions",
@@ -19,12 +19,12 @@ var BrokerCommands = struct {
 }
 
 var ConsumerCommands = struct {
-	Connect        string
-	Disconnected   string
-	ConsumerForID  string
-	Consumers      string
-	HealthCheck    string
-	UpdateConsumer string
+	Connect        Kind
+	Disconnected   Kind
+	ConsumerForID  Kind
+	Consumers      Kind
+	HealthCheck    Kind
+	UpdateConsumer Kind
 }{
 	Connect:        "Connect",
 	Disconnected:   "Disconnected",
@@ -35,10 +35,10 @@ var ConsumerCommands = struct {
 }
 
 var PartitionsCommands = struct {
-	PartitionsForTopic string
-	AllPartitions      string
-	PartitionForID     string
-	PartitionAdded     string
+	PartitionsForTopic Kind
+	AllPartitions      Kind
+	PartitionForID     Kind
+	PartitionAdded     Kind
 }{
 	PartitionsForTopic: "PartitionsForTopic",
 	AllPartitions:      "AllPartitions",
@@ -47,16 +47,11 @@ var PartitionsCommands = struct {
 }
 
 var MessageCommands = struct {
-	Append string
-	Poll   string
-	Ack    string
+	Append Kind
+	Poll   Kind
+	Ack    Kind
 }{
 	Append: "Append",
 	Poll:   "Poll",
 	Ack:    "Ack",
-}
-
-type Cmd struct {
-	CommandType string
-	Args        [][]byte
 }

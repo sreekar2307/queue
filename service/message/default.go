@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sreekar2307/queue/model"
+	"github.com/sreekar2307/queue/service"
 	"github.com/sreekar2307/queue/storage"
 	storageErrors "github.com/sreekar2307/queue/storage/errors"
 	"io"
@@ -14,7 +15,7 @@ import (
 	"sync"
 )
 
-type DefaultMessageService struct {
+type messageService struct {
 	messageStorage storage.MessageStorage
 	// Only read operations are allowed on metadata storage when using from message service
 	metadataStorage storage.MetadataStorage
@@ -30,8 +31,8 @@ func NewDefaultMessageService(
 	metadata storage.MetadataStorage,
 	partitionsPath string,
 	broker *model.Broker,
-) *DefaultMessageService {
-	return &DefaultMessageService{
+) service.MessageService {
+	return &messageService{
 		messageStorage:  messageStorage,
 		metadataStorage: metadata,
 		partitionsLocks: make(map[string]*sync.Mutex),
@@ -46,7 +47,7 @@ var (
 	ErrDuplicateCommand    = errors.New("duplicate command")
 )
 
-func (d *DefaultMessageService) LastAppliedCommandID(ctx context.Context, shardID uint64) (uint64, error) {
+func (d *messageService) LastAppliedCommandID(ctx context.Context, shardID uint64) (uint64, error) {
 	partitionIDs := make([]string, 0)
 	partitions, err := d.metadataStorage.AllPartitions(ctx)
 	if err != nil {
@@ -64,7 +65,7 @@ func (d *DefaultMessageService) LastAppliedCommandID(ctx context.Context, shardI
 	return lastAppliedCommandID, nil
 }
 
-func (d *DefaultMessageService) AppendMessage(ctx context.Context, commandID uint64, message *model.Message) error {
+func (d *messageService) AppendMessage(ctx context.Context, commandID uint64, message *model.Message) error {
 	if len(message.Data) == 0 {
 		return fmt.Errorf("message data is empty")
 	}
@@ -85,7 +86,7 @@ func (d *DefaultMessageService) AppendMessage(ctx context.Context, commandID uin
 	return nil
 }
 
-func (d *DefaultMessageService) Poll(
+func (d *messageService) Poll(
 	ctx context.Context,
 	consumerGroupID string,
 	partitionID string,
@@ -121,7 +122,7 @@ func (d *DefaultMessageService) Poll(
 	return message, nil
 }
 
-func (d *DefaultMessageService) AckMessage(
+func (d *messageService) AckMessage(
 	ctx context.Context,
 	commandID uint64,
 	consumerGroupID string,
@@ -144,21 +145,21 @@ func (d *DefaultMessageService) AckMessage(
 	return nil
 }
 
-func (d *DefaultMessageService) Close(ctx context.Context) error {
+func (d *messageService) Close(ctx context.Context) error {
 	if err := d.messageStorage.Close(ctx); err != nil {
 		return fmt.Errorf("failed to close message storage: %w", err)
 	}
 	return nil
 }
 
-func (d *DefaultMessageService) Open(_ context.Context) error {
+func (d *messageService) Open(_ context.Context) error {
 	if err := os.MkdirAll(d.partitionsPath, 0777); err != nil {
 		return fmt.Errorf("create partitions path: %w", err)
 	}
 	return nil
 }
 
-func (d *DefaultMessageService) Snapshot(ctx context.Context, writer io.Writer) error {
+func (d *messageService) Snapshot(ctx context.Context, writer io.Writer) error {
 	log.Println("taking snapshot of message storage")
 	if err := d.messageStorage.Snapshot(ctx, writer); err != nil {
 		return fmt.Errorf("failed to snapshot message storage: %w", err)
@@ -167,14 +168,14 @@ func (d *DefaultMessageService) Snapshot(ctx context.Context, writer io.Writer) 
 	return nil
 }
 
-func (d *DefaultMessageService) RecoverFromSnapshot(ctx context.Context, reader io.Reader) error {
+func (d *messageService) RecoverFromSnapshot(ctx context.Context, reader io.Reader) error {
 	if err := d.messageStorage.RecoverFromSnapshot(ctx, reader); err != nil {
 		return fmt.Errorf("failed to recover message storage: %w", err)
 	}
 	return nil
 }
 
-func (d *DefaultMessageService) nextMessageID(ctx context.Context, partitionKey string) ([]byte, error) {
+func (d *messageService) nextMessageID(ctx context.Context, partitionKey string) ([]byte, error) {
 	d.partitionsMutex.RLock()
 	mu, ok := d.partitionsLocks[partitionKey]
 	d.partitionsMutex.RUnlock()

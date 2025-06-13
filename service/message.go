@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"github.com/sreekar2307/queue/model"
-	messageServ "github.com/sreekar2307/queue/service/message"
 	"io"
 )
 
@@ -17,5 +16,3 @@ type MessageService interface {
 	Snapshot(context.Context, io.Writer) error
 	LastAppliedCommandID(ctx context.Context, shardID uint64) (uint64, error)
 }
-
-var _ MessageService = (*messageServ.DefaultMessageService)(nil)

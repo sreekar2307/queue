@@ -1,8 +1,7 @@
-package service
+package broker
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	stdErrors "errors"
 	"fmt"
@@ -12,12 +11,17 @@ import (
 	"strconv"
 
 	"github.com/sreekar2307/queue/assignor/sticky"
-	"github.com/sreekar2307/queue/config"
-	"github.com/sreekar2307/queue/model"
+	"github.com/sreekar2307/queue/raft/fsm/command"
+	"github.com/sreekar2307/queue/raft/fsm/command/factory"
+	"github.com/sreekar2307/queue/raft/fsm/message"
+	"github.com/sreekar2307/queue/service"
 	brokerServ "github.com/sreekar2307/queue/service/broker"
 	consumerServ "github.com/sreekar2307/queue/service/consumer"
-	"github.com/sreekar2307/queue/service/errors"
 	topicServ "github.com/sreekar2307/queue/service/topic"
+
+	"github.com/sreekar2307/queue/config"
+	"github.com/sreekar2307/queue/model"
+	"github.com/sreekar2307/queue/service/errors"
 	"github.com/sreekar2307/queue/storage"
 	"github.com/sreekar2307/queue/util"
 
@@ -27,13 +31,13 @@ import (
 )
 
 type (
-	BrokerFSM struct {
-		ShardID           uint64
+	fsm struct {
+		shardID           uint64
 		ReplicaID         uint64
 		mdStorage         storage.MetadataStorage
-		topicService      TopicService
-		consumerService   ConsumerService
-		brokerService     BrokerService
+		topicService      service.TopicService
+		consumerService   service.ConsumerService
+		brokerService     service.BrokerService
 		metaDataStorePath string
 		broker            *model.Broker
 	}
@@ -44,7 +48,7 @@ func NewBrokerFSM(
 	broker *model.Broker,
 	mdStorage storage.MetadataStorage,
 ) statemachine.IOnDiskStateMachine {
-	return &BrokerFSM{
+	return &fsm{
 		topicService: topicServ.NewDefaultTopicService(
 			mdStorage,
 		),
@@ -55,94 +59,63 @@ func NewBrokerFSM(
 		brokerService: brokerServ.NewDefaultBrokerService(
 			mdStorage,
 		),
-		ShardID:   shardID,
+		shardID:   shardID,
 		ReplicaID: replicaID,
 		mdStorage: mdStorage,
 		broker:    broker,
 	}
 }
 
-func (f *BrokerFSM) Open(_ <-chan struct{}) (uint64, error) {
+func (f *fsm) TopicService() service.TopicService {
+	return f.topicService
+}
+
+func (f *fsm) ConsumerService() service.ConsumerService {
+	return f.consumerService
+}
+
+func (f *fsm) BrokerService() service.BrokerService {
+	return f.brokerService
+}
+
+func (f *fsm) Broker() *model.Broker {
+	return f.broker
+}
+
+func (f *fsm) Open(_ <-chan struct{}) (uint64, error) {
 	ctx := context.Background()
-	commandID, err := f.topicService.LastAppliedCommandID(ctx, f.ShardID)
+	commandID, err := f.topicService.LastAppliedCommandID(ctx, f.shardID)
 	if err != nil {
 		return 0, fmt.Errorf("get last applied command ID: %w", err)
 	}
 	return commandID, nil
 }
 
-func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine.Entry, _ error) {
+func (f *fsm) Update(entries []statemachine.Entry) (results []statemachine.Entry, _ error) {
 	ctx := context.Background()
 	for _, entry := range entries {
-		var cmd Cmd
+		var (
+			cmd   command.Cmd
+			cmdV2 command.CmdV2
+		)
 		if err := json.Unmarshal(entry.Cmd, &cmd); err != nil {
-			return nil, fmt.Errorf("unmarshing cmd: %w", err)
+			if err := json.Unmarshal(entry.Cmd, &cmdV2); err != nil {
+				return nil, fmt.Errorf("unmarshing cmd: %w", err)
+			}
 		}
 		log.Println("Processing command", cmd.CommandType, "with args", cmd.Args,
 			"at index", entry.Index, "for broker fsm")
-		if cmd.CommandType == TopicCommands.CreateTopic {
-			args := cmd.Args
-			if len(args) != 3 {
-				return nil, fmt.Errorf("invalid command args")
-			}
-			topicName := string(args[0])
-			numOfPartitions, err := strconv.ParseUint(string(args[1]), 10, 64)
+		if cmd.CommandType == command.TopicCommands.CreateTopic {
+			updator, err := factory.GetBrokerExecuteUpdate(cmd.CommandType, f)
 			if err != nil {
-				return nil, fmt.Errorf("invalid command args: %w", err)
+				return nil, fmt.Errorf("get update for command %s: %w", cmd.CommandType, err)
 			}
-			shardOffset, err := strconv.ParseUint(string(args[2]), 10, 64)
+			resEntry, err := updator.ExecuteUpdate(ctx, cmdV2.Args, entry)
 			if err != nil {
-				return nil, fmt.Errorf("invalid command args: %w", err)
+				return nil, fmt.Errorf("execute update for command %s: %w", cmd.CommandType, err)
 			}
-			topic, err := f.topicService.CreateTopic(
-				ctx,
-				entry.Index,
-				topicName,
-				numOfPartitions,
-				shardOffset,
-			)
-			result := make([]byte, 0)
-			if err != nil {
-				if stdErrors.Is(err, errors.ErrTopicAlreadyExists) {
-					result = binary.BigEndian.AppendUint64(result, 0)
-					results = append(results, statemachine.Entry{
-						Index: entry.Index,
-						Cmd:   slices.Clone(entry.Cmd),
-						Result: statemachine.Result{
-							Value: entry.Index,
-							Data:  result,
-						},
-					})
-					continue
-				} else if stdErrors.Is(err, errors.ErrDuplicateCommand) {
-					result = binary.BigEndian.AppendUint64(result, 0)
-					results = append(results, statemachine.Entry{
-						Index: entry.Index,
-						Cmd:   slices.Clone(entry.Cmd),
-						Result: statemachine.Result{
-							Value: entry.Index,
-							Data:  result,
-						},
-					})
-					continue
-				}
-				return nil, fmt.Errorf("create topic: %w", err)
-			}
-			result = binary.BigEndian.AppendUint64(result, 1)
-			topicBytes, err := json.Marshal(topic)
-			if err != nil {
-				return nil, fmt.Errorf("marshal topic: %w", err)
-			}
-			result = append(result, topicBytes...)
-			results = append(results, statemachine.Entry{
-				Index: entry.Index,
-				Cmd:   slices.Clone(entry.Cmd),
-				Result: statemachine.Result{
-					Value: entry.Index,
-					Data:  result,
-				},
-			})
-		} else if cmd.CommandType == PartitionsCommands.PartitionAdded {
+			results = append(results, resEntry)
+		} else if cmd.CommandType == command.PartitionsCommands.PartitionAdded {
 			args := cmd.Args
 			if len(args) != 3 {
 				return nil, fmt.Errorf("invalid command args")
@@ -194,7 +167,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 				"replicaID", f.broker.ID)
 			raftConfig := config.Conf.RaftConfig
 			err = nh.StartOnDiskReplica(members, false, func(shardID, replicaID uint64) statemachine.IOnDiskStateMachine {
-				return NewMessageFSM(
+				return message.NewMessageFSM(
 					shardID,
 					replicaID,
 					f.broker,
@@ -220,7 +193,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					Data:  nil,
 				},
 			})
-		} else if cmd.CommandType == ConsumerCommands.Connect {
+		} else if cmd.CommandType == command.ConsumerCommands.Connect {
 			args := cmd.Args
 			if len(args) != 3 {
 				return nil, fmt.Errorf("invalid command args")
@@ -293,7 +266,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					Data:  resultBytes,
 				},
 			})
-		} else if cmd.CommandType == ConsumerCommands.Disconnected {
+		} else if cmd.CommandType == command.ConsumerCommands.Disconnected {
 			args := cmd.Args
 			if len(args) != 1 {
 				return nil, fmt.Errorf("invalid command args")
@@ -322,7 +295,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					Data:  nil,
 				},
 			})
-		} else if cmd.CommandType == ConsumerCommands.HealthCheck {
+		} else if cmd.CommandType == command.ConsumerCommands.HealthCheck {
 			args := cmd.Args
 			if len(args) != 2 {
 				return nil, fmt.Errorf("invalid command args")
@@ -359,7 +332,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					Data:  consumerBytes,
 				},
 			})
-		} else if cmd.CommandType == ConsumerCommands.UpdateConsumer {
+		} else if cmd.CommandType == command.ConsumerCommands.UpdateConsumer {
 			args := cmd.Args
 			if len(args) != 1 {
 				return nil, fmt.Errorf("invalid command args")
@@ -395,7 +368,7 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 					Data:  consumerBytes,
 				},
 			})
-		} else if cmd.CommandType == BrokerCommands.RegisterBroker {
+		} else if cmd.CommandType == command.BrokerCommands.RegisterBroker {
 			args := cmd.Args
 			if len(args) != 1 {
 				return nil, fmt.Errorf("invalid command args")
@@ -426,29 +399,28 @@ func (f *BrokerFSM) Update(entries []statemachine.Entry) (results []statemachine
 	return results, nil
 }
 
-func (f *BrokerFSM) Lookup(i any) (any, error) {
+func (f *fsm) Lookup(i any) (any, error) {
 	var (
-		cmd Cmd
-		ctx = context.Background()
+		cmd   command.Cmd
+		cmdV2 command.CmdV2
+		ctx   = context.Background()
 	)
 	if err := json.Unmarshal(i.([]byte), &cmd); err != nil {
-		return nil, fmt.Errorf("unmarshing cmd: %w", err)
+		if err := json.Unmarshal(i.([]byte), &cmdV2); err != nil {
+			return nil, fmt.Errorf("unmarshing cmd: %w", err)
+		}
 	}
-	if cmd.CommandType == TopicCommands.TopicForID {
-		args := cmd.Args
-		if len(args) != 1 {
-			return nil, fmt.Errorf("invalid command args")
-		}
-		topic, err := f.topicService.GetTopic(ctx, string(args[0]))
+	if cmd.CommandType == command.TopicCommands.TopicForID {
+		lookup, err := factory.GetBrokerLookup(cmd.CommandType, f)
 		if err != nil {
-			return nil, fmt.Errorf("get topic: %w", err)
+			return nil, fmt.Errorf("get lookup for command %s: %w", cmd.CommandType, err)
 		}
-		topicBytes, err := json.Marshal(topic)
+		resEntry, err := lookup.Lookup(ctx, cmdV2.Args)
 		if err != nil {
-			return nil, fmt.Errorf("marshal topic: %w", err)
+			return nil, fmt.Errorf("execute lookup for command %s: %w", cmd.CommandType, err)
 		}
-		return topicBytes, nil
-	} else if cmd.CommandType == PartitionsCommands.PartitionsForTopic {
+		return resEntry, nil
+	} else if cmd.CommandType == command.PartitionsCommands.PartitionsForTopic {
 		args := cmd.Args
 		if len(args) != 1 {
 			return nil, fmt.Errorf("invalid command args")
@@ -462,7 +434,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("marshal partitions: %w", err)
 		}
 		return partitionsBytes, nil
-	} else if cmd.CommandType == PartitionsCommands.PartitionForID {
+	} else if cmd.CommandType == command.PartitionsCommands.PartitionForID {
 		args := cmd.Args
 		if len(args) != 1 {
 			return nil, fmt.Errorf("invalid command args")
@@ -476,7 +448,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("get partitionID: %w", err)
 		}
 		return []byte(partitionID), nil
-	} else if cmd.CommandType == PartitionsCommands.AllPartitions {
+	} else if cmd.CommandType == command.PartitionsCommands.AllPartitions {
 		partitions, err := f.topicService.AllPartitions(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("get partitions: %w", err)
@@ -486,7 +458,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("marshal partitions: %w", err)
 		}
 		return partitionsBytes, nil
-	} else if cmd.CommandType == ConsumerCommands.ConsumerForID {
+	} else if cmd.CommandType == command.ConsumerCommands.ConsumerForID {
 		if len(cmd.Args) != 1 {
 			return nil, fmt.Errorf("invalid command args")
 		}
@@ -500,7 +472,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 		}
 		return consumerBytes, nil
 
-	} else if cmd.CommandType == ConsumerCommands.Consumers {
+	} else if cmd.CommandType == command.ConsumerCommands.Consumers {
 		if len(cmd.Args) != 0 {
 			return nil, fmt.Errorf("invalid command args")
 		}
@@ -513,7 +485,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 			return nil, fmt.Errorf("marshal consumers: %w", err)
 		}
 		return consumersBytes, nil
-	} else if cmd.CommandType == BrokerCommands.ShardInfoForPartitions {
+	} else if cmd.CommandType == command.BrokerCommands.ShardInfoForPartitions {
 		if len(cmd.Args) != 1 {
 			return nil, fmt.Errorf("invalid command args")
 		}
@@ -538,7 +510,7 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 		}
 		return clusterInfoBytes, nil
 
-	} else if cmd.CommandType == BrokerCommands.BrokerForID {
+	} else if cmd.CommandType == command.BrokerCommands.BrokerForID {
 		if len(cmd.Args) != 1 {
 			return nil, fmt.Errorf("invalid command args")
 		}
@@ -570,15 +542,15 @@ func (f *BrokerFSM) Lookup(i any) (any, error) {
 	return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
 }
 
-func (f *BrokerFSM) Sync() error {
+func (f *fsm) Sync() error {
 	return nil
 }
 
-func (f *BrokerFSM) PrepareSnapshot() (any, error) {
+func (f *fsm) PrepareSnapshot() (any, error) {
 	return nil, nil
 }
 
-func (f *BrokerFSM) SaveSnapshot(_ any, writer io.Writer, i2 <-chan struct{}) error {
+func (f *fsm) SaveSnapshot(_ any, writer io.Writer, i2 <-chan struct{}) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan struct{})
@@ -595,7 +567,7 @@ func (f *BrokerFSM) SaveSnapshot(_ any, writer io.Writer, i2 <-chan struct{}) er
 	return err
 }
 
-func (f *BrokerFSM) RecoverFromSnapshot(reader io.Reader, i <-chan struct{}) error {
+func (f *fsm) RecoverFromSnapshot(reader io.Reader, i <-chan struct{}) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan struct{})
@@ -612,6 +584,6 @@ func (f *BrokerFSM) RecoverFromSnapshot(reader io.Reader, i <-chan struct{}) err
 	return err
 }
 
-func (f *BrokerFSM) Close() error {
+func (f *fsm) Close() error {
 	return nil
 }

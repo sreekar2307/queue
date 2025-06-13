@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"github.com/sreekar2307/queue/model"
-	"github.com/sreekar2307/queue/service/topic"
 	"io"
 )
 
@@ -22,5 +21,3 @@ type (
 		RecoverFromSnapshot(context.Context, io.Reader) error
 	}
 )
-
-var _ TopicService = (*topic.DefaultTopicService)(nil)

@@ -3,23 +3,24 @@ package broker
 import (
 	"context"
 	"fmt"
+	"github.com/sreekar2307/queue/service"
 
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/storage"
 	"github.com/sreekar2307/queue/util"
 )
 
-type DefaultBroker struct {
+type broker struct {
 	MetaDataStorage storage.MetadataStorage
 }
 
-func NewDefaultBrokerService(metaDataStorage storage.MetadataStorage) *DefaultBroker {
-	return &DefaultBroker{
+func NewDefaultBrokerService(metaDataStorage storage.MetadataStorage) service.BrokerService {
+	return &broker{
 		MetaDataStorage: metaDataStorage,
 	}
 }
 
-func (b *DefaultBroker) RegisterBroker(
+func (b *broker) RegisterBroker(
 	ctx context.Context,
 	commandID uint64,
 	broker *model.Broker,
@@ -45,7 +46,7 @@ func (b *DefaultBroker) RegisterBroker(
 	return broker, tx.Commit()
 }
 
-func (b *DefaultBroker) GetBroker(
+func (b *broker) GetBroker(
 	ctx context.Context,
 	brokerID uint64,
 ) (*model.Broker, error) {
@@ -59,7 +60,7 @@ func (b *DefaultBroker) GetBroker(
 	return broker, nil
 }
 
-func (b *DefaultBroker) ShardInfoForPartitions(
+func (b *broker) ShardInfoForPartitions(
 	ctx context.Context,
 	partitions []*model.Partition,
 ) (map[string]*model.ShardInfo, []*model.Broker, error) {

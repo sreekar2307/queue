@@ -1,8 +1,7 @@
-package service
+package controller
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,6 +10,12 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	brokerFSM "github.com/sreekar2307/queue/raft/fsm/broker"
+	"github.com/sreekar2307/queue/raft/fsm/command"
+	"github.com/sreekar2307/queue/raft/fsm/command/factory"
+	messageFSM "github.com/sreekar2307/queue/raft/fsm/message"
+	"github.com/sreekar2307/queue/service"
 
 	"github.com/lni/dragonboat/v4/raftio"
 
@@ -36,8 +41,8 @@ type Queue struct {
 	broker *model.Broker
 
 	mdStorage      storage.MetadataStorage
-	topicService   TopicService
-	messageService MessageService
+	topicService   service.TopicService
+	messageService service.MessageService
 	pCtx           context.Context
 
 	mu                       sync.Mutex
@@ -86,14 +91,14 @@ func NewQueue(
 	broker.SetNodeHost(nh)
 	broker.SetBrokerShardId(brokerSharID)
 
-	factory := func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
-		return NewBrokerFSM(shardID, replicaID, broker, mdStorage)
+	f := func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
+		return brokerFSM.NewBrokerFSM(shardID, replicaID, broker, mdStorage)
 	}
 	inviteMembers := raftConfig.InviteMembers
 	if raftConfig.Join {
 		inviteMembers = nil
 	}
-	err = nh.StartOnDiskReplica(inviteMembers, raftConfig.Join, factory, drConfig.Config{
+	err = nh.StartOnDiskReplica(inviteMembers, raftConfig.Join, f, drConfig.Config{
 		ReplicaID:           raftConfig.ReplicaID,
 		ShardID:             broker.BrokerShardId(),
 		ElectionRTT:         10,
@@ -132,35 +137,40 @@ func (q *Queue) CreateTopic(
 	numberOfPartitions uint64,
 	replicationFactor uint64,
 ) (*model.Topic, error) {
-	nh := q.broker.NodeHost()
-	cmd := Cmd{
-		CommandType: TopicCommands.CreateTopic,
-		Args: [][]byte{
-			[]byte(name),
-			[]byte(strconv.FormatUint(numberOfPartitions, 10)),
-			[]byte(strconv.FormatUint(q.broker.BrokerShardId()+1, 10)),
-		},
-	}
-	cmdBytes, err := json.Marshal(cmd)
+	encoderDecoder, err := factory.GetBrokerEncoderDecoder(command.TopicCommands.CreateTopic)
 	if err != nil {
-		return nil, fmt.Errorf("marshal cmd: %w", err)
+		return nil, fmt.Errorf("get encoder decoder for create topic: %w", err)
+	}
+	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, command.CreateTopicInputs{
+		TopicName:          name,
+		NumberOfPartitions: numberOfPartitions,
+		ShardOffset:        q.broker.BrokerShardId() + 1,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode args for create topic: %w", err)
 	}
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
+	nh := q.broker.NodeHost()
 	res, err := nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 	if err != nil {
 		return nil, fmt.Errorf("propose create topic: %w", err)
 	}
-	if binary.BigEndian.Uint64(res.Data[:8]) == 0 {
+	results, err := encoderDecoder.DecodeResults(pCtx, res.Data)
+	if err != nil {
+		return nil, fmt.Errorf("decode results for create topic: %w", err)
+	}
+	createTopicResult, ok := results.(command.CreateTopicOutputs)
+	if !ok {
+		return nil, fmt.Errorf("unexpected result type for create topic: %T", results)
+	}
+	if !createTopicResult.Created {
 		return nil, errors.ErrTopicAlreadyExists
 	}
-	var topic model.Topic
-	if err := json.Unmarshal(res.Data[8:], &topic); err != nil {
-		return nil, fmt.Errorf("un marshall result: %w", err)
-	}
+	topic := createTopicResult.Topic
 	// get all the partitions of the topic, create a shard per partition, randomly add 3 nodes per partition
-	cmd = Cmd{
-		CommandType: PartitionsCommands.PartitionsForTopic,
+	cmd := command.Cmd{
+		CommandType: command.PartitionsCommands.PartitionsForTopic,
 		Args:        [][]byte{[]byte(topic.Name)},
 	}
 	cmdBytes, err = json.Marshal(cmd)
@@ -193,8 +203,8 @@ func (q *Queue) CreateTopic(
 		if err != nil {
 			return nil, fmt.Errorf("marshal members: %w", err)
 		}
-		cmd = Cmd{
-			CommandType: PartitionsCommands.PartitionAdded,
+		cmd = command.Cmd{
+			CommandType: command.PartitionsCommands.PartitionAdded,
 			Args: [][]byte{
 				[]byte(partition.ID),
 				[]byte(strconv.FormatUint(partition.ShardID, 10)),
@@ -219,7 +229,7 @@ func (q *Queue) CreateTopic(
 		}
 	}
 
-	return &topic, nil
+	return topic, nil
 }
 
 func (q *Queue) disconnectInActiveConsumers(pCtx context.Context) {
@@ -230,8 +240,8 @@ func (q *Queue) disconnectInActiveConsumers(pCtx context.Context) {
 		case <-pCtx.Done():
 			return
 		case <-ticker.C:
-			cmd := Cmd{
-				CommandType: ConsumerCommands.Consumers,
+			cmd := command.Cmd{
+				CommandType: command.ConsumerCommands.Consumers,
 			}
 			cmdBytes, err := json.Marshal(cmd)
 			if err != nil {
@@ -295,8 +305,8 @@ func (q *Queue) SendMessage(
 		return nil, fmt.Errorf("shardID mismatch: %d != %d", partition.ShardID, shardID)
 	}
 	log.Println("selected shard", shardID, " for partition ", partitionID)
-	cmd := Cmd{
-		CommandType: MessageCommands.Append,
+	cmd := command.Cmd{
+		CommandType: command.MessageCommands.Append,
 		Args:        [][]byte{msgBytes},
 	}
 	cmdBytes, err := json.Marshal(cmd)
@@ -329,8 +339,8 @@ func (q *Queue) Connect(
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal topics: %w", err)
 	}
-	cmd := Cmd{
-		CommandType: ConsumerCommands.Connect,
+	cmd := command.Cmd{
+		CommandType: command.ConsumerCommands.Connect,
 		Args: [][]byte{
 			[]byte(consumerGroupID),
 			[]byte(consumerID),
@@ -367,8 +377,8 @@ func (q *Queue) disconnect(
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
 
-	cmd := Cmd{
-		CommandType: ConsumerCommands.Disconnected,
+	cmd := command.Cmd{
+		CommandType: command.ConsumerCommands.Disconnected,
 		Args: [][]byte{
 			[]byte(consumerID),
 		},
@@ -391,8 +401,8 @@ func (q *Queue) ReceiveMessage(
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
-	cmd := Cmd{
-		CommandType: ConsumerCommands.ConsumerForID,
+	cmd := command.Cmd{
+		CommandType: command.ConsumerCommands.ConsumerForID,
 		Args: [][]byte{
 			[]byte(consumerID),
 		},
@@ -417,8 +427,8 @@ func (q *Queue) ReceiveMessage(
 			return nil, fmt.Errorf("broker does not have partition: %s", partitionId)
 		}
 		log.Println("consumer polling shardID", shardID, " for partition ID ", partitionId)
-		cmd = Cmd{
-			CommandType: MessageCommands.Poll,
+		cmd = command.Cmd{
+			CommandType: command.MessageCommands.Poll,
 			Args: [][]byte{
 				[]byte(consumer.ConsumerGroup),
 				[]byte(partitionId),
@@ -446,8 +456,8 @@ func (q *Queue) ReceiveMessage(
 	if err != nil {
 		return nil, fmt.Errorf("marshal consumer: %w", err)
 	}
-	cmd = Cmd{
-		CommandType: ConsumerCommands.UpdateConsumer,
+	cmd = command.Cmd{
+		CommandType: command.ConsumerCommands.UpdateConsumer,
 		Args: [][]byte{
 			consumerBytes,
 		},
@@ -476,8 +486,8 @@ func (q *Queue) ReceiveMessageForPartition(
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
-	cmd := Cmd{
-		CommandType: ConsumerCommands.ConsumerForID,
+	cmd := command.Cmd{
+		CommandType: command.ConsumerCommands.ConsumerForID,
 		Args: [][]byte{
 			[]byte(consumerID),
 		},
@@ -507,8 +517,8 @@ func (q *Queue) ReceiveMessageForPartition(
 		return nil, fmt.Errorf("broker does not have partition: %s", partitionId)
 	}
 	log.Println("consumer polling shardID", shardID, " for partition ID ", partitionId)
-	cmd = Cmd{
-		CommandType: MessageCommands.Poll,
+	cmd = command.Cmd{
+		CommandType: command.MessageCommands.Poll,
 		Args: [][]byte{
 			[]byte(consumer.ConsumerGroup),
 			[]byte(partitionId),
@@ -539,8 +549,8 @@ func (q *Queue) AckMessage(
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
-	cmd := Cmd{
-		CommandType: ConsumerCommands.ConsumerForID,
+	cmd := command.Cmd{
+		CommandType: command.ConsumerCommands.ConsumerForID,
 		Args: [][]byte{
 			[]byte(consumerID),
 		},
@@ -566,8 +576,8 @@ func (q *Queue) AckMessage(
 		return fmt.Errorf("marshal message: %w", err)
 	}
 	log.Println("sending ACK command to shardID", shardID, " for partition ID ", msg.PartitionID)
-	cmd = Cmd{
-		CommandType: MessageCommands.Ack,
+	cmd = command.Cmd{
+		CommandType: command.MessageCommands.Ack,
 		Args: [][]byte{
 			[]byte(consumer.ConsumerGroup),
 			msgBytes,
@@ -592,8 +602,8 @@ func (q *Queue) HealthCheck(
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
-	cmd := Cmd{
-		CommandType: ConsumerCommands.HealthCheck,
+	cmd := command.Cmd{
+		CommandType: command.ConsumerCommands.HealthCheck,
 		Args: [][]byte{
 			[]byte(consumerID),
 			[]byte(strconv.FormatInt(healthCheckAt.Unix(), 10)),
@@ -618,8 +628,8 @@ func (q *Queue) ShardsInfo(
 	pCtx context.Context,
 	topics []string,
 ) (map[string]*model.ShardInfo, []*model.Broker, *model.Broker, error) {
-	cmd := Cmd{
-		CommandType: PartitionsCommands.AllPartitions,
+	cmd := command.Cmd{
+		CommandType: command.PartitionsCommands.AllPartitions,
 	}
 	cmdBytes, err := json.Marshal(cmd)
 	if err != nil {
@@ -663,8 +673,8 @@ func (q *Queue) ShardsInfo(
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		cmd = Cmd{
-			CommandType: BrokerCommands.ShardInfoForPartitions,
+		cmd = command.Cmd{
+			CommandType: command.BrokerCommands.ShardInfoForPartitions,
 			Args: [][]byte{
 				partitionsBytes,
 			},
@@ -787,8 +797,8 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 	nh := q.broker.NodeHost()
 	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
-	cmd := Cmd{
-		CommandType: PartitionsCommands.AllPartitions,
+	cmd := command.Cmd{
+		CommandType: command.PartitionsCommands.AllPartitions,
 	}
 	cmdBytes, err := json.Marshal(cmd)
 	if err != nil {
@@ -825,7 +835,7 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 			partition.Members,
 			false,
 			func(shardID, replicdID uint64) statemachine.IOnDiskStateMachine {
-				return NewMessageFSM(shardID, replicdID, q.broker, q.mdStorage)
+				return messageFSM.NewMessageFSM(shardID, replicdID, q.broker, q.mdStorage)
 			},
 			drConfig.Config{
 				ReplicaID:          q.broker.ID,
@@ -853,8 +863,8 @@ func (q *Queue) registerBroker(pCtx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("marshal broker: %w", err)
 	}
-	cmd := Cmd{
-		CommandType: BrokerCommands.RegisterBroker,
+	cmd := command.Cmd{
+		CommandType: command.BrokerCommands.RegisterBroker,
 		Args: [][]byte{
 			brokerBytes,
 		},

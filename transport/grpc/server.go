@@ -4,6 +4,7 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/controller"
 	"io"
 	"log"
 	"net"
@@ -20,7 +21,6 @@ import (
 	"github.com/sreekar2307/queue/config"
 	pb "github.com/sreekar2307/queue/gen/queue/v1"
 	"github.com/sreekar2307/queue/model"
-	"github.com/sreekar2307/queue/service"
 	"github.com/sreekar2307/queue/service/errors"
 	"github.com/sreekar2307/queue/util"
 
@@ -29,7 +29,7 @@ import (
 
 type GRPC struct {
 	pb.UnimplementedQueueServiceServer
-	queue  *service.Queue
+	queue  *controller.Queue
 	server *grpc.Server
 	config config.GRPC
 }
@@ -37,7 +37,7 @@ type GRPC struct {
 func NewTransport(
 	_ context.Context,
 	config config.GRPC,
-	queue *service.Queue,
+	queue *controller.Queue,
 ) (*GRPC, error) {
 	g := &GRPC{
 		queue:  queue,

@@ -5,6 +5,7 @@ import (
 	stdErrors "errors"
 	"fmt"
 	"github.com/sreekar2307/queue/model"
+	"github.com/sreekar2307/queue/service"
 	errors2 "github.com/sreekar2307/queue/service/errors"
 	"github.com/sreekar2307/queue/storage"
 	"github.com/sreekar2307/queue/storage/errors"
@@ -12,17 +13,17 @@ import (
 	"io"
 )
 
-type DefaultTopicService struct {
+type topicService struct {
 	MetaDataStorage storage.MetadataStorage
 }
 
-func NewDefaultTopicService(metaDataStorage storage.MetadataStorage) *DefaultTopicService {
-	return &DefaultTopicService{
+func NewDefaultTopicService(metaDataStorage storage.MetadataStorage) service.TopicService {
+	return &topicService{
 		MetaDataStorage: metaDataStorage,
 	}
 }
 
-func (d *DefaultTopicService) CreateTopic(
+func (d *topicService) CreateTopic(
 	ctx context.Context,
 	commandID uint64,
 	topicName string,
@@ -74,7 +75,7 @@ func (d *DefaultTopicService) CreateTopic(
 	return topic, tx.Commit()
 }
 
-func (d *DefaultTopicService) LastAppliedCommandID(ctx context.Context, _ uint64) (uint64, error) {
+func (d *topicService) LastAppliedCommandID(ctx context.Context, _ uint64) (uint64, error) {
 	// as metadata is maintained in a single shard, we can ignore shardID
 	lastAppliedCommandID, err := d.MetaDataStorage.LastAppliedCommandID(ctx)
 	if err != nil {
@@ -83,7 +84,7 @@ func (d *DefaultTopicService) LastAppliedCommandID(ctx context.Context, _ uint64
 	return lastAppliedCommandID, nil
 }
 
-func (d *DefaultTopicService) GetTopic(
+func (d *topicService) GetTopic(
 	ctx context.Context,
 	topicName string,
 ) (*model.Topic, error) {
@@ -97,7 +98,7 @@ func (d *DefaultTopicService) GetTopic(
 	return topic, nil
 }
 
-func (d *DefaultTopicService) AllTopics(
+func (d *topicService) AllTopics(
 	ctx context.Context,
 ) ([]*model.Topic, error) {
 	topics, err := d.MetaDataStorage.AllTopics(ctx)
@@ -110,7 +111,7 @@ func (d *DefaultTopicService) AllTopics(
 	return topics, nil
 }
 
-func (d *DefaultTopicService) AllPartitions(
+func (d *topicService) AllPartitions(
 	ctx context.Context,
 ) ([]*model.Partition, error) {
 	partitions, err := d.MetaDataStorage.AllPartitions(ctx)
@@ -120,7 +121,7 @@ func (d *DefaultTopicService) AllPartitions(
 	return partitions, nil
 }
 
-func (d *DefaultTopicService) GetPartitions(
+func (d *topicService) GetPartitions(
 	ctx context.Context,
 	topicName string,
 ) ([]*model.Partition, error) {
@@ -134,14 +135,14 @@ func (d *DefaultTopicService) GetPartitions(
 	return partitions, nil
 }
 
-func (d *DefaultTopicService) GetPartition(
+func (d *topicService) GetPartition(
 	ctx context.Context,
 	partitionID string,
 ) (*model.Partition, error) {
 	return d.MetaDataStorage.Partition(ctx, partitionID)
 }
 
-func (d *DefaultTopicService) PartitionID(
+func (d *topicService) PartitionID(
 	ctx context.Context,
 	msg *model.Message,
 ) (string, error) {
@@ -162,7 +163,7 @@ func (d *DefaultTopicService) PartitionID(
 	return partitionID, nil
 }
 
-func (d *DefaultTopicService) UpdatePartition(
+func (d *topicService) UpdatePartition(
 	ctx context.Context,
 	commandID uint64,
 	partitionID string,
@@ -197,14 +198,14 @@ func (d *DefaultTopicService) UpdatePartition(
 	return tx.Commit()
 }
 
-func (d *DefaultTopicService) Snapshot(ctx context.Context, writer io.Writer) error {
+func (d *topicService) Snapshot(ctx context.Context, writer io.Writer) error {
 	if err := d.MetaDataStorage.Snapshot(ctx, writer); err != nil {
 		return fmt.Errorf("failed to snapshot message storage: %w", err)
 	}
 	return nil
 }
 
-func (d *DefaultTopicService) RecoverFromSnapshot(ctx context.Context, reader io.Reader) error {
+func (d *topicService) RecoverFromSnapshot(ctx context.Context, reader io.Reader) error {
 	if err := d.MetaDataStorage.RecoverFromSnapshot(ctx, reader); err != nil {
 		return fmt.Errorf("failed to recover message storage: %w", err)
 	}

@@ -2,26 +2,22 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"github.com/pkg/profile"
-	"github.com/sreekar2307/queue/config"
-	"github.com/sreekar2307/queue/service"
-	"github.com/sreekar2307/queue/transport"
-	"github.com/sreekar2307/queue/transport/grpc"
-	"github.com/sreekar2307/queue/transport/http"
 	"log"
 	"os/signal"
 	"syscall"
+
+	"github.com/sreekar2307/queue/config"
+	"github.com/sreekar2307/queue/controller"
+	"github.com/sreekar2307/queue/transport"
+	"github.com/sreekar2307/queue/transport/grpc"
+	"github.com/sreekar2307/queue/transport/http"
 )
 
 func main() {
 	ctx := context.Background()
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGKILL, syscall.SIGTERM)
 	defer cancel()
-	defer profile.Start(profile.TraceProfile, profile.ProfilePath(
-		fmt.Sprintf("broker-%d", config.Conf.RaftConfig.ReplicaID),
-	)).Stop()
-	queue, err := service.NewQueue(ctx)
+	queue, err := controller.NewQueue(ctx)
 	if err != nil {
 		log.Fatalf("failed to create queue: %v", err)
 	}
@@ -36,7 +32,7 @@ func main() {
 	}
 }
 
-func startTransporters(ctx context.Context, queue *service.Queue) []transport.Transport {
+func startTransporters(ctx context.Context, queue *controller.Queue) []transport.Transport {
 	// Start the transporters
 	transporters := make([]transport.Transport, 0)
 	if config.Conf.GRPC.ListenerAddr != "" {

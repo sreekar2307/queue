@@ -3,14 +3,14 @@ package http
 import (
 	"context"
 	"fmt"
+	"github.com/sreekar2307/queue/controller"
 	"net/http"
 
 	"github.com/sreekar2307/queue/config"
-	"github.com/sreekar2307/queue/service"
 )
 
 type Http struct {
-	queue *service.Queue
+	queue *controller.Queue
 
 	server *http.Server
 	config config.HTTP
@@ -19,7 +19,7 @@ type Http struct {
 func NewTransport(
 	_ context.Context,
 	config config.HTTP,
-	queue *service.Queue,
+	queue *controller.Queue,
 ) (*Http, error) {
 	transport := &Http{
 		queue:  queue,

@@ -4,6 +4,7 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/service"
 	"sync"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 	"github.com/sreekar2307/queue/util"
 )
 
-type DefaultConsumerService struct {
+type consumerService struct {
 	MetadataStorage   storage.MetadataStorage
 	PartitionAssignor assignor.PartitionAssignor
 
@@ -25,21 +26,21 @@ type DefaultConsumerService struct {
 func NewDefaultConsumerService(
 	storage storage.MetadataStorage,
 	assignor assignor.PartitionAssignor,
-) *DefaultConsumerService {
-	return &DefaultConsumerService{
+) service.ConsumerService {
+	return &consumerService{
 		MetadataStorage:   storage,
 		PartitionAssignor: assignor,
 	}
 }
 
-func (d *DefaultConsumerService) GetConsumer(
+func (d *consumerService) GetConsumer(
 	ctx context.Context,
 	consumerID string,
 ) (*model.Consumer, error) {
 	return d.MetadataStorage.Consumer(ctx, consumerID)
 }
 
-func (d *DefaultConsumerService) UpdateConsumer(
+func (d *consumerService) UpdateConsumer(
 	ctx context.Context,
 	commandID uint64,
 	consumer *model.Consumer,
@@ -53,13 +54,13 @@ func (d *DefaultConsumerService) UpdateConsumer(
 	return consumer, nil
 }
 
-func (d *DefaultConsumerService) AllConsumers(
+func (d *consumerService) AllConsumers(
 	ctx context.Context,
 ) ([]*model.Consumer, error) {
 	return d.MetadataStorage.AllConsumers(ctx)
 }
 
-func (d *DefaultConsumerService) Connect(
+func (d *consumerService) Connect(
 	ctx context.Context,
 	commandID uint64,
 	consumerGroupID string,
@@ -143,7 +144,7 @@ func (d *DefaultConsumerService) Connect(
 	return connectedConsumer, consumerGroup, tx.Commit()
 }
 
-func (d *DefaultConsumerService) HealthCheck(
+func (d *consumerService) HealthCheck(
 	ctx context.Context,
 	commandID uint64,
 	consumerID string,
@@ -163,7 +164,7 @@ func (d *DefaultConsumerService) HealthCheck(
 	return consumer, nil
 }
 
-func (d *DefaultConsumerService) Disconnect(
+func (d *consumerService) Disconnect(
 	ctx context.Context,
 	commandID uint64,
 	consumerBrokerID string,
@@ -211,7 +212,7 @@ func (d *DefaultConsumerService) Disconnect(
 	return tx.Commit()
 }
 
-func (d *DefaultConsumerService) rebalanceAndUpdateConsumers(
+func (d *consumerService) rebalanceAndUpdateConsumers(
 	ctx context.Context,
 	tx storage.Transaction,
 	currentConsumer *model.Consumer,
