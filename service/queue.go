@@ -202,6 +202,9 @@ func (q *Queue) CreateTopic(
 			},
 		}
 		cmdBytes, err = json.Marshal(cmd)
+		if err != nil {
+			return nil, fmt.Errorf("marshal cmd: %w", err)
+		}
 		ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
 		res, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 		cancelFunc()
@@ -271,10 +274,6 @@ func (q *Queue) SendMessage(
 	msg *model.Message,
 ) (*model.Message, error) {
 	nh := q.broker.NodeHost()
-	msgBytes, err := json.Marshal(msg)
-	if err != nil {
-		return nil, fmt.Errorf("marshal message: %w", err)
-	}
 	partitionID, err := q.topicService.PartitionID(pCtx, msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitionID: %w", err)
@@ -284,7 +283,7 @@ func (q *Queue) SendMessage(
 		return nil, fmt.Errorf("failed to get partition: %w", err)
 	}
 	msg.PartitionID = partitionID
-	msgBytes, err = json.Marshal(msg)
+	msgBytes, err := json.Marshal(msg)
 	if err != nil {
 		return nil, fmt.Errorf("marshal message: %w", err)
 	}
