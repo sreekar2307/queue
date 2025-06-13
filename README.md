@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/sreekar2307/queue)](https://goreportcard.com/report/github.com/sreekar2307/queue) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/gojp/goreportcard/blob/master/LICENSE)
+
 # Queue
 
 A fault-tolerant distributed message queue inspired by Kafka — written in Go.
