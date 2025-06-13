@@ -1,6 +1,7 @@
 package factory
 
 import (
+	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	"github.com/sreekar2307/queue/raft/fsm/command"
 	"github.com/sreekar2307/queue/raft/fsm/command/broker/lookup"
 	"github.com/sreekar2307/queue/raft/fsm/command/broker/update"
@@ -10,11 +11,11 @@ import (
 var mu sync.RWMutex
 
 type factory struct {
-	brokerUpdates  map[command.Kind]command.UpdateBrokerBuilder
-	brokerLookups  map[command.Kind]command.Builder
-	messageUpdates map[command.Kind]command.UpdateMessageBuilder
-	messageLookups map[command.Kind]command.Builder
-	builders       map[command.Kind]command.Builder
+	brokerUpdates  map[pbCommandTypes.Kind]command.UpdateBrokerBuilder
+	brokerLookups  map[pbCommandTypes.Kind]command.Builder
+	messageUpdates map[pbCommandTypes.Kind]command.UpdateMessageBuilder
+	messageLookups map[pbCommandTypes.Kind]command.Builder
+	builders       map[pbCommandTypes.Kind]command.Builder
 }
 
 func init() {
@@ -23,11 +24,11 @@ func init() {
 }
 
 var defaultFactory = &factory{
-	brokerUpdates:  make(map[command.Kind]command.UpdateBrokerBuilder),
-	brokerLookups:  make(map[command.Kind]command.Builder),
-	messageUpdates: make(map[command.Kind]command.UpdateMessageBuilder),
-	messageLookups: make(map[command.Kind]command.Builder),
-	builders:       make(map[command.Kind]command.Builder),
+	brokerUpdates:  make(map[pbCommandTypes.Kind]command.UpdateBrokerBuilder),
+	brokerLookups:  make(map[pbCommandTypes.Kind]command.Builder),
+	messageUpdates: make(map[pbCommandTypes.Kind]command.UpdateMessageBuilder),
+	messageLookups: make(map[pbCommandTypes.Kind]command.Builder),
+	builders:       make(map[pbCommandTypes.Kind]command.Builder),
 }
 
 func RegisterBrokerUpdateBuilder(cmd command.UpdateBrokerBuilder) {
@@ -42,15 +43,15 @@ func RegisterBrokerLookupBuilder(cmd command.LookupBrokerBuilder) {
 	defaultFactory.RegisterBrokerLookupBuilder(cmd)
 }
 
-func BrokerExecuteUpdate(k command.Kind, fsm command.BrokerFSM) (command.Update, error) {
+func BrokerExecuteUpdate(k pbCommandTypes.Kind, fsm command.BrokerFSM) (command.Update, error) {
 	return defaultFactory.BrokerExecuteUpdate(k, fsm)
 }
 
-func BrokerEncoderDecoder(k command.Kind) (command.EncoderDecoder, error) {
+func BrokerEncoderDecoder(k pbCommandTypes.Kind) (command.EncoderDecoder, error) {
 	return defaultFactory.BrokerEncoderDecoder(k)
 }
 
-func BrokerLookup(k command.Kind, fsm command.BrokerFSM) (command.Lookup, error) {
+func BrokerLookup(k pbCommandTypes.Kind, fsm command.BrokerFSM) (command.Lookup, error) {
 	return defaultFactory.BrokerLookup(k, fsm)
 }
 
@@ -64,7 +65,7 @@ func (f *factory) RegisterBrokerLookupBuilder(cmd command.LookupBrokerBuilder) {
 	f.builders[cmd.Kind()] = cmd
 }
 
-func (f *factory) BrokerExecuteUpdate(k command.Kind, fsm command.BrokerFSM) (command.Update, error) {
+func (f *factory) BrokerExecuteUpdate(k pbCommandTypes.Kind, fsm command.BrokerFSM) (command.Update, error) {
 	if f.brokerUpdates == nil {
 		return nil, ErrNoCommandsRegistered
 	}
@@ -79,7 +80,7 @@ func (f *factory) BrokerExecuteUpdate(k command.Kind, fsm command.BrokerFSM) (co
 	return cmdBrokerBuilder.NewUpdate(fsm), nil
 }
 
-func (f *factory) BrokerEncoderDecoder(k command.Kind) (command.EncoderDecoder, error) {
+func (f *factory) BrokerEncoderDecoder(k pbCommandTypes.Kind) (command.EncoderDecoder, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f.builders == nil {
@@ -96,7 +97,7 @@ func (f *factory) BrokerEncoderDecoder(k command.Kind) (command.EncoderDecoder, 
 	return cmdBrokerBuilder.NewEncoderDecoder(), nil
 }
 
-func (f *factory) BrokerLookup(k command.Kind, fsm command.BrokerFSM) (command.Lookup, error) {
+func (f *factory) BrokerLookup(k pbCommandTypes.Kind, fsm command.BrokerFSM) (command.Lookup, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f.brokerLookups == nil {

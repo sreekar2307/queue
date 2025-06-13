@@ -31,6 +31,8 @@ import (
 
 	"github.com/lni/dragonboat/v4"
 	drConfig "github.com/lni/dragonboat/v4/config"
+	pbBrokerCommands "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
+	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 )
 
 const (
@@ -137,14 +139,14 @@ func (q *Queue) CreateTopic(
 	numberOfPartitions uint64,
 	replicationFactor uint64,
 ) (*model.Topic, error) {
-	encoderDecoder, err := factory.BrokerEncoderDecoder(command.TopicCommands.CreateTopic)
+	encoderDecoder, err := factory.BrokerEncoderDecoder(pbCommandTypes.Kind_KIND_CREATE_TOPIC)
 	if err != nil {
 		return nil, fmt.Errorf("get encoder decoder for create topic: %w", err)
 	}
-	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, command.CreateTopicInputs{
-		TopicName:          name,
-		NumberOfPartitions: numberOfPartitions,
-		ShardOffset:        q.broker.BrokerShardId() + 1,
+	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, pbBrokerCommands.CreateTopicInputs{
+		Topic:           name,
+		NumOfPartitions: numberOfPartitions,
+		ShardOffset:     q.broker.BrokerShardId() + 1,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("encode args for create topic: %w", err)
@@ -160,18 +162,18 @@ func (q *Queue) CreateTopic(
 	if err != nil {
 		return nil, fmt.Errorf("decode results for create topic: %w", err)
 	}
-	createTopicResult, ok := results.(command.CreateTopicOutputs)
+	createTopicResult, ok := results.(*pbBrokerCommands.CreateTopicOutputs)
 	if !ok {
 		return nil, fmt.Errorf("unexpected result type for create topic: %T", results)
 	}
-	if !createTopicResult.Created {
+	if !createTopicResult.IsCreated {
 		return nil, errors.ErrTopicAlreadyExists
 	}
 	topic := createTopicResult.Topic
 	// get all the partitions of the topic, create a shard per partition, randomly add 3 nodes per partition
 	cmd := command.Cmd{
 		CommandType: command.PartitionsCommands.PartitionsForTopic,
-		Args:        [][]byte{[]byte(topic.Name)},
+		Args:        [][]byte{[]byte(topic.Topic)},
 	}
 	cmdBytes, err = json.Marshal(cmd)
 	if err != nil {
@@ -229,7 +231,10 @@ func (q *Queue) CreateTopic(
 		}
 	}
 
-	return topic, nil
+	return &model.Topic{
+		Name:               topic.Topic,
+		NumberOfPartitions: topic.NumOfPartitions,
+	}, nil
 }
 
 func (q *Queue) disconnectInActiveConsumers(pCtx context.Context) {

@@ -2,8 +2,8 @@ package update
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"reflect"
 	"slices"
 
@@ -15,6 +15,9 @@ import (
 	stdErrors "errors"
 
 	"github.com/lni/dragonboat/v4/statemachine"
+	pbBrokerCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
+	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 )
 
 type (
@@ -22,7 +25,7 @@ type (
 	createTopicEncoderDecoder struct{}
 )
 
-var kind = command.TopicCommands.CreateTopic
+var kind = pbCommandTypes.Kind_KIND_CREATE_TOPIC
 
 func (c createTopicBuilder) NewUpdate(fsm command.BrokerFSM) command.Update {
 	return createTopic{
@@ -34,7 +37,7 @@ func (c createTopicBuilder) NewEncoderDecoder() command.EncoderDecoder {
 	return createTopicEncoderDecoder{}
 }
 
-func (c createTopicBuilder) Kind() command.Kind {
+func (c createTopicBuilder) Kind() pbCommandTypes.Kind {
 	return kind
 }
 
@@ -47,28 +50,28 @@ type createTopic struct {
 }
 
 func (c createTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
-	ca, ok := arg.(command.CreateTopicInputs)
+	ca, ok := arg.(pbBrokerCommandTypes.CreateTopicInputs)
 	if !ok {
 		return nil, stdErrors.Join(cmdErrors.ErrInvalidCommandArgs,
 			fmt.Errorf("expected command.CreateTopicInputs, got %s", reflect.TypeOf(arg)))
 	}
-	args, err := json.Marshal(ca)
+	args, err := proto.Marshal(&ca)
 	if err != nil {
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
-	cmd := command.CmdV2{
-		CommandType: kind,
-		Args:        args,
+	cmd := pbCommandTypes.Cmd{
+		Cmd:  pbCommandTypes.Kind_KIND_CREATE_TOPIC,
+		Args: args,
 	}
-	return json.Marshal(cmd)
+	return proto.Marshal(&cmd)
 }
 
 func (c createTopicEncoderDecoder) DecodeResults(_ context.Context, bytes []byte) (any, error) {
-	var co command.CreateTopicOutputs
-	if err := json.Unmarshal(bytes, &co); err != nil {
+	var co pbBrokerCommandTypes.CreateTopicOutputs
+	if err := proto.Unmarshal(bytes, &co); err != nil {
 		return nil, fmt.Errorf("unmarshal command result: %w", err)
 	}
-	return co, nil
+	return &co, nil
 }
 
 func (c createTopic) ExecuteUpdate(
@@ -76,21 +79,21 @@ func (c createTopic) ExecuteUpdate(
 	inputs []byte,
 	entry statemachine.Entry,
 ) (empty statemachine.Entry, _ error) {
-	var ci command.CreateTopicInputs
-	if err := json.Unmarshal(inputs, &ci); err != nil {
+	var ci pbBrokerCommandTypes.CreateTopicInputs
+	if err := proto.Unmarshal(inputs, &ci); err != nil {
 		return empty, fmt.Errorf("unmarshal command args: %w", err)
 	}
 	topic, err := c.fsm.TopicService().CreateTopic(
 		ctx,
 		entry.Index,
-		ci.TopicName,
-		ci.NumberOfPartitions,
+		ci.Topic,
+		ci.NumOfPartitions,
 		ci.ShardOffset,
 	)
-	var result command.CreateTopicOutputs
+	var result pbBrokerCommandTypes.CreateTopicOutputs
 	if err != nil {
 		if stdErrors.Is(err, storageErrors.ErrTopicAlreadyExists) {
-			resultBytes, err := json.Marshal(result)
+			resultBytes, err := proto.Marshal(&result)
 			if err != nil {
 				return empty, fmt.Errorf("marshal result: %w", err)
 			}
@@ -103,7 +106,7 @@ func (c createTopic) ExecuteUpdate(
 				},
 			}, nil
 		} else if stdErrors.Is(err, storageErrors.ErrDuplicateCommand) {
-			resultBytes, err := json.Marshal(result)
+			resultBytes, err := proto.Marshal(&result)
 			if err != nil {
 				return empty, fmt.Errorf("marshal result: %w", err)
 			}
@@ -118,11 +121,14 @@ func (c createTopic) ExecuteUpdate(
 		}
 		return empty, fmt.Errorf("create topic: %w", err)
 	}
-	result = command.CreateTopicOutputs{
-		Topic:   topic,
-		Created: true,
+	result = pbBrokerCommandTypes.CreateTopicOutputs{
+		Topic: &pbTypes.Topic{
+			Topic:           topic.Name,
+			NumOfPartitions: topic.NumberOfPartitions,
+		},
+		IsCreated: true,
 	}
-	resultBytes, err := json.Marshal(result)
+	resultBytes, err := proto.Marshal(&result)
 	if err != nil {
 		return empty, fmt.Errorf("marshal result: %w", err)
 	}

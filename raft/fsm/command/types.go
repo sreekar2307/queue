@@ -4,25 +4,20 @@ import (
 	"context"
 
 	"github.com/lni/dragonboat/v4/statemachine"
+	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service"
 )
 
 type (
 	Kind string
-
-	Cmd struct {
+	Cmd  struct {
 		CommandType Kind
 		Args        [][]byte
 	}
 
-	CmdV2 struct {
-		CommandType Kind
-		Args        []byte
-	}
-
 	Builder interface {
-		Kind() Kind
+		Kind() pbCommandTypes.Kind
 		NewEncoderDecoder() EncoderDecoder
 	}
 

@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package raft.fsm.v1;
+
+message Cmd {
+  Kind cmd = 1;
+  bytes args = 2;
+}
+
+enum Kind {
+  KIND_UNSPECIFIED = 0;
+  KIND_CREATE_TOPIC = 1;
+  KIND_TOPIC_FOR_ID = 2;
+}

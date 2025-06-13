@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+import "buf/validate/validate.proto";
+import "types/v1/types.proto";
+package raft.fsm.broker.v1;
+
+
+message CreateTopicInputs {
+  string topic = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
+  uint64 num_of_partitions = 2 [
+      (buf.validate.field).uint64.gt = 0,
+      (buf.validate.field).uint64.lt = 100
+  ];
+  uint64 shard_offset = 3 [
+      (buf.validate.field).uint64.gt = 0
+  ];
+}
+
+message CreateTopicOutputs {
+  types.v1.Topic topic =1;
+  bool is_created = 2;
+}
+
+message TopicForIDInputs {
+  string topic = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
+}

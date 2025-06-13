@@ -20,6 +20,7 @@ import (
 	provalidateInterceptor "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/protovalidate"
 	"github.com/sreekar2307/queue/config"
 	pb "github.com/sreekar2307/queue/gen/queue/v1"
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service/errors"
 	"github.com/sreekar2307/queue/util"
@@ -235,38 +236,38 @@ func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.Sha
 		return nil, status.Errorf(codes.Internal, "shard info: %v", err)
 	}
 	res := &pb.ShardInfoResponse{
-		ShardInfo: make(map[string]*pb.ShardInfo),
-		Brokers: util.Map(brokers, func(broker *model.Broker) *pb.Broker {
-			return &pb.Broker{
-				Id:          broker.ID,
-				RaftAddress: broker.RaftAddress,
-				GrpcAddress: broker.ReachGrpcAddress,
-				HttpAddress: broker.ReachHttpAddress,
+		ShardInfo: make(map[string]*pbTypes.ShardInfo),
+		Brokers: util.Map(brokers, func(broker *model.Broker) *pbTypes.Broker {
+			return &pbTypes.Broker{
+				Id:               broker.ID,
+				RaftAddress:      broker.RaftAddress,
+				ReachGrpcAddress: broker.ReachGrpcAddress,
+				ReachHttpAddress: broker.ReachHttpAddress,
 			}
 		}),
-		Leader: &pb.Broker{
-			Id:          leader.ID,
-			RaftAddress: leader.RaftAddress,
-			GrpcAddress: leader.ReachGrpcAddress,
-			HttpAddress: leader.ReachHttpAddress,
+		Leader: &pbTypes.Broker{
+			Id:               leader.ID,
+			RaftAddress:      leader.RaftAddress,
+			ReachGrpcAddress: leader.ReachGrpcAddress,
+			ReachHttpAddress: leader.ReachHttpAddress,
 		},
 	}
 	for partitionID, shardInfo := range shardsInfo {
-		shardType := pb.ShardType_SHARD_TYPE_BROKERS
+		shardType := pbTypes.ShardType_SHARD_TYPE_BROKERS
 		if shardInfo.ShardType == model.ShardTypePartitions {
-			shardType = pb.ShardType_SHARD_TYPE_PARTITIONS
+			shardType = pbTypes.ShardType_SHARD_TYPE_PARTITIONS
 		}
-		res.ShardInfo[partitionID] = &pb.ShardInfo{
+		res.ShardInfo[partitionID] = &pbTypes.ShardInfo{
 			ShardId:     shardInfo.ShardID,
 			ShardType:   shardType,
 			Topic:       shardInfo.Topic,
 			PartitionId: shardInfo.PartitionID,
-			Brokers: util.Map(shardInfo.Brokers, func(broker *model.Broker) *pb.Broker {
-				return &pb.Broker{
-					Id:          broker.ID,
-					RaftAddress: broker.RaftAddress,
-					GrpcAddress: broker.ReachGrpcAddress,
-					HttpAddress: broker.ReachHttpAddress,
+			Brokers: util.Map(shardInfo.Brokers, func(broker *model.Broker) *pbTypes.Broker {
+				return &pbTypes.Broker{
+					Id:               broker.ID,
+					RaftAddress:      broker.RaftAddress,
+					ReachGrpcAddress: broker.ReachGrpcAddress,
+					ReachHttpAddress: broker.ReachHttpAddress,
 				}
 			}),
 		}

@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package types.v1;
+
+
+
+message Broker {
+  uint64 id = 1;
+  string raft_address =2;
+  string reach_grpc_address = 3;
+  string reach_http_address = 4;
+}
+
+message Consumer {
+  string id = 1;
+  repeated string partitions =2;
+  string consumer_group = 3;
+  repeated string topics = 4;
+  bool is_active = 5;
+}
+
+message ConsumerGroup {
+  string id = 1;
+  repeated string consumers = 2;
+  repeated string topics = 3;
+}
+
+message Message {
+  string topic = 1;
+  string partition_key = 2;
+  string partition_id = 3;
+  bytes data = 4;
+  bytes id = 5;
+}
+
+message Partition {
+  string id = 1;
+  string topic = 2;
+  uint64 shard_id = 3;
+  map<uint64, string> members = 4;
+}
+
+enum ShardType {
+  SHARD_TYPE_UNSPECIFIED = 0;
+  SHARD_TYPE_BROKERS = 1;
+  SHARD_TYPE_PARTITIONS = 2;
+}
+
+message ShardInfo {
+  ShardType shard_type = 1;
+  uint64 shard_id = 2;
+  string topic = 3;
+  string partition_id = 4;
+  repeated Broker brokers = 5;
+}
+
+message Topic {
+  string topic = 1;
+  uint64 num_of_partitions = 2;
+}

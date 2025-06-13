@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	stdErrors "errors"
 	"fmt"
+	"github.com/golang/protobuf/proto"
+	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	"io"
 	"log"
 	"slices"
@@ -96,17 +98,17 @@ func (f *fsm) Update(entries []statemachine.Entry) (results []statemachine.Entry
 	for _, entry := range entries {
 		var (
 			cmd   command.Cmd
-			cmdV2 command.CmdV2
+			cmdV2 pbCommandTypes.Cmd
 		)
 		if err := json.Unmarshal(entry.Cmd, &cmd); err != nil {
-			if err := json.Unmarshal(entry.Cmd, &cmdV2); err != nil {
+			if err := proto.Unmarshal(entry.Cmd, &cmdV2); err != nil {
 				return nil, fmt.Errorf("unmarshing cmd: %w", err)
 			}
 		}
 		log.Println("Processing command", cmd.CommandType, "with args", cmd.Args,
 			"at index", entry.Index, "for broker fsm")
-		if cmd.CommandType == command.TopicCommands.CreateTopic {
-			updator, err := factory.BrokerExecuteUpdate(cmd.CommandType, f)
+		if cmd.CommandType == command.TopicCommands.CreateTopic || cmdV2.Cmd == pbCommandTypes.Kind_KIND_CREATE_TOPIC {
+			updator, err := factory.BrokerExecuteUpdate(cmdV2.Cmd, f)
 			if err != nil {
 				return nil, fmt.Errorf("get update for command %s: %w", cmd.CommandType, err)
 			}
@@ -402,16 +404,16 @@ func (f *fsm) Update(entries []statemachine.Entry) (results []statemachine.Entry
 func (f *fsm) Lookup(i any) (any, error) {
 	var (
 		cmd   command.Cmd
-		cmdV2 command.CmdV2
+		cmdV2 pbCommandTypes.Cmd
 		ctx   = context.Background()
 	)
 	if err := json.Unmarshal(i.([]byte), &cmd); err != nil {
-		if err := json.Unmarshal(i.([]byte), &cmdV2); err != nil {
+		if err := proto.Unmarshal(i.([]byte), &cmdV2); err != nil {
 			return nil, fmt.Errorf("unmarshing cmd: %w", err)
 		}
 	}
-	if cmd.CommandType == command.TopicCommands.TopicForID {
-		lookup, err := factory.BrokerLookup(cmd.CommandType, f)
+	if cmd.CommandType == command.TopicCommands.TopicForID || cmdV2.Cmd == pbCommandTypes.Kind_KIND_TOPIC_FOR_ID {
+		lookup, err := factory.BrokerLookup(cmdV2.Cmd, f)
 		if err != nil {
 			return nil, fmt.Errorf("get lookup for command %s: %w", cmd.CommandType, err)
 		}

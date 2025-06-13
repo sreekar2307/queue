@@ -16,6 +16,7 @@ import (
 	"time"
 
 	pb "github.com/sreekar2307/queue/gen/queue/v1"
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"github.com/sreekar2307/queue/util"
 
 	"github.com/mwitkow/grpc-proxy/proxy"
@@ -293,8 +294,8 @@ func lookupGrpc(pCtx context.Context) (*clusterDetails, error) {
 		LeaderBroker: broker{
 			Id:          resp.Leader.Id,
 			RaftAddress: resp.Leader.RaftAddress,
-			GrpcAddress: resp.Leader.GrpcAddress,
-			HttpAddress: resp.Leader.HttpAddress,
+			GrpcAddress: resp.Leader.ReachGrpcAddress,
+			HttpAddress: resp.Leader.ReachHttpAddress,
 		},
 	}
 	for partitionID, shardInfo := range resp.ShardInfo {
@@ -303,19 +304,19 @@ func lookupGrpc(pCtx context.Context) (*clusterDetails, error) {
 			brokers[i] = broker{
 				Id:          b.Id,
 				RaftAddress: b.RaftAddress,
-				GrpcAddress: b.GrpcAddress,
-				HttpAddress: b.HttpAddress,
+				GrpcAddress: b.ReachGrpcAddress,
+				HttpAddress: b.ReachHttpAddress,
 			}
 		}
 		cd.BrokersForTopic[shardInfo.Topic] = brokers
 		cd.BrokersForPartition[partitionID] = brokers
 	}
-	cd.Brokers = util.Map(resp.Brokers, func(b *pb.Broker) broker {
+	cd.Brokers = util.Map(resp.Brokers, func(b *pbTypes.Broker) broker {
 		return broker{
 			Id:          b.Id,
 			RaftAddress: b.RaftAddress,
-			GrpcAddress: b.GrpcAddress,
-			HttpAddress: b.HttpAddress,
+			GrpcAddress: b.ReachGrpcAddress,
+			HttpAddress: b.ReachHttpAddress,
 		}
 	})
 	cd = sanitizeClusterDetails(cd)

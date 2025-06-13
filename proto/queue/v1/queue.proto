@@ -16,6 +16,7 @@ syntax = "proto3";
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
+import "types/v1/types.proto";
 package queue.v1;
 
 service QueueService{
@@ -152,9 +153,9 @@ message ShardInfoRequest {
 }
 
 message ShardInfoResponse {
-  map<string, ShardInfo> shard_info = 1;
-  repeated Broker brokers= 2;
-  Broker leader = 3;
+  map<string, types.v1.ShardInfo> shard_info = 1;
+  repeated types.v1.Broker brokers= 2;
+  types.v1.Broker leader = 3;
 }
 
 
@@ -177,29 +178,9 @@ message BrokerAction {
 message ManageBrokersResponse {}
 
 
-enum ShardType {
-  SHARD_TYPE_UNSPECIFIED = 0;
-  SHARD_TYPE_BROKERS = 1;
-  SHARD_TYPE_PARTITIONS = 2;
-}
-
 enum ManageBrokersAction {
   MANAGE_BROKERS_ACTION_UNSPECIFIED = 0;
   MANAGE_BROKERS_ACTION_ADD = 1;
 }
 
-message ShardInfo {
-  ShardType shard_type = 1;
-  uint64 shard_id = 2;
-  string topic = 3;
-  string partition_id = 4;
-  repeated Broker brokers = 5;
-}
-
-message Broker {
-  uint64 id = 1;
-  string raft_address = 2;
-  string grpc_address = 3;
-  string http_address = 4;
-}
 
