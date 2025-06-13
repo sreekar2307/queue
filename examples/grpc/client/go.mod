@@ -3,8 +3,8 @@ module github.com/sreekar2307/queue/examples/grpc/client
 go 1.24
 
 require (
-	buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-20250610175147-9fb3bbc1230c.2
-	buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.1-20250610175147-9fb3bbc1230c.1
+	buf.build/gen/go/sreekar2307/queue/grpc/go v1.5.1-20250613183636-3b54505e8980.2
+	buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.1-20250613183636-3b54505e8980.1
 	github.com/sreekar2307/queue v0.1.12
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
