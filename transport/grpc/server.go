@@ -134,11 +134,7 @@ func (g *GRPC) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb
 	)
 	_ = grpc.SetTrailer(ctx, md)
 	return &pb.SendMessageResponse{
-		Topic:        msg.Topic,
-		PartitionKey: msg.PartitionKey,
-		Data:         msg.Data,
-		PartitionId:  msg.PartitionID,
-		MessageId:    msg.ID,
+		Message: msg.ToProtoBuf(),
 	}, nil
 }
 
@@ -164,11 +160,7 @@ func (g *GRPC) ReceiveMessageForPartitionID(
 	_ = grpc.SetTrailer(ctx, md)
 	_ = grpc.SetHeader(ctx, md)
 	return &pb.ReceiveMessageForPartitionIDResponse{
-		Topic:        msg.Topic,
-		PartitionKey: msg.PartitionKey,
-		Data:         msg.Data,
-		PartitionId:  msg.PartitionID,
-		MessageId:    msg.ID,
+		Message: msg.ToProtoBuf(),
 	}, nil
 }
 
@@ -191,8 +183,7 @@ func (g *GRPC) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb
 	md := metadata.Pairs(TopicMetadataKey, topic.Name)
 	_ = grpc.SetTrailer(ctx, md)
 	return &pb.CreateTopicResponse{
-		Name:               topic.Name,
-		NumberOfPartitions: topic.NumberOfPartitions,
+		Topic: topic.ToProtoBuf(),
 	}, nil
 }
 
@@ -210,18 +201,8 @@ func (g *GRPC) Connect(ctx context.Context, req *pb.ConnectRequest) (*pb.Connect
 		return nil, status.Errorf(codes.Internal, "connect consumer: %v", err)
 	}
 	return &pb.ConnectResponse{
-		Consumer: &pb.Consumer{
-			Id:            consumer.ID,
-			ConsumerGroup: consumer.ConsumerGroup,
-			Partitions:    consumer.Partitions,
-			IsActive:      consumer.IsActive,
-			Topics:        consumer.Topics,
-		},
-		ConsumerGroup: &pb.ConsumerGroup{
-			Id:        group.ID,
-			Consumers: util.Keys(group.Consumers),
-			Topics:    util.Keys(group.Topics),
-		},
+		Consumer:      consumer.ToProtoBuf(),
+		ConsumerGroup: group.ToProtoBuf(),
 	}, nil
 }
 

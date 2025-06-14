@@ -338,11 +338,7 @@ func (x *SendMessageRequest) GetPartitionKey() string {
 
 type SendMessageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Topic         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
-	MessageId     []byte                 `protobuf:"bytes,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	PartitionId   string                 `protobuf:"bytes,3,opt,name=partition_id,json=partitionId,proto3" json:"partition_id,omitempty"`
-	PartitionKey  string                 `protobuf:"bytes,4,opt,name=partition_key,json=partitionKey,proto3" json:"partition_key,omitempty"`
-	Data          []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	Message       *v1.Message            `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -377,37 +373,9 @@ func (*SendMessageResponse) Descriptor() ([]byte, []int) {
 	return file_queue_v1_queue_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *SendMessageResponse) GetTopic() string {
+func (x *SendMessageResponse) GetMessage() *v1.Message {
 	if x != nil {
-		return x.Topic
-	}
-	return ""
-}
-
-func (x *SendMessageResponse) GetMessageId() []byte {
-	if x != nil {
-		return x.MessageId
-	}
-	return nil
-}
-
-func (x *SendMessageResponse) GetPartitionId() string {
-	if x != nil {
-		return x.PartitionId
-	}
-	return ""
-}
-
-func (x *SendMessageResponse) GetPartitionKey() string {
-	if x != nil {
-		return x.PartitionKey
-	}
-	return ""
-}
-
-func (x *SendMessageResponse) GetData() []byte {
-	if x != nil {
-		return x.Data
+		return x.Message
 	}
 	return nil
 }
@@ -458,11 +426,7 @@ func (x *ReceiveMessageRequest) GetConsumerId() string {
 
 type ReceiveMessageForPartitionIDResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Topic         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
-	MessageId     []byte                 `protobuf:"bytes,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	PartitionId   string                 `protobuf:"bytes,3,opt,name=partition_id,json=partitionId,proto3" json:"partition_id,omitempty"`
-	PartitionKey  string                 `protobuf:"bytes,4,opt,name=partition_key,json=partitionKey,proto3" json:"partition_key,omitempty"`
-	Data          []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	Message       *v1.Message            `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -497,37 +461,9 @@ func (*ReceiveMessageForPartitionIDResponse) Descriptor() ([]byte, []int) {
 	return file_queue_v1_queue_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ReceiveMessageForPartitionIDResponse) GetTopic() string {
+func (x *ReceiveMessageForPartitionIDResponse) GetMessage() *v1.Message {
 	if x != nil {
-		return x.Topic
-	}
-	return ""
-}
-
-func (x *ReceiveMessageForPartitionIDResponse) GetMessageId() []byte {
-	if x != nil {
-		return x.MessageId
-	}
-	return nil
-}
-
-func (x *ReceiveMessageForPartitionIDResponse) GetPartitionId() string {
-	if x != nil {
-		return x.PartitionId
-	}
-	return ""
-}
-
-func (x *ReceiveMessageForPartitionIDResponse) GetPartitionKey() string {
-	if x != nil {
-		return x.PartitionKey
-	}
-	return ""
-}
-
-func (x *ReceiveMessageForPartitionIDResponse) GetData() []byte {
-	if x != nil {
-		return x.Data
+		return x.Message
 	}
 	return nil
 }
@@ -645,11 +581,10 @@ func (x *CreateTopicRequest) GetReplicationFactor() uint64 {
 }
 
 type CreateTopicResponse struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	NumberOfPartitions uint64                 `protobuf:"varint,2,opt,name=number_of_partitions,json=numberOfPartitions,proto3" json:"number_of_partitions,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Topic         *v1.Topic              `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateTopicResponse) Reset() {
@@ -682,18 +617,11 @@ func (*CreateTopicResponse) Descriptor() ([]byte, []int) {
 	return file_queue_v1_queue_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *CreateTopicResponse) GetName() string {
+func (x *CreateTopicResponse) GetTopic() *v1.Topic {
 	if x != nil {
-		return x.Name
+		return x.Topic
 	}
-	return ""
-}
-
-func (x *CreateTopicResponse) GetNumberOfPartitions() uint64 {
-	if x != nil {
-		return x.NumberOfPartitions
-	}
-	return 0
+	return nil
 }
 
 type ConnectRequest struct {
@@ -758,8 +686,8 @@ func (x *ConnectRequest) GetTopics() []string {
 
 type ConnectResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Consumer      *Consumer              `protobuf:"bytes,1,opt,name=consumer,proto3" json:"consumer,omitempty"`
-	ConsumerGroup *ConsumerGroup         `protobuf:"bytes,2,opt,name=consumer_group,json=consumerGroup,proto3" json:"consumer_group,omitempty"`
+	Consumer      *v1.Consumer           `protobuf:"bytes,1,opt,name=consumer,proto3" json:"consumer,omitempty"`
+	ConsumerGroup *v1.ConsumerGroup      `protobuf:"bytes,2,opt,name=consumer_group,json=consumerGroup,proto3" json:"consumer_group,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -794,152 +722,16 @@ func (*ConnectResponse) Descriptor() ([]byte, []int) {
 	return file_queue_v1_queue_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *ConnectResponse) GetConsumer() *Consumer {
+func (x *ConnectResponse) GetConsumer() *v1.Consumer {
 	if x != nil {
 		return x.Consumer
 	}
 	return nil
 }
 
-func (x *ConnectResponse) GetConsumerGroup() *ConsumerGroup {
+func (x *ConnectResponse) GetConsumerGroup() *v1.ConsumerGroup {
 	if x != nil {
 		return x.ConsumerGroup
-	}
-	return nil
-}
-
-type Consumer struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ConsumerGroup string                 `protobuf:"bytes,2,opt,name=consumer_group,json=consumerGroup,proto3" json:"consumer_group,omitempty"`
-	Partitions    []string               `protobuf:"bytes,3,rep,name=partitions,proto3" json:"partitions,omitempty"`
-	IsActive      bool                   `protobuf:"varint,4,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	Topics        []string               `protobuf:"bytes,5,rep,name=topics,proto3" json:"topics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Consumer) Reset() {
-	*x = Consumer{}
-	mi := &file_queue_v1_queue_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Consumer) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Consumer) ProtoMessage() {}
-
-func (x *Consumer) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_queue_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Consumer.ProtoReflect.Descriptor instead.
-func (*Consumer) Descriptor() ([]byte, []int) {
-	return file_queue_v1_queue_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *Consumer) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *Consumer) GetConsumerGroup() string {
-	if x != nil {
-		return x.ConsumerGroup
-	}
-	return ""
-}
-
-func (x *Consumer) GetPartitions() []string {
-	if x != nil {
-		return x.Partitions
-	}
-	return nil
-}
-
-func (x *Consumer) GetIsActive() bool {
-	if x != nil {
-		return x.IsActive
-	}
-	return false
-}
-
-func (x *Consumer) GetTopics() []string {
-	if x != nil {
-		return x.Topics
-	}
-	return nil
-}
-
-type ConsumerGroup struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Consumers     []string               `protobuf:"bytes,2,rep,name=consumers,proto3" json:"consumers,omitempty"`
-	Topics        []string               `protobuf:"bytes,3,rep,name=topics,proto3" json:"topics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ConsumerGroup) Reset() {
-	*x = ConsumerGroup{}
-	mi := &file_queue_v1_queue_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ConsumerGroup) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ConsumerGroup) ProtoMessage() {}
-
-func (x *ConsumerGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_queue_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ConsumerGroup.ProtoReflect.Descriptor instead.
-func (*ConsumerGroup) Descriptor() ([]byte, []int) {
-	return file_queue_v1_queue_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *ConsumerGroup) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ConsumerGroup) GetConsumers() []string {
-	if x != nil {
-		return x.Consumers
-	}
-	return nil
-}
-
-func (x *ConsumerGroup) GetTopics() []string {
-	if x != nil {
-		return x.Topics
 	}
 	return nil
 }
@@ -953,7 +745,7 @@ type ShardInfoRequest struct {
 
 func (x *ShardInfoRequest) Reset() {
 	*x = ShardInfoRequest{}
-	mi := &file_queue_v1_queue_proto_msgTypes[15]
+	mi := &file_queue_v1_queue_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -965,7 +757,7 @@ func (x *ShardInfoRequest) String() string {
 func (*ShardInfoRequest) ProtoMessage() {}
 
 func (x *ShardInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_queue_proto_msgTypes[15]
+	mi := &file_queue_v1_queue_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -978,7 +770,7 @@ func (x *ShardInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShardInfoRequest.ProtoReflect.Descriptor instead.
 func (*ShardInfoRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_queue_proto_rawDescGZIP(), []int{15}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ShardInfoRequest) GetTopics() []string {
@@ -999,7 +791,7 @@ type ShardInfoResponse struct {
 
 func (x *ShardInfoResponse) Reset() {
 	*x = ShardInfoResponse{}
-	mi := &file_queue_v1_queue_proto_msgTypes[16]
+	mi := &file_queue_v1_queue_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1011,7 +803,7 @@ func (x *ShardInfoResponse) String() string {
 func (*ShardInfoResponse) ProtoMessage() {}
 
 func (x *ShardInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_queue_proto_msgTypes[16]
+	mi := &file_queue_v1_queue_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1024,7 +816,7 @@ func (x *ShardInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShardInfoResponse.ProtoReflect.Descriptor instead.
 func (*ShardInfoResponse) Descriptor() ([]byte, []int) {
-	return file_queue_v1_queue_proto_rawDescGZIP(), []int{16}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ShardInfoResponse) GetShardInfo() map[string]*v1.ShardInfo {
@@ -1058,7 +850,7 @@ type ManageBrokersRequest struct {
 
 func (x *ManageBrokersRequest) Reset() {
 	*x = ManageBrokersRequest{}
-	mi := &file_queue_v1_queue_proto_msgTypes[17]
+	mi := &file_queue_v1_queue_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1070,7 +862,7 @@ func (x *ManageBrokersRequest) String() string {
 func (*ManageBrokersRequest) ProtoMessage() {}
 
 func (x *ManageBrokersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_queue_proto_msgTypes[17]
+	mi := &file_queue_v1_queue_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1083,7 +875,7 @@ func (x *ManageBrokersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManageBrokersRequest.ProtoReflect.Descriptor instead.
 func (*ManageBrokersRequest) Descriptor() ([]byte, []int) {
-	return file_queue_v1_queue_proto_rawDescGZIP(), []int{17}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ManageBrokersRequest) GetAction() ManageBrokersAction {
@@ -1110,7 +902,7 @@ type BrokerAction struct {
 
 func (x *BrokerAction) Reset() {
 	*x = BrokerAction{}
-	mi := &file_queue_v1_queue_proto_msgTypes[18]
+	mi := &file_queue_v1_queue_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1122,7 +914,7 @@ func (x *BrokerAction) String() string {
 func (*BrokerAction) ProtoMessage() {}
 
 func (x *BrokerAction) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_queue_proto_msgTypes[18]
+	mi := &file_queue_v1_queue_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1135,7 +927,7 @@ func (x *BrokerAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BrokerAction.ProtoReflect.Descriptor instead.
 func (*BrokerAction) Descriptor() ([]byte, []int) {
-	return file_queue_v1_queue_proto_rawDescGZIP(), []int{18}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *BrokerAction) GetReplicaId() uint64 {
@@ -1160,7 +952,7 @@ type ManageBrokersResponse struct {
 
 func (x *ManageBrokersResponse) Reset() {
 	*x = ManageBrokersResponse{}
-	mi := &file_queue_v1_queue_proto_msgTypes[19]
+	mi := &file_queue_v1_queue_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1172,7 +964,7 @@ func (x *ManageBrokersResponse) String() string {
 func (*ManageBrokersResponse) ProtoMessage() {}
 
 func (x *ManageBrokersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_queue_v1_queue_proto_msgTypes[19]
+	mi := &file_queue_v1_queue_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1185,7 +977,7 @@ func (x *ManageBrokersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManageBrokersResponse.ProtoReflect.Descriptor instead.
 func (*ManageBrokersResponse) Descriptor() ([]byte, []int) {
-	return file_queue_v1_queue_proto_rawDescGZIP(), []int{19}
+	return file_queue_v1_queue_proto_rawDescGZIP(), []int{17}
 }
 
 var File_queue_v1_queue_proto protoreflect.FileDescriptor
@@ -1210,24 +1002,14 @@ const file_queue_v1_queue_proto_rawDesc = "" +
 	"\x12SendMessageRequest\x12\x1f\n" +
 	"\x05topic\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\x05topic\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12.\n" +
-	"\rpartition_key\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\fpartitionKey\"\xa6\x01\n" +
-	"\x13SendMessageResponse\x12\x14\n" +
-	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x1d\n" +
-	"\n" +
-	"message_id\x18\x02 \x01(\fR\tmessageId\x12!\n" +
-	"\fpartition_id\x18\x03 \x01(\tR\vpartitionId\x12#\n" +
-	"\rpartition_key\x18\x04 \x01(\tR\fpartitionKey\x12\x12\n" +
-	"\x04data\x18\x05 \x01(\fR\x04data\"C\n" +
+	"\rpartition_key\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\fpartitionKey\"B\n" +
+	"\x13SendMessageResponse\x12+\n" +
+	"\amessage\x18\x01 \x01(\v2\x11.types.v1.MessageR\amessage\"C\n" +
 	"\x15ReceiveMessageRequest\x12*\n" +
 	"\vconsumer_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\n" +
-	"consumerId\"\xb7\x01\n" +
-	"$ReceiveMessageForPartitionIDResponse\x12\x14\n" +
-	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x1d\n" +
-	"\n" +
-	"message_id\x18\x02 \x01(\fR\tmessageId\x12!\n" +
-	"\fpartition_id\x18\x03 \x01(\tR\vpartitionId\x12#\n" +
-	"\rpartition_key\x18\x04 \x01(\tR\fpartitionKey\x12\x12\n" +
-	"\x04data\x18\x05 \x01(\fR\x04data\"i\n" +
+	"consumerId\"S\n" +
+	"$ReceiveMessageForPartitionIDResponse\x12+\n" +
+	"\amessage\x18\x01 \x01(\v2\x11.types.v1.MessageR\amessage\"i\n" +
 	"#ReceiveMessageForPartitionIDRequest\x12\x1f\n" +
 	"\vconsumer_id\x18\x01 \x01(\tR\n" +
 	"consumerId\x12!\n" +
@@ -1237,30 +1019,17 @@ const file_queue_v1_queue_proto_rawDesc = "" +
 	"\x14number_of_partitions\x18\x02 \x01(\x04B\t\xbaH\x062\x04\x18\n" +
 	" \x00R\x12numberOfPartitions\x128\n" +
 	"\x12replication_factor\x18\x03 \x01(\x04B\t\xbaH\x062\x04\x18\n" +
-	" \x00R\x11replicationFactor\"[\n" +
-	"\x13CreateTopicResponse\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
-	"\x14number_of_partitions\x18\x02 \x01(\x04R\x12numberOfPartitions\"\x86\x01\n" +
+	" \x00R\x11replicationFactor\"<\n" +
+	"\x13CreateTopicResponse\x12%\n" +
+	"\x05topic\x18\x01 \x01(\v2\x0f.types.v1.TopicR\x05topic\"\x86\x01\n" +
 	"\x0eConnectRequest\x12*\n" +
 	"\vconsumer_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\n" +
 	"consumerId\x120\n" +
 	"\x0econsumer_group\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\rconsumerGroup\x12\x16\n" +
 	"\x06topics\x18\x03 \x03(\tR\x06topics\"\x81\x01\n" +
 	"\x0fConnectResponse\x12.\n" +
-	"\bconsumer\x18\x01 \x01(\v2\x12.queue.v1.ConsumerR\bconsumer\x12>\n" +
-	"\x0econsumer_group\x18\x02 \x01(\v2\x17.queue.v1.ConsumerGroupR\rconsumerGroup\"\x96\x01\n" +
-	"\bConsumer\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
-	"\x0econsumer_group\x18\x02 \x01(\tR\rconsumerGroup\x12\x1e\n" +
-	"\n" +
-	"partitions\x18\x03 \x03(\tR\n" +
-	"partitions\x12\x1b\n" +
-	"\tis_active\x18\x04 \x01(\bR\bisActive\x12\x16\n" +
-	"\x06topics\x18\x05 \x03(\tR\x06topics\"U\n" +
-	"\rConsumerGroup\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
-	"\tconsumers\x18\x02 \x03(\tR\tconsumers\x12\x16\n" +
-	"\x06topics\x18\x03 \x03(\tR\x06topics\"*\n" +
+	"\bconsumer\x18\x01 \x01(\v2\x12.types.v1.ConsumerR\bconsumer\x12>\n" +
+	"\x0econsumer_group\x18\x02 \x01(\v2\x17.types.v1.ConsumerGroupR\rconsumerGroup\"*\n" +
 	"\x10ShardInfoRequest\x12\x16\n" +
 	"\x06topics\x18\x01 \x03(\tR\x06topics\"\x87\x02\n" +
 	"\x11ShardInfoResponse\x12I\n" +
@@ -1308,7 +1077,7 @@ func file_queue_v1_queue_proto_rawDescGZIP() []byte {
 }
 
 var file_queue_v1_queue_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_queue_v1_queue_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_queue_v1_queue_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_queue_v1_queue_proto_goTypes = []any{
 	(ManageBrokersAction)(0),                     // 0: queue.v1.ManageBrokersAction
 	(*HealthCheckRequest)(nil),                   // 1: queue.v1.HealthCheckRequest
@@ -1324,49 +1093,54 @@ var file_queue_v1_queue_proto_goTypes = []any{
 	(*CreateTopicResponse)(nil),                  // 11: queue.v1.CreateTopicResponse
 	(*ConnectRequest)(nil),                       // 12: queue.v1.ConnectRequest
 	(*ConnectResponse)(nil),                      // 13: queue.v1.ConnectResponse
-	(*Consumer)(nil),                             // 14: queue.v1.Consumer
-	(*ConsumerGroup)(nil),                        // 15: queue.v1.ConsumerGroup
-	(*ShardInfoRequest)(nil),                     // 16: queue.v1.ShardInfoRequest
-	(*ShardInfoResponse)(nil),                    // 17: queue.v1.ShardInfoResponse
-	(*ManageBrokersRequest)(nil),                 // 18: queue.v1.ManageBrokersRequest
-	(*BrokerAction)(nil),                         // 19: queue.v1.BrokerAction
-	(*ManageBrokersResponse)(nil),                // 20: queue.v1.ManageBrokersResponse
-	nil,                                          // 21: queue.v1.ShardInfoResponse.ShardInfoEntry
-	(*timestamppb.Timestamp)(nil),                // 22: google.protobuf.Timestamp
-	(*v1.Broker)(nil),                            // 23: types.v1.Broker
-	(*v1.ShardInfo)(nil),                         // 24: types.v1.ShardInfo
+	(*ShardInfoRequest)(nil),                     // 14: queue.v1.ShardInfoRequest
+	(*ShardInfoResponse)(nil),                    // 15: queue.v1.ShardInfoResponse
+	(*ManageBrokersRequest)(nil),                 // 16: queue.v1.ManageBrokersRequest
+	(*BrokerAction)(nil),                         // 17: queue.v1.BrokerAction
+	(*ManageBrokersResponse)(nil),                // 18: queue.v1.ManageBrokersResponse
+	nil,                                          // 19: queue.v1.ShardInfoResponse.ShardInfoEntry
+	(*timestamppb.Timestamp)(nil),                // 20: google.protobuf.Timestamp
+	(*v1.Message)(nil),                           // 21: types.v1.Message
+	(*v1.Topic)(nil),                             // 22: types.v1.Topic
+	(*v1.Consumer)(nil),                          // 23: types.v1.Consumer
+	(*v1.ConsumerGroup)(nil),                     // 24: types.v1.ConsumerGroup
+	(*v1.Broker)(nil),                            // 25: types.v1.Broker
+	(*v1.ShardInfo)(nil),                         // 26: types.v1.ShardInfo
 }
 var file_queue_v1_queue_proto_depIdxs = []int32{
-	22, // 0: queue.v1.HealthCheckRequest.ping_at:type_name -> google.protobuf.Timestamp
-	14, // 1: queue.v1.ConnectResponse.consumer:type_name -> queue.v1.Consumer
-	15, // 2: queue.v1.ConnectResponse.consumer_group:type_name -> queue.v1.ConsumerGroup
-	21, // 3: queue.v1.ShardInfoResponse.shard_info:type_name -> queue.v1.ShardInfoResponse.ShardInfoEntry
-	23, // 4: queue.v1.ShardInfoResponse.brokers:type_name -> types.v1.Broker
-	23, // 5: queue.v1.ShardInfoResponse.leader:type_name -> types.v1.Broker
-	0,  // 6: queue.v1.ManageBrokersRequest.action:type_name -> queue.v1.ManageBrokersAction
-	19, // 7: queue.v1.ManageBrokersRequest.broker_action:type_name -> queue.v1.BrokerAction
-	24, // 8: queue.v1.ShardInfoResponse.ShardInfoEntry.value:type_name -> types.v1.ShardInfo
-	1,  // 9: queue.v1.QueueService.HealthCheck:input_type -> queue.v1.HealthCheckRequest
-	3,  // 10: queue.v1.QueueService.AckMessage:input_type -> queue.v1.AckMessageRequest
-	5,  // 11: queue.v1.QueueService.SendMessage:input_type -> queue.v1.SendMessageRequest
-	9,  // 12: queue.v1.QueueService.ReceiveMessageForPartitionID:input_type -> queue.v1.ReceiveMessageForPartitionIDRequest
-	10, // 13: queue.v1.QueueService.CreateTopic:input_type -> queue.v1.CreateTopicRequest
-	12, // 14: queue.v1.QueueService.Connect:input_type -> queue.v1.ConnectRequest
-	16, // 15: queue.v1.QueueService.ShardInfo:input_type -> queue.v1.ShardInfoRequest
-	18, // 16: queue.v1.QueueService.ManageBrokers:input_type -> queue.v1.ManageBrokersRequest
-	2,  // 17: queue.v1.QueueService.HealthCheck:output_type -> queue.v1.HealthCheckResponse
-	4,  // 18: queue.v1.QueueService.AckMessage:output_type -> queue.v1.AckMessageResponse
-	6,  // 19: queue.v1.QueueService.SendMessage:output_type -> queue.v1.SendMessageResponse
-	8,  // 20: queue.v1.QueueService.ReceiveMessageForPartitionID:output_type -> queue.v1.ReceiveMessageForPartitionIDResponse
-	11, // 21: queue.v1.QueueService.CreateTopic:output_type -> queue.v1.CreateTopicResponse
-	13, // 22: queue.v1.QueueService.Connect:output_type -> queue.v1.ConnectResponse
-	17, // 23: queue.v1.QueueService.ShardInfo:output_type -> queue.v1.ShardInfoResponse
-	20, // 24: queue.v1.QueueService.ManageBrokers:output_type -> queue.v1.ManageBrokersResponse
-	17, // [17:25] is the sub-list for method output_type
-	9,  // [9:17] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	20, // 0: queue.v1.HealthCheckRequest.ping_at:type_name -> google.protobuf.Timestamp
+	21, // 1: queue.v1.SendMessageResponse.message:type_name -> types.v1.Message
+	21, // 2: queue.v1.ReceiveMessageForPartitionIDResponse.message:type_name -> types.v1.Message
+	22, // 3: queue.v1.CreateTopicResponse.topic:type_name -> types.v1.Topic
+	23, // 4: queue.v1.ConnectResponse.consumer:type_name -> types.v1.Consumer
+	24, // 5: queue.v1.ConnectResponse.consumer_group:type_name -> types.v1.ConsumerGroup
+	19, // 6: queue.v1.ShardInfoResponse.shard_info:type_name -> queue.v1.ShardInfoResponse.ShardInfoEntry
+	25, // 7: queue.v1.ShardInfoResponse.brokers:type_name -> types.v1.Broker
+	25, // 8: queue.v1.ShardInfoResponse.leader:type_name -> types.v1.Broker
+	0,  // 9: queue.v1.ManageBrokersRequest.action:type_name -> queue.v1.ManageBrokersAction
+	17, // 10: queue.v1.ManageBrokersRequest.broker_action:type_name -> queue.v1.BrokerAction
+	26, // 11: queue.v1.ShardInfoResponse.ShardInfoEntry.value:type_name -> types.v1.ShardInfo
+	1,  // 12: queue.v1.QueueService.HealthCheck:input_type -> queue.v1.HealthCheckRequest
+	3,  // 13: queue.v1.QueueService.AckMessage:input_type -> queue.v1.AckMessageRequest
+	5,  // 14: queue.v1.QueueService.SendMessage:input_type -> queue.v1.SendMessageRequest
+	9,  // 15: queue.v1.QueueService.ReceiveMessageForPartitionID:input_type -> queue.v1.ReceiveMessageForPartitionIDRequest
+	10, // 16: queue.v1.QueueService.CreateTopic:input_type -> queue.v1.CreateTopicRequest
+	12, // 17: queue.v1.QueueService.Connect:input_type -> queue.v1.ConnectRequest
+	14, // 18: queue.v1.QueueService.ShardInfo:input_type -> queue.v1.ShardInfoRequest
+	16, // 19: queue.v1.QueueService.ManageBrokers:input_type -> queue.v1.ManageBrokersRequest
+	2,  // 20: queue.v1.QueueService.HealthCheck:output_type -> queue.v1.HealthCheckResponse
+	4,  // 21: queue.v1.QueueService.AckMessage:output_type -> queue.v1.AckMessageResponse
+	6,  // 22: queue.v1.QueueService.SendMessage:output_type -> queue.v1.SendMessageResponse
+	8,  // 23: queue.v1.QueueService.ReceiveMessageForPartitionID:output_type -> queue.v1.ReceiveMessageForPartitionIDResponse
+	11, // 24: queue.v1.QueueService.CreateTopic:output_type -> queue.v1.CreateTopicResponse
+	13, // 25: queue.v1.QueueService.Connect:output_type -> queue.v1.ConnectResponse
+	15, // 26: queue.v1.QueueService.ShardInfo:output_type -> queue.v1.ShardInfoResponse
+	18, // 27: queue.v1.QueueService.ManageBrokers:output_type -> queue.v1.ManageBrokersResponse
+	20, // [20:28] is the sub-list for method output_type
+	12, // [12:20] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_queue_v1_queue_proto_init() }
@@ -1380,7 +1154,7 @@ func file_queue_v1_queue_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_queue_v1_queue_proto_rawDesc), len(file_queue_v1_queue_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   21,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

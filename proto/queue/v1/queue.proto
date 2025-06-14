@@ -70,11 +70,7 @@ message SendMessageRequest {
 }
 
 message SendMessageResponse {
-  string topic = 1;
-  bytes message_id = 2;
-  string partition_id = 3;
-  string partition_key = 4;
-  bytes data = 5;
+  types.v1.Message message = 1;
 }
 
 message ReceiveMessageRequest {
@@ -85,11 +81,7 @@ message ReceiveMessageRequest {
 }
 
 message ReceiveMessageForPartitionIDResponse {
-  string topic = 1;
-  bytes message_id = 2;
-  string partition_id = 3;
-  string partition_key = 4;
-  bytes data = 5;
+  types.v1.Message message = 1;
 }
 
 message ReceiveMessageForPartitionIDRequest {
@@ -113,8 +105,7 @@ message CreateTopicRequest {
 }
 
 message CreateTopicResponse {
-  string name = 1;
-  uint64 number_of_partitions = 2;
+  types.v1.Topic topic = 1;
 }
 
 message ConnectRequest {
@@ -130,23 +121,11 @@ message ConnectRequest {
 }
 
 message ConnectResponse {
-  Consumer consumer = 1;
-  ConsumerGroup consumer_group = 2;
+  types.v1.Consumer consumer = 1;
+  types.v1.ConsumerGroup consumer_group = 2;
 }
 
-message Consumer {
-  string id = 1;
-  string consumer_group = 2;
-  repeated string partitions = 3;
-  bool is_active = 4;
-  repeated string topics = 5;
-}
 
-message ConsumerGroup {
-  string id = 1;
-  repeated string consumers = 2;
-  repeated string topics = 3;
-}
 
 message ShardInfoRequest {
   repeated string topics = 1;
