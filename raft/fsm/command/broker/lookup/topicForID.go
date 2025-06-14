@@ -63,14 +63,11 @@ func (c topicForIDEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte
 }
 
 func (c topicForIDEncoderDecoder) DecodeResults(_ context.Context, bytes []byte) (any, error) {
-	var topic pbTypes.Topic
-	if err := proto.Unmarshal(bytes, &topic); err != nil {
+	var pbTopic pbTypes.Topic
+	if err := proto.Unmarshal(bytes, &pbTopic); err != nil {
 		return nil, fmt.Errorf("unmarshal command result: %w", err)
 	}
-	return model.Topic{
-		Name:               topic.Topic,
-		NumberOfPartitions: topic.NumOfPartitions,
-	}, nil
+	return model.FromProtoBufTopic(&pbTopic), nil
 }
 
 func (c topicForID) Lookup(

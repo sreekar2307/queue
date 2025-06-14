@@ -3,8 +3,9 @@ package metadata
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/proto"
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"io"
 	"os"
 	"path/filepath"
@@ -51,7 +52,7 @@ func (b *Bolt) CreateBrokerInTx(
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
-	brokerData, err := json.Marshal(broker)
+	brokerData, err := proto.Marshal(broker.ToProtoBuf())
 	if err != nil {
 		return fmt.Errorf("failed to marshal broker: %w", err)
 	}
@@ -65,7 +66,7 @@ func (b *Bolt) GetBroker(
 	_ context.Context,
 	brokerID uint64,
 ) (*model.Broker, error) {
-	var broker model.Broker
+	var broker = new(model.Broker)
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(brokersBucketKey))
 		if bucket == nil {
@@ -75,9 +76,11 @@ func (b *Bolt) GetBroker(
 		if data == nil {
 			return nil
 		}
-		if err := json.Unmarshal(data, &broker); err != nil {
+		var pbBroker pbTypes.Broker
+		if err := proto.Unmarshal(data, &pbBroker); err != nil {
 			return fmt.Errorf("failed to unmarshal broker: %w", err)
 		}
+		broker = model.FromProtoBufBroker(&pbBroker)
 		return nil
 	})
 	if err != nil {
@@ -86,7 +89,7 @@ func (b *Bolt) GetBroker(
 	if broker.ID == 0 {
 		return nil, errors.ErrBrokerNotFound
 	}
-	return &broker, nil
+	return broker, nil
 }
 
 func (b *Bolt) GetBrokers(_ context.Context, brokerIDs map[uint64]bool) ([]*model.Broker, error) {
@@ -98,12 +101,14 @@ func (b *Bolt) GetBrokers(_ context.Context, brokerIDs map[uint64]bool) ([]*mode
 		}
 		cursor := bucket.Cursor()
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			var broker model.Broker
-			if err := json.Unmarshal(v, &broker); err != nil {
+			var broker = new(model.Broker)
+			var pbBroker pbTypes.Broker
+			if err := proto.Unmarshal(v, &pbBroker); err != nil {
 				return fmt.Errorf("failed to unmarshal broker: %w", err)
 			}
+			broker = model.FromProtoBufBroker(&pbBroker)
 			if _, ok := brokerIDs[broker.ID]; ok {
-				brokers = append(brokers, &broker)
+				brokers = append(brokers, broker)
 			}
 		}
 		return nil
@@ -123,11 +128,11 @@ func (b *Bolt) GetAllBrokers(ctx context.Context) ([]*model.Broker, error) {
 		}
 		cursor := bucket.Cursor()
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			var broker model.Broker
-			if err := json.Unmarshal(v, &broker); err != nil {
+			var pbBroker pbTypes.Broker
+			if err := proto.Unmarshal(v, &pbBroker); err != nil {
 				return fmt.Errorf("failed to unmarshal broker: %w", err)
 			}
-			brokers = append(brokers, &broker)
+			brokers = append(brokers, model.FromProtoBufBroker(&pbBroker))
 		}
 		return nil
 	})
@@ -223,7 +228,7 @@ func (b *Bolt) CreateTopicInTx(_ context.Context, tx storage.Transaction, topic 
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
-	topicData, err := json.Marshal(topic)
+	topicData, err := proto.Marshal(topic.ToProtoBuf())
 	if err != nil {
 		return fmt.Errorf("failed to marshal topic: %w", err)
 	}
@@ -234,7 +239,7 @@ func (b *Bolt) CreateTopicInTx(_ context.Context, tx storage.Transaction, topic 
 }
 
 func (b *Bolt) Topic(ctx context.Context, s string) (*model.Topic, error) {
-	var topic model.Topic
+	var topic = new(model.Topic)
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(topicsBucketKey))
 		if bucket == nil {
@@ -244,9 +249,11 @@ func (b *Bolt) Topic(ctx context.Context, s string) (*model.Topic, error) {
 		if data == nil {
 			return nil
 		}
-		if err := json.Unmarshal(data, &topic); err != nil {
+		var pbTopic pbTypes.Topic
+		if err := proto.Unmarshal(data, &pbTopic); err != nil {
 			return fmt.Errorf("failed to unmarshal topic: %w", err)
 		}
+		topic = model.FromProtoBufTopic(&pbTopic)
 		return nil
 	})
 	if err != nil {
@@ -260,7 +267,7 @@ func (b *Bolt) Topic(ctx context.Context, s string) (*model.Topic, error) {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
 	topic.NumberOfPartitions = uint64(len(partitions))
-	return &topic, nil
+	return topic, nil
 }
 
 func (b *Bolt) TopicInTx(ctx context.Context, tx storage.Transaction, s string) (*model.Topic, error) {
@@ -276,16 +283,20 @@ func (b *Bolt) TopicInTx(ctx context.Context, tx storage.Transaction, s string) 
 	if data == nil {
 		return nil, errors.ErrTopicNotFound
 	}
-	var topic model.Topic
-	if err := json.Unmarshal(data, &topic); err != nil {
+	var (
+		topic   = new(model.Topic)
+		pbTopic pbTypes.Topic
+	)
+	if err := proto.Unmarshal(data, &pbTopic); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal topic: %w", err)
 	}
+	topic = model.FromProtoBufTopic(&pbTopic)
 	partitions, err := b.PartitionsInTx(ctx, tx, map[string]bool{topic.Name: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
 	topic.NumberOfPartitions = uint64(len(partitions))
-	return &topic, nil
+	return topic, nil
 }
 
 func (b *Bolt) Topics(ctx context.Context, topicNames []string) ([]*model.Topic, error) {
@@ -300,16 +311,17 @@ func (b *Bolt) Topics(ctx context.Context, topicNames []string) ([]*model.Topic,
 			if data == nil {
 				continue
 			}
-			var topic model.Topic
-			if err := json.Unmarshal(data, &topic); err != nil {
+			var pbTopic pbTypes.Topic
+			if err := proto.Unmarshal(data, &pbTopic); err != nil {
 				return fmt.Errorf("failed to unmarshal topic: %w", err)
 			}
+			topic := model.FromProtoBufTopic(&pbTopic)
 			partitions, err := b.PartitionsForTopic(ctx, topic.Name)
 			if err != nil {
 				return fmt.Errorf("failed to get partitions: %w", err)
 			}
 			topic.NumberOfPartitions = uint64(len(partitions))
-			topics = append(topics, &topic)
+			topics = append(topics, topic)
 		}
 		return nil
 	})
@@ -328,16 +340,17 @@ func (b *Bolt) AllTopics(ctx context.Context) ([]*model.Topic, error) {
 		}
 		cursor := bucket.Cursor()
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			var topic model.Topic
-			if err := json.Unmarshal(v, &topic); err != nil {
+			var pbTopic pbTypes.Topic
+			if err := proto.Unmarshal(v, &pbTopic); err != nil {
 				return fmt.Errorf("failed to unmarshal topic: %w", err)
 			}
+			topic := model.FromProtoBufTopic(&pbTopic)
 			partitions, err := b.PartitionsForTopic(ctx, topic.Name)
 			if err != nil {
 				return fmt.Errorf("failed to get partitions: %w", err)
 			}
 			topic.NumberOfPartitions = uint64(len(partitions))
-			topics = append(topics, &topic)
+			topics = append(topics, topic)
 		}
 		return nil
 	})
@@ -361,7 +374,7 @@ func (b *Bolt) CreatePartitionsInTx(
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 	for _, partition := range partitions {
-		partitionData, err := json.Marshal(partition)
+		partitionData, err := proto.Marshal(partition.ToProtoBuf())
 		if err != nil {
 			return fmt.Errorf("failed to marshal partition: %w", err)
 		}
@@ -373,7 +386,7 @@ func (b *Bolt) CreatePartitionsInTx(
 }
 
 func (b *Bolt) Partition(_ context.Context, s string) (*model.Partition, error) {
-	var partition model.Partition
+	var partition = new(model.Partition)
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(partitionsBucketKey))
 		if bucket == nil {
@@ -383,9 +396,11 @@ func (b *Bolt) Partition(_ context.Context, s string) (*model.Partition, error) 
 		if data == nil {
 			return nil
 		}
-		if err := json.Unmarshal(data, &partition); err != nil {
+		var pbPartition pbTypes.Partition
+		if err := proto.Unmarshal(data, &pbPartition); err != nil {
 			return fmt.Errorf("failed to unmarshal partition: %w", err)
 		}
+		partition = model.FromProtoBufPartition(&pbPartition)
 		return nil
 	})
 	if err != nil {
@@ -394,7 +409,7 @@ func (b *Bolt) Partition(_ context.Context, s string) (*model.Partition, error) 
 	if partition.ID == "" {
 		return nil, errors.ErrPartitionNotFound
 	}
-	return &partition, nil
+	return partition, nil
 }
 
 func (b *Bolt) AllPartitions(ctx context.Context) ([]*model.Partition, error) {
@@ -423,11 +438,11 @@ func (b *Bolt) AllPartitionsInTx(_ context.Context, tx storage.Transaction) ([]*
 	}
 	cursor := bucket.Cursor()
 	for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-		var partition model.Partition
-		if err := json.Unmarshal(v, &partition); err != nil {
+		var pbPartition pbTypes.Partition
+		if err := proto.Unmarshal(v, &pbPartition); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal partition: %w", err)
 		}
-		partitions = append(partitions, &partition)
+		partitions = append(partitions, model.FromProtoBufPartition(&pbPartition))
 	}
 	return partitions, nil
 }
@@ -445,7 +460,7 @@ func (b *Bolt) UpdatePartitionInTx(
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
-	partitionData, err := json.Marshal(partition)
+	partitionData, err := proto.Marshal(partition.ToProtoBuf())
 	if err != nil {
 		return fmt.Errorf("failed to marshal partition: %w", err)
 	}
@@ -499,12 +514,12 @@ func (b *Bolt) PartitionsInTx(
 	}
 	cursor := bucket.Cursor()
 	for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-		var partition model.Partition
-		if err := json.Unmarshal(v, &partition); err != nil {
+		var pbPartition pbTypes.Partition
+		if err := proto.Unmarshal(v, &pbPartition); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal partition: %w", err)
 		}
-		if _, ok := topicNames[partition.TopicName]; ok {
-			partitions = append(partitions, &partition)
+		if _, ok := topicNames[pbPartition.Topic]; ok {
+			partitions = append(partitions, model.FromProtoBufPartition(&pbPartition))
 		}
 	}
 	return partitions, nil
@@ -523,7 +538,7 @@ func (b *Bolt) CreateConsumerGroupInTx(
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
-	groupData, err := json.Marshal(group)
+	groupData, err := proto.Marshal(group.ToProtoBuf())
 	if err != nil {
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
 	}
@@ -564,10 +579,11 @@ func (b *Bolt) PartitionAssignmentsInTx(
 	if data == nil {
 		return nil, fmt.Errorf("consumer group not found")
 	}
-	var group model.ConsumerGroup
-	if err := json.Unmarshal(data, &group); err != nil {
+	var pbGroup pbTypes.ConsumerGroup
+	if err := proto.Unmarshal(data, &pbGroup); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal consumer group: %w", err)
 	}
+	group := model.FromProtoBufConsumerGroup(&pbGroup)
 	assignments := make(map[string][]string)
 	for _, consumerID := range util.Keys(group.Consumers) {
 		consumer, err := b.ConsumerInTx(context.Background(), tx, consumerID)
@@ -584,7 +600,6 @@ func (b *Bolt) ConsumerGroupInTx(
 	tx storage.Transaction,
 	consumerGroupID string,
 ) (*model.ConsumerGroup, error) {
-	var group model.ConsumerGroup
 	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
 		return nil, fmt.Errorf("invalid transaction type")
@@ -597,10 +612,11 @@ func (b *Bolt) ConsumerGroupInTx(
 	if data == nil {
 		return nil, errors.ErrConsumerGroupNotFound
 	}
-	if err := json.Unmarshal(data, &group); err != nil {
+	var pbGroup pbTypes.ConsumerGroup
+	if err := proto.Unmarshal(data, &pbGroup); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal consumer group: %w", err)
 	}
-	return &group, nil
+	return model.FromProtoBufConsumerGroup(&pbGroup), nil
 }
 
 func (b *Bolt) AddConsumerToGroupInTx(
@@ -618,7 +634,7 @@ func (b *Bolt) AddConsumerToGroupInTx(
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 	group.AddConsumer(consumer.ID)
-	groupData, err := json.Marshal(group)
+	groupData, err := proto.Marshal(group.ToProtoBuf())
 	if err != nil {
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
 	}
@@ -641,7 +657,7 @@ func (b *Bolt) UpdateConsumerGroupInTx(
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
-	groupData, err := json.Marshal(group)
+	groupData, err := proto.Marshal(group.ToProtoBuf())
 	if err != nil {
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
 	}
@@ -666,7 +682,7 @@ func (b *Bolt) RemoveConsumerFromGroupInTx(
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 	delete(group.Consumers, consumer.ID)
-	groupData, err := json.Marshal(group)
+	groupData, err := proto.Marshal(group.ToProtoBuf())
 	if err != nil {
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
 	}
@@ -705,7 +721,7 @@ func (b *Bolt) UpdateConsumerInTx(_ context.Context, tx storage.Transaction, con
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
-	consumerData, err := json.Marshal(consumer)
+	consumerData, err := proto.Marshal(consumer.ToProtoBuf())
 	if err != nil {
 		return fmt.Errorf("failed to marshal consumer: %w", err)
 	}
@@ -724,7 +740,7 @@ func (b *Bolt) CreateConsumerInTx(_ context.Context, tx storage.Transaction, con
 	if err != nil {
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
-	consumerData, err := json.Marshal(consumer)
+	consumerData, err := proto.Marshal(consumer.ToProtoBuf())
 	if err != nil {
 		return fmt.Errorf("failed to marshal consumer: %w", err)
 	}
@@ -743,12 +759,13 @@ func (b *Bolt) AllConsumers(_ context.Context) ([]*model.Consumer, error) {
 		}
 		cursor := bucket.Cursor()
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			var consumer model.Consumer
-			if err := json.Unmarshal(v, &consumer); err != nil {
+			var pbConsumer pbTypes.Consumer
+			if err := proto.Unmarshal(v, &pbConsumer); err != nil {
 				return fmt.Errorf("failed to unmarshal consumer: %w", err)
 			}
+			consumer := model.FromProtoBufConsumer(&pbConsumer)
 			if consumer.IsActive {
-				consumers = append(consumers, &consumer)
+				consumers = append(consumers, consumer)
 			}
 		}
 		return nil
@@ -786,11 +803,11 @@ func (b *Bolt) ConsumerInTx(_ context.Context, tx storage.Transaction, s string)
 	if data == nil {
 		return nil, errors.ErrConsumerNotFound
 	}
-	var consumer model.Consumer
-	if err := json.Unmarshal(data, &consumer); err != nil {
+	var pbConsumer pbTypes.Consumer
+	if err := proto.Unmarshal(data, &pbConsumer); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal consumer: %w", err)
 	}
-	return &consumer, nil
+	return model.FromProtoBufConsumer(&pbConsumer), nil
 }
 
 func (b *Bolt) Snapshot(_ context.Context, w io.Writer) error {

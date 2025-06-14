@@ -1,6 +1,7 @@
 package model
 
 import (
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"sync"
 
 	"github.com/lni/dragonboat/v4"
@@ -16,6 +17,24 @@ type Broker struct {
 
 	mu              sync.RWMutex
 	partitionShards map[string]uint64
+}
+
+func (b *Broker) ToProtoBuf() *pbTypes.Broker {
+	return &pbTypes.Broker{
+		Id:               b.ID,
+		RaftAddress:      b.RaftAddress,
+		ReachGrpcAddress: b.ReachGrpcAddress,
+		ReachHttpAddress: b.ReachHttpAddress,
+	}
+}
+
+func FromProtoBufBroker(pb *pbTypes.Broker) *Broker {
+	return &Broker{
+		ID:               pb.Id,
+		RaftAddress:      pb.RaftAddress,
+		ReachGrpcAddress: pb.ReachGrpcAddress,
+		ReachHttpAddress: pb.ReachHttpAddress,
+	}
 }
 
 func (b *Broker) BrokerShardId() uint64 {

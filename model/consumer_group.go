@@ -1,12 +1,32 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
+	"github.com/sreekar2307/queue/util"
+)
 
 type ConsumerGroup struct {
 	ID                  string
 	Topics              map[string]bool
 	Consumers           map[string]bool
 	rebalanceInProgress bool
+}
+
+func (c *ConsumerGroup) ToProtoBuf() *pbTypes.ConsumerGroup {
+	return &pbTypes.ConsumerGroup{
+		Id:        c.ID,
+		Topics:    util.Keys(c.Topics),
+		Consumers: util.Keys(c.Consumers),
+	}
+}
+
+func FromProtoBufConsumerGroup(pb *pbTypes.ConsumerGroup) *ConsumerGroup {
+	return &ConsumerGroup{
+		ID:        pb.Id,
+		Topics:    util.ToSet(pb.Topics),
+		Consumers: util.ToSet(pb.Consumers),
+	}
 }
 
 func (c *ConsumerGroup) RebalanceInProgress() bool {

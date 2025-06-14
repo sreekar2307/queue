@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	stdErrors "errors"
 	"fmt"
+	"github.com/golang/protobuf/proto"
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"io"
 	"log"
 	"os"
@@ -113,7 +114,7 @@ func (b *Bolt) AppendMessage(
 		if err != nil {
 			return fmt.Errorf("failed to create bucket: %w", err)
 		}
-		messageData, err := json.Marshal(message)
+		messageData, err := proto.Marshal(message.ToProtoBuf())
 		if err != nil {
 			return fmt.Errorf("failed to marshal message: %w", err)
 		}
@@ -129,7 +130,7 @@ func (b *Bolt) MessageAtIndex(_ context.Context, partition *model.Partition, mes
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database for partition: %w", err)
 	}
-	var message model.Message
+	message := new(model.Message)
 	err = db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(messagesBucketKey))
 		if bucket == nil {
@@ -139,15 +140,17 @@ func (b *Bolt) MessageAtIndex(_ context.Context, partition *model.Partition, mes
 		if data == nil {
 			return fmt.Errorf("message not found")
 		}
-		if err := json.Unmarshal(data, &message); err != nil {
+		var messagePb pbTypes.Message
+		if err := proto.Unmarshal(data, &messagePb); err != nil {
 			return fmt.Errorf("failed to unmarshal message: %w", err)
 		}
+		message = model.FromProtoBufMessage(&messagePb)
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get message: %w", err)
 	}
-	return &message, nil
+	return message, nil
 }
 
 func (b *Bolt) getDBForPartition(partitionKey string) (*boltDB.DB, error) {

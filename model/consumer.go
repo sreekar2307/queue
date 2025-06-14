@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 )
 
 type Consumer struct {
@@ -13,6 +14,26 @@ type Consumer struct {
 
 	partitionIndex    int
 	LastHealthCheckAt int64
+}
+
+func (c *Consumer) ToProtoBuf() *pbTypes.Consumer {
+	return &pbTypes.Consumer{
+		Id:            c.ID,
+		Partitions:    c.Partitions,
+		ConsumerGroup: c.ConsumerGroup,
+		Topics:        c.Topics,
+		IsActive:      c.IsActive,
+	}
+}
+
+func FromProtoBufConsumer(pbConsumer *pbTypes.Consumer) *Consumer {
+	return &Consumer{
+		ID:            pbConsumer.Id,
+		Partitions:    pbConsumer.Partitions,
+		ConsumerGroup: pbConsumer.ConsumerGroup,
+		Topics:        pbConsumer.Topics,
+		IsActive:      pbConsumer.IsActive,
+	}
 }
 
 func (c *Consumer) String() string {

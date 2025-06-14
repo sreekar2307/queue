@@ -238,39 +238,12 @@ func (g *GRPC) ShardInfo(ctx context.Context, req *pb.ShardInfoRequest) (*pb.Sha
 	res := &pb.ShardInfoResponse{
 		ShardInfo: make(map[string]*pbTypes.ShardInfo),
 		Brokers: util.Map(brokers, func(broker *model.Broker) *pbTypes.Broker {
-			return &pbTypes.Broker{
-				Id:               broker.ID,
-				RaftAddress:      broker.RaftAddress,
-				ReachGrpcAddress: broker.ReachGrpcAddress,
-				ReachHttpAddress: broker.ReachHttpAddress,
-			}
+			return broker.ToProtoBuf()
 		}),
-		Leader: &pbTypes.Broker{
-			Id:               leader.ID,
-			RaftAddress:      leader.RaftAddress,
-			ReachGrpcAddress: leader.ReachGrpcAddress,
-			ReachHttpAddress: leader.ReachHttpAddress,
-		},
+		Leader: leader.ToProtoBuf(),
 	}
 	for partitionID, shardInfo := range shardsInfo {
-		shardType := pbTypes.ShardType_SHARD_TYPE_BROKERS
-		if shardInfo.ShardType == model.ShardTypePartitions {
-			shardType = pbTypes.ShardType_SHARD_TYPE_PARTITIONS
-		}
-		res.ShardInfo[partitionID] = &pbTypes.ShardInfo{
-			ShardId:     shardInfo.ShardID,
-			ShardType:   shardType,
-			Topic:       shardInfo.Topic,
-			PartitionId: shardInfo.PartitionID,
-			Brokers: util.Map(shardInfo.Brokers, func(broker *model.Broker) *pbTypes.Broker {
-				return &pbTypes.Broker{
-					Id:               broker.ID,
-					RaftAddress:      broker.RaftAddress,
-					ReachGrpcAddress: broker.ReachGrpcAddress,
-					ReachHttpAddress: broker.ReachHttpAddress,
-				}
-			}),
-		}
+		res.ShardInfo[partitionID] = shardInfo.ToProtoBuf()
 	}
 
 	return res, nil

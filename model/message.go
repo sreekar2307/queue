@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 )
 
 type Message struct {
@@ -12,6 +13,26 @@ type Message struct {
 	PartitionID  string
 	Data         []byte
 	ID           []byte
+}
+
+func (m *Message) ToProtoBuf() *pbTypes.Message {
+	return &pbTypes.Message{
+		Topic:        m.Topic,
+		PartitionKey: m.PartitionKey,
+		PartitionId:  m.PartitionID,
+		Data:         m.Data,
+		Id:           m.ID,
+	}
+}
+
+func FromProtoBufMessage(pbMessage *pbTypes.Message) *Message {
+	return &Message{
+		Topic:        pbMessage.Topic,
+		PartitionKey: pbMessage.PartitionKey,
+		PartitionID:  pbMessage.PartitionId,
+		Data:         pbMessage.Data,
+		ID:           pbMessage.Id,
+	}
 }
 
 func (m *Message) String() string {
