@@ -8,6 +8,8 @@ buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.6-20250613183636-3b5
 buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.6-20250613183636-3b54505e8980.1/go.mod h1:xO2iUQwXyYvOJ2ntCjqNFuAio8fasLpRh/sfUBYCS74=
 buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.6-20250614030406-b5c4a1d54814.1 h1:WOYPrrQGGrlvhheN8lDqJZzSHrmniq3GlTvaA9ybgtU=
 buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.6-20250614030406-b5c4a1d54814.1/go.mod h1:xO2iUQwXyYvOJ2ntCjqNFuAio8fasLpRh/sfUBYCS74=
+buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.6-20250616084929-52b224d9e986.1 h1:iKWeyaR6f0l4fiTt8z7Kcsy7h4moN9VvGv1/15gyyMM=
+buf.build/gen/go/sreekar2307/queue/protocolbuffers/go v1.36.6-20250616084929-52b224d9e986.1/go.mod h1:xO2iUQwXyYvOJ2ntCjqNFuAio8fasLpRh/sfUBYCS74=
 github.com/go-logr/logr v1.4.2 h1:6pFjapn8bFcIbiKo3XT4j/BhANplGihG6tvd+8rYgrY=
 github.com/go-logr/logr v1.4.2/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
@@ -20,6 +22,7 @@ github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/sreekar2307/queue v0.1.21 h1:cTo8nKxHkH67Vd0CtEZhJEtQxQaHn85EjGE52wuwVrk=
 github.com/sreekar2307/queue v0.1.21/go.mod h1:KwYs8jbZF/Ukuztsphq7cJSZLeuPmRYV9OjelEAWZ2g=
+github.com/sreekar2307/queue v0.1.22 h1:A26YOuu60YxcJJQScU//aj5OmrFWP+oqlIrgc0oYpN4=
 github.com/sreekar2307/queue v0.1.22/go.mod h1:KwYs8jbZF/Ukuztsphq7cJSZLeuPmRYV9OjelEAWZ2g=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=
 go.opentelemetry.io/auto/sdk v1.1.0/go.mod h1:3wSPjt5PWp2RhlCcmmOial7AvC4DQqZb7a7wCow3W8A=
