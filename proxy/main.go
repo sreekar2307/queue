@@ -42,7 +42,7 @@ var (
 	maxLookupRetries = pflag.Int("max_lookup_retries", 5, "Maximum number of retries for lookup")
 	version          = pflag.Bool("version", false, "Print version information")
 	help             = pflag.Bool("help", false, "Print help information")
-	versionNo        = "v0.1.0"
+	versionNo        = "v0.1.1"
 	clusterD         atomic.Pointer[clusterDetails]
 	grpcClient       *grpc.ClientConn
 	transportClient  queuev1grpc.QueueServiceClient
