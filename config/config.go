@@ -25,8 +25,10 @@ type (
 		ConsumerHealthCheckInterval   time.Duration `mapstructure:"consumer_health_check_interval"`
 		ShutdownTimeout               time.Duration `mapstructure:"shutdown_timeout"`
 
-		GRPC GRPC `mapstructure:"grpc"`
-		HTTP HTTP `mapstructure:"http"`
+		GRPC    GRPC `mapstructure:"grpc"`
+		HTTP    HTTP `mapstructure:"http"`
+		Version bool `mapstructure:"version"`
+		Help    bool `mapstructure:"help"`
 	}
 
 	GRPC struct {
@@ -61,7 +63,7 @@ type (
 var (
 	Conf    *Config
 	once    sync.Once
-	version = "0.1.25"
+	version = "0.1.26"
 )
 
 func init() {
@@ -70,6 +72,8 @@ func init() {
 		v.SetEnvPrefix("QUEUE")
 		v.AutomaticEnv()
 
+		pflag.Bool("version", false, "Print version and exit")
+		pflag.Bool("help", false, "Print usage and exit")
 		pflag.Int("raft.replica_id", 1, "ReplicaID to use")
 		pflag.String("config", "config", "Path to config file")
 		pflag.String("raft.addr", "localhost:63001", "Raft Nodehost address")
