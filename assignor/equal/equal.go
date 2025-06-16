@@ -4,17 +4,19 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"slices"
+
+	"github.com/sreekar2307/queue/assignor"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/storage"
 	"github.com/sreekar2307/queue/util"
-	"slices"
 )
 
 type Equal struct {
 	metadata storage.MetadataStorage
 }
 
-func NewAssignor(metadata storage.MetadataStorage) *Equal {
+func NewAssignor(metadata storage.MetadataStorage) assignor.PartitionAssignor {
 	return &Equal{
 		metadata: metadata,
 	}

@@ -4,6 +4,7 @@ import (
 	stdErrors "errors"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -58,9 +59,9 @@ type (
 )
 
 var (
-	Conf *Config
-
-	once sync.Once
+	Conf    *Config
+	once    sync.Once
+	version = "0.1.25"
 )
 
 func init() {
@@ -121,4 +122,13 @@ func init() {
 			panic(fmt.Errorf("failed to unmarshal config: %w", err))
 		}
 	})
+}
+
+func (c *Config) PrintUsage() {
+	_, _ = fmt.Fprintf(os.Stderr, "Usage: [flags]\n")
+	pflag.PrintDefaults()
+}
+
+func (c *Config) PrintVersion() {
+	_, _ = fmt.Fprintf(os.Stderr, "Version: %s\n", version)
 }

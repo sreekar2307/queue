@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"os/signal"
 	"syscall"
 
@@ -17,6 +18,16 @@ func main() {
 	ctx := context.Background()
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGKILL, syscall.SIGTERM)
 	defer cancel()
+	if len(os.Args) >= 2 {
+		switch os.Args[1] {
+		case "version":
+			config.Conf.PrintVersion()
+			return
+		case "help":
+			config.Conf.PrintUsage()
+			return
+		}
+	}
 	queue, err := controller.NewQueue(ctx)
 	if err != nil {
 		log.Fatalf("failed to create queue: %v", err)

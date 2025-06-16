@@ -4,17 +4,19 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"slices"
+
+	"github.com/sreekar2307/queue/assignor"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/storage"
 	"github.com/sreekar2307/queue/util"
-	"slices"
 )
 
 type Sticky struct {
 	metadata storage.MetadataStorage
 }
 
-func NewAssignor(metadata storage.MetadataStorage) *Sticky {
+func NewAssignor(metadata storage.MetadataStorage) assignor.PartitionAssignor {
 	return &Sticky{
 		metadata: metadata,
 	}
