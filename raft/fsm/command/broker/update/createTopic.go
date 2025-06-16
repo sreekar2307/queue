@@ -3,9 +3,10 @@ package update
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"reflect"
 	"slices"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/sreekar2307/queue/raft/fsm/command"
 	cmdErrors "github.com/sreekar2307/queue/raft/fsm/command/errors"
@@ -25,7 +26,7 @@ type (
 	createTopicEncoderDecoder struct{}
 )
 
-var kind = pbCommandTypes.Kind_KIND_CREATE_TOPIC
+var kindCreateTopic = pbCommandTypes.Kind_KIND_CREATE_TOPIC
 
 func (c createTopicBuilder) NewUpdate(fsm command.BrokerFSM) command.Update {
 	return createTopic{
@@ -38,7 +39,7 @@ func (c createTopicBuilder) NewEncoderDecoder() command.EncoderDecoder {
 }
 
 func (c createTopicBuilder) Kind() pbCommandTypes.Kind {
-	return kind
+	return kindCreateTopic
 }
 
 func NewCreateTopicBuilder() command.UpdateBrokerBuilder {
@@ -50,17 +51,17 @@ type createTopic struct {
 }
 
 func (c createTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
-	ca, ok := arg.(pbBrokerCommandTypes.CreateTopicInputs)
+	ca, ok := arg.(*pbBrokerCommandTypes.CreateTopicInputs)
 	if !ok {
 		return nil, stdErrors.Join(cmdErrors.ErrInvalidCommandArgs,
 			fmt.Errorf("expected command.CreateTopicInputs, got %s", reflect.TypeOf(arg)))
 	}
-	args, err := proto.Marshal(&ca)
+	args, err := proto.Marshal(ca)
 	if err != nil {
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
 	cmd := pbCommandTypes.Cmd{
-		Cmd:  pbCommandTypes.Kind_KIND_CREATE_TOPIC,
+		Cmd:  kindCreateTopic,
 		Args: args,
 	}
 	return proto.Marshal(&cmd)

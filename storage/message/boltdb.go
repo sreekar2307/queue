@@ -6,14 +6,15 @@ import (
 	"encoding/binary"
 	stdErrors "errors"
 	"fmt"
-	"github.com/golang/protobuf/proto"
-	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"slices"
 	"sync"
+
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/storage/errors"

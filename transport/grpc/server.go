@@ -180,10 +180,10 @@ func (g *GRPC) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb
 		}
 		return nil, status.Errorf(codes.Internal, "create topic: %v", err)
 	}
-	md := metadata.Pairs(TopicMetadataKey, topic.Name)
+	md := metadata.Pairs(TopicMetadataKey, topic.Topic)
 	_ = grpc.SetTrailer(ctx, md)
 	return &pb.CreateTopicResponse{
-		Topic: topic.ToProtoBuf(),
+		Topic: topic,
 	}, nil
 }
 
@@ -201,8 +201,8 @@ func (g *GRPC) Connect(ctx context.Context, req *pb.ConnectRequest) (*pb.Connect
 		return nil, status.Errorf(codes.Internal, "connect consumer: %v", err)
 	}
 	return &pb.ConnectResponse{
-		Consumer:      consumer.ToProtoBuf(),
-		ConsumerGroup: group.ToProtoBuf(),
+		Consumer:      consumer,
+		ConsumerGroup: group,
 	}, nil
 }
 

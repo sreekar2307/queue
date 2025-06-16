@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "buf/validate/validate.proto";
+import "types/v1/types.proto";
+package raft.fsm.message.v1;
+
+
+message PollInputs {
+	string consumer_group_id = 1; 
+	string partition_id = 2;
+}
+
+message PollOutputs {
+	optional types.v1.Message message = 1;
+}

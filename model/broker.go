@@ -16,6 +16,7 @@ type Broker struct {
 	ReachHttpAddress string
 
 	mu              sync.RWMutex
+	StartMsgFSM     chan *Partition
 	partitionShards map[string]uint64
 }
 
@@ -53,14 +54,15 @@ func (b *Broker) NodeHost() *dragonboat.NodeHost {
 	return b.nh
 }
 
-func (b *Broker) AddShardIDForPartitionID(partitionID string, shardID uint64) {
+func (b *Broker) JoinShard(partition *Partition) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	if b.partitionShards == nil {
 		b.partitionShards = make(map[string]uint64)
 	}
-	b.partitionShards[partitionID] = shardID
+	b.partitionShards[partition.ID] = partition.ShardID
+	b.StartMsgFSM <- partition
 }
 
 func (b *Broker) ShardForPartition(partition string) (uint64, bool) {

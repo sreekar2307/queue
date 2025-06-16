@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+import "buf/validate/validate.proto";
+import "types/v1/types.proto";
+package raft.fsm.broker.v1;
+
+
+
+message PartitionsForTopicInputs {
+  string topic = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
+}
+
+message PartitionsForTopicOutputs {
+  repeated types.v1.Partition partitions = 1;
+}
+
+message PartitionIDForMessageInputs {
+  types.v1.Message message = 1;
+}
+
+message PartitionIDForMessageOutputs {
+  string partition_id = 1;
+}
+
+message AllPartitionsOutputs {
+  repeated types.v1.Partition partitions = 1;
+}
+
+message ConsumerForIDInputs {
+  string consumer_id = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
+}
+
+message ConsumerForIDOutputs {
+  types.v1.Consumer consumer = 1;
+}
+
+message ConsumersOutputs {
+  repeated types.v1.Consumer consumers = 1;
+}
+
+message ShardInfoForPartitionsInputs {
+  repeated types.v1.Partition partitions = 1;
+}
+
+message ShardInfoForPartitionsOutputs {
+  map<string, types.v1.ShardInfo> shard_info = 1;
+  repeated types.v1.Broker brokers = 2;
+}
+
+message BrokerForIDInputs {
+  uint64 broker_id = 1;
+}
+
+message BrokerForIDOutputs {
+  types.v1.Broker broker = 1;
+}

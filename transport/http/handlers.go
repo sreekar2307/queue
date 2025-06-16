@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"net/http"
 	"time"
 
@@ -63,8 +64,8 @@ type connectReqBody struct {
 }
 
 type connectRespBody struct {
-	Consumer      *model.Consumer      `json:"consumer"`
-	ConsumerGroup *model.ConsumerGroup `json:"consumerGroup"`
+	Consumer      *pbTypes.Consumer      `json:"consumer"`
+	ConsumerGroup *pbTypes.ConsumerGroup `json:"consumerGroup"`
 }
 
 func (h *Http) connect(w http.ResponseWriter, r *http.Request) {
@@ -167,22 +168,19 @@ func (h *Http) receiveMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "consumerID is required", http.StatusBadRequest)
 		return
 	}
+	if reqBody.PartitionID == "" {
+		http.Error(w, "partitionID is required", http.StatusBadRequest)
+		return
+	}
 	var (
 		message *model.Message
 		err     error
 	)
-	if reqBody.PartitionID != "" {
-		message, err = h.queue.ReceiveMessageForPartition(
-			ctx,
-			reqBody.ConsumerID,
-			reqBody.PartitionID,
-		)
-	} else {
-		message, err = h.queue.ReceiveMessage(
-			ctx,
-			reqBody.ConsumerID,
-		)
-	}
+	message, err = h.queue.ReceiveMessageForPartition(
+		ctx,
+		reqBody.ConsumerID,
+		reqBody.PartitionID,
+	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

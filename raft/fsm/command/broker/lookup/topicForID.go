@@ -3,10 +3,11 @@ package lookup
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/proto"
+	"reflect"
+
 	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"github.com/sreekar2307/queue/model"
-	"reflect"
+	"google.golang.org/protobuf/proto"
 
 	pbBrokerCommand "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
@@ -21,7 +22,7 @@ type (
 	topicForIDEncoderDecoder struct{}
 )
 
-var kind = pbCommandTypes.Kind_KIND_TOPIC_FOR_ID
+var kindTopicForID = pbCommandTypes.Kind_KIND_TOPIC_FOR_ID
 
 func (c topicForIDBuilder) NewLookup(fsm command.BrokerFSM) command.Lookup {
 	return topicForID{
@@ -34,7 +35,7 @@ func (c topicForIDBuilder) NewEncoderDecoder() command.EncoderDecoder {
 }
 
 func (c topicForIDBuilder) Kind() pbCommandTypes.Kind {
-	return kind
+	return kindTopicForID
 }
 
 func NewTopicForIDBuilder() command.LookupBrokerBuilder {
@@ -46,12 +47,12 @@ type topicForID struct {
 }
 
 func (c topicForIDEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
-	ca, ok := arg.(pbBrokerCommand.TopicForIDInputs)
+	ca, ok := arg.(*pbBrokerCommand.TopicForIDInputs)
 	if !ok {
 		return nil, stdErrors.Join(cmdErrors.ErrInvalidCommandArgs,
 			fmt.Errorf("expected command.TopicForIDInputs, got %s", reflect.TypeOf(arg)))
 	}
-	args, err := proto.Marshal(&ca)
+	args, err := proto.Marshal(ca)
 	if err != nil {
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}

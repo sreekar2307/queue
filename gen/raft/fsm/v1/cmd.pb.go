@@ -24,22 +24,70 @@ const (
 type Kind int32
 
 const (
-	Kind_KIND_UNSPECIFIED  Kind = 0
-	Kind_KIND_CREATE_TOPIC Kind = 1
-	Kind_KIND_TOPIC_FOR_ID Kind = 2
+	Kind_KIND_UNSPECIFIED               Kind = 0
+	Kind_KIND_CREATE_TOPIC              Kind = 1
+	Kind_KIND_TOPIC_FOR_ID              Kind = 2
+	Kind_KIND_CONNECT                   Kind = 3
+	Kind_KIND_DISCONNECT                Kind = 4
+	Kind_KIND_UPDATE_CONSUMER           Kind = 5
+	Kind_KIND_REGISTER_BROKER           Kind = 6
+	Kind_KIND_HEALTH_CHECK              Kind = 7
+	Kind_KIND_PARTITION_ADDED           Kind = 8
+	Kind_KIND_PARTITIONS_FOR_TOPIC      Kind = 9
+	Kind_KIND_PARTITION_ID_FOR_MESSAGE  Kind = 10
+	Kind_KIND_ALL_PARTITIONS            Kind = 11
+	Kind_KIND_CONSUMER_FOR_ID           Kind = 12
+	Kind_KIND_CONSUMERS                 Kind = 13
+	Kind_KIND_SHARD_INFO_FOR_PARTITIONS Kind = 14
+	Kind_KIND_BROKER_FOR_ID             Kind = 15
+	Kind_KIND_MESSAGE_ACK               Kind = 16
+	Kind_KIND_MESSAGE_APPEND            Kind = 17
+	Kind_KIND_MESSAGE_POLL              Kind = 18
 )
 
 // Enum value maps for Kind.
 var (
 	Kind_name = map[int32]string{
-		0: "KIND_UNSPECIFIED",
-		1: "KIND_CREATE_TOPIC",
-		2: "KIND_TOPIC_FOR_ID",
+		0:  "KIND_UNSPECIFIED",
+		1:  "KIND_CREATE_TOPIC",
+		2:  "KIND_TOPIC_FOR_ID",
+		3:  "KIND_CONNECT",
+		4:  "KIND_DISCONNECT",
+		5:  "KIND_UPDATE_CONSUMER",
+		6:  "KIND_REGISTER_BROKER",
+		7:  "KIND_HEALTH_CHECK",
+		8:  "KIND_PARTITION_ADDED",
+		9:  "KIND_PARTITIONS_FOR_TOPIC",
+		10: "KIND_PARTITION_ID_FOR_MESSAGE",
+		11: "KIND_ALL_PARTITIONS",
+		12: "KIND_CONSUMER_FOR_ID",
+		13: "KIND_CONSUMERS",
+		14: "KIND_SHARD_INFO_FOR_PARTITIONS",
+		15: "KIND_BROKER_FOR_ID",
+		16: "KIND_MESSAGE_ACK",
+		17: "KIND_MESSAGE_APPEND",
+		18: "KIND_MESSAGE_POLL",
 	}
 	Kind_value = map[string]int32{
-		"KIND_UNSPECIFIED":  0,
-		"KIND_CREATE_TOPIC": 1,
-		"KIND_TOPIC_FOR_ID": 2,
+		"KIND_UNSPECIFIED":               0,
+		"KIND_CREATE_TOPIC":              1,
+		"KIND_TOPIC_FOR_ID":              2,
+		"KIND_CONNECT":                   3,
+		"KIND_DISCONNECT":                4,
+		"KIND_UPDATE_CONSUMER":           5,
+		"KIND_REGISTER_BROKER":           6,
+		"KIND_HEALTH_CHECK":              7,
+		"KIND_PARTITION_ADDED":           8,
+		"KIND_PARTITIONS_FOR_TOPIC":      9,
+		"KIND_PARTITION_ID_FOR_MESSAGE":  10,
+		"KIND_ALL_PARTITIONS":            11,
+		"KIND_CONSUMER_FOR_ID":           12,
+		"KIND_CONSUMERS":                 13,
+		"KIND_SHARD_INFO_FOR_PARTITIONS": 14,
+		"KIND_BROKER_FOR_ID":             15,
+		"KIND_MESSAGE_ACK":               16,
+		"KIND_MESSAGE_APPEND":            17,
+		"KIND_MESSAGE_POLL":              18,
 	}
 )
 
@@ -129,11 +177,28 @@ const file_raft_fsm_v1_cmd_proto_rawDesc = "" +
 	"\x15raft/fsm/v1/cmd.proto\x12\vraft.fsm.v1\">\n" +
 	"\x03Cmd\x12#\n" +
 	"\x03cmd\x18\x01 \x01(\x0e2\x11.raft.fsm.v1.KindR\x03cmd\x12\x12\n" +
-	"\x04args\x18\x02 \x01(\fR\x04args*J\n" +
+	"\x04args\x18\x02 \x01(\fR\x04args*\xe1\x03\n" +
 	"\x04Kind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11KIND_CREATE_TOPIC\x10\x01\x12\x15\n" +
-	"\x11KIND_TOPIC_FOR_ID\x10\x02B\x9d\x01\n" +
+	"\x11KIND_TOPIC_FOR_ID\x10\x02\x12\x10\n" +
+	"\fKIND_CONNECT\x10\x03\x12\x13\n" +
+	"\x0fKIND_DISCONNECT\x10\x04\x12\x18\n" +
+	"\x14KIND_UPDATE_CONSUMER\x10\x05\x12\x18\n" +
+	"\x14KIND_REGISTER_BROKER\x10\x06\x12\x15\n" +
+	"\x11KIND_HEALTH_CHECK\x10\a\x12\x18\n" +
+	"\x14KIND_PARTITION_ADDED\x10\b\x12\x1d\n" +
+	"\x19KIND_PARTITIONS_FOR_TOPIC\x10\t\x12!\n" +
+	"\x1dKIND_PARTITION_ID_FOR_MESSAGE\x10\n" +
+	"\x12\x17\n" +
+	"\x13KIND_ALL_PARTITIONS\x10\v\x12\x18\n" +
+	"\x14KIND_CONSUMER_FOR_ID\x10\f\x12\x12\n" +
+	"\x0eKIND_CONSUMERS\x10\r\x12\"\n" +
+	"\x1eKIND_SHARD_INFO_FOR_PARTITIONS\x10\x0e\x12\x16\n" +
+	"\x12KIND_BROKER_FOR_ID\x10\x0f\x12\x14\n" +
+	"\x10KIND_MESSAGE_ACK\x10\x10\x12\x17\n" +
+	"\x13KIND_MESSAGE_APPEND\x10\x11\x12\x15\n" +
+	"\x11KIND_MESSAGE_POLL\x10\x12B\x9d\x01\n" +
 	"\x0fcom.raft.fsm.v1B\bCmdProtoP\x01Z2github.com/sreekar2307/queue/gen/raft/fsm/v1;fsmv1\xa2\x02\x03RFX\xaa\x02\vRaft.Fsm.V1\xca\x02\vRaft\\Fsm\\V1\xe2\x02\x17Raft\\Fsm\\V1\\GPBMetadata\xea\x02\rRaft::Fsm::V1b\x06proto3"
 
 var (

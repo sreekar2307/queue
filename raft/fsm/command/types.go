@@ -7,18 +7,18 @@ import (
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service"
+	"github.com/sreekar2307/queue/storage"
 )
 
 type (
-	Kind string
-	Cmd  struct {
-		CommandType Kind
-		Args        [][]byte
-	}
-
 	Builder interface {
 		Kind() pbCommandTypes.Kind
 		NewEncoderDecoder() EncoderDecoder
+	}
+
+	EncoderDecoder interface {
+		EncodeArgs(context.Context, any) ([]byte, error)
+		DecodeResults(context.Context, []byte) (any, error)
 	}
 
 	UpdateMessageBuilder interface {
@@ -30,17 +30,8 @@ type (
 		NewUpdate(BrokerFSM) Update
 	}
 
-	EncoderDecoder interface {
-		EncodeArgs(context.Context, any) ([]byte, error)
-		DecodeResults(context.Context, []byte) (any, error)
-	}
-
 	Update interface {
 		ExecuteUpdate(context.Context, []byte, statemachine.Entry) (statemachine.Entry, error)
-	}
-
-	Lookup interface {
-		Lookup(context.Context, []byte) ([]byte, error)
 	}
 
 	LookupBrokerBuilder interface {
@@ -53,11 +44,16 @@ type (
 		NewLookup(fsm MessageFSM) Lookup
 	}
 
+	Lookup interface {
+		Lookup(context.Context, []byte) ([]byte, error)
+	}
+
 	BrokerFSM interface {
 		TopicService() service.TopicService
 		BrokerService() service.BrokerService
 		ConsumerService() service.ConsumerService
 		Broker() *model.Broker
+		MdStorage() storage.MetadataStorage
 	}
 
 	MessageFSM interface {

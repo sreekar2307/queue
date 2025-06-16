@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Consumer struct {
@@ -23,16 +24,20 @@ func (c *Consumer) ToProtoBuf() *pbTypes.Consumer {
 		ConsumerGroup: c.ConsumerGroup,
 		Topics:        c.Topics,
 		IsActive:      c.IsActive,
+		LastHealthCheckAt: &timestamppb.Timestamp{
+			Seconds: c.LastHealthCheckAt,
+		},
 	}
 }
 
 func FromProtoBufConsumer(pbConsumer *pbTypes.Consumer) *Consumer {
 	return &Consumer{
-		ID:            pbConsumer.Id,
-		Partitions:    pbConsumer.Partitions,
-		ConsumerGroup: pbConsumer.ConsumerGroup,
-		Topics:        pbConsumer.Topics,
-		IsActive:      pbConsumer.IsActive,
+		ID:                pbConsumer.Id,
+		Partitions:        pbConsumer.Partitions,
+		ConsumerGroup:     pbConsumer.ConsumerGroup,
+		Topics:            pbConsumer.Topics,
+		IsActive:          pbConsumer.IsActive,
+		LastHealthCheckAt: pbConsumer.LastHealthCheckAt.GetSeconds(),
 	}
 }
 

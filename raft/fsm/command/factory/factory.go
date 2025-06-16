@@ -1,11 +1,14 @@
 package factory
 
 import (
+	"sync"
+
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	"github.com/sreekar2307/queue/raft/fsm/command"
-	"github.com/sreekar2307/queue/raft/fsm/command/broker/lookup"
-	"github.com/sreekar2307/queue/raft/fsm/command/broker/update"
-	"sync"
+	brokerLookup "github.com/sreekar2307/queue/raft/fsm/command/broker/lookup"
+	brokerUpdate "github.com/sreekar2307/queue/raft/fsm/command/broker/update"
+	messageLookup "github.com/sreekar2307/queue/raft/fsm/command/message/lookup"
+	messageUpdate "github.com/sreekar2307/queue/raft/fsm/command/message/update"
 )
 
 var mu sync.RWMutex
@@ -19,8 +22,27 @@ type factory struct {
 }
 
 func init() {
-	RegisterBrokerUpdateBuilder(update.NewCreateTopicBuilder())
-	RegisterBrokerLookupBuilder(lookup.NewTopicForIDBuilder())
+	RegisterBrokerUpdateBuilder(brokerUpdate.NewCreateTopicBuilder())
+	RegisterBrokerUpdateBuilder(brokerUpdate.NewDisconnectBuilder())
+	RegisterBrokerUpdateBuilder(brokerUpdate.NewConnectBuilder())
+	RegisterBrokerUpdateBuilder(brokerUpdate.NewRegisterBrokerBuilder())
+	RegisterBrokerUpdateBuilder(brokerUpdate.NewUpdateConsumerBuilder())
+	RegisterBrokerUpdateBuilder(brokerUpdate.NewHealthCheckBuilder())
+	RegisterBrokerUpdateBuilder(brokerUpdate.NewPartitionAddedBuilder())
+
+	RegisterBrokerLookupBuilder(brokerLookup.NewAllPartitionsBuilder())
+	RegisterBrokerLookupBuilder(brokerLookup.NewBrokerForIDBuilder())
+	RegisterBrokerLookupBuilder(brokerLookup.NewConsumersBuilder())
+	RegisterBrokerLookupBuilder(brokerLookup.NewConsumerForIDBuilder())
+	RegisterBrokerLookupBuilder(brokerLookup.NewPartitionIDForMessageBuilder())
+	RegisterBrokerLookupBuilder(brokerLookup.NewPartitionsForTopicBuilder())
+	RegisterBrokerLookupBuilder(brokerLookup.NewShardInfoForPartitionsBuilder())
+	RegisterBrokerLookupBuilder(brokerLookup.NewTopicForIDBuilder())
+
+	RegisterMessageUpdateBuilder(messageUpdate.NewAckBuilder())
+	RegisterMessageUpdateBuilder(messageUpdate.NewAppendBuilder())
+
+	RegisterMessageLookupBuilder(messageLookup.NewPollBuilder())
 }
 
 var defaultFactory = &factory{
@@ -37,22 +59,42 @@ func RegisterBrokerUpdateBuilder(cmd command.UpdateBrokerBuilder) {
 	defaultFactory.RegisterBrokerUpdateBuilder(cmd)
 }
 
+func RegisterMessageUpdateBuilder(cmd command.UpdateMessageBuilder) {
+	mu.Lock()
+	defer mu.Unlock()
+	defaultFactory.RegisterMessageUpdateBuilder(cmd)
+}
+
 func RegisterBrokerLookupBuilder(cmd command.LookupBrokerBuilder) {
 	mu.Lock()
 	defer mu.Unlock()
 	defaultFactory.RegisterBrokerLookupBuilder(cmd)
 }
 
+func RegisterMessageLookupBuilder(cmd command.LookupMessageBuilder) {
+	mu.Lock()
+	defer mu.Unlock()
+	defaultFactory.RegisterMessageLookupBuilder(cmd)
+}
+
 func BrokerExecuteUpdate(k pbCommandTypes.Kind, fsm command.BrokerFSM) (command.Update, error) {
 	return defaultFactory.BrokerExecuteUpdate(k, fsm)
 }
 
-func BrokerEncoderDecoder(k pbCommandTypes.Kind) (command.EncoderDecoder, error) {
-	return defaultFactory.BrokerEncoderDecoder(k)
+func MessageExecuteUpdate(k pbCommandTypes.Kind, fsm command.MessageFSM) (command.Update, error) {
+	return defaultFactory.MessageExecuteUpdate(k, fsm)
+}
+
+func EncoderDecoder(k pbCommandTypes.Kind) (command.EncoderDecoder, error) {
+	return defaultFactory.EncoderDecoder(k)
 }
 
 func BrokerLookup(k pbCommandTypes.Kind, fsm command.BrokerFSM) (command.Lookup, error) {
 	return defaultFactory.BrokerLookup(k, fsm)
+}
+
+func MessageLookup(k pbCommandTypes.Kind, fsm command.MessageFSM) (command.Lookup, error) {
+	return defaultFactory.MessageLookup(k, fsm)
 }
 
 func (f *factory) RegisterBrokerUpdateBuilder(cmd command.UpdateBrokerBuilder) {
@@ -80,7 +122,7 @@ func (f *factory) BrokerExecuteUpdate(k pbCommandTypes.Kind, fsm command.BrokerF
 	return cmdBrokerBuilder.NewUpdate(fsm), nil
 }
 
-func (f *factory) BrokerEncoderDecoder(k pbCommandTypes.Kind) (command.EncoderDecoder, error) {
+func (f *factory) EncoderDecoder(k pbCommandTypes.Kind) (command.EncoderDecoder, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f.builders == nil {
@@ -108,6 +150,48 @@ func (f *factory) BrokerLookup(k pbCommandTypes.Kind, fsm command.BrokerFSM) (co
 		return nil, ErrCommandNotFound
 	}
 	cmdBrokerBuilder, ok := cmdBuilder.(command.LookupBrokerBuilder)
+	if !ok {
+		return nil, ErrCommandNotFound
+	}
+	return cmdBrokerBuilder.NewLookup(fsm), nil
+}
+
+func (f *factory) RegisterMessageUpdateBuilder(cmd command.UpdateMessageBuilder) {
+	f.messageUpdates[cmd.Kind()] = cmd
+	f.builders[cmd.Kind()] = cmd
+}
+
+func (f *factory) RegisterMessageLookupBuilder(cmd command.LookupMessageBuilder) {
+	f.messageLookups[cmd.Kind()] = cmd
+	f.builders[cmd.Kind()] = cmd
+}
+
+func (f *factory) MessageExecuteUpdate(k pbCommandTypes.Kind, fsm command.MessageFSM) (command.Update, error) {
+	if f.messageUpdates == nil {
+		return nil, ErrNoCommandsRegistered
+	}
+	cmdBuilder, ok := f.messageUpdates[k]
+	if !ok {
+		return nil, ErrCommandNotFound
+	}
+	cmdBrokerBuilder, ok := cmdBuilder.(command.UpdateMessageBuilder)
+	if !ok {
+		return nil, ErrCommandNotFound
+	}
+	return cmdBrokerBuilder.NewUpdate(fsm), nil
+}
+
+func (f *factory) MessageLookup(k pbCommandTypes.Kind, fsm command.MessageFSM) (command.Lookup, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+	if f.messageLookups == nil {
+		return nil, ErrNoCommandsRegistered
+	}
+	cmdBuilder, ok := f.messageLookups[k]
+	if !ok {
+		return nil, ErrCommandNotFound
+	}
+	cmdBrokerBuilder, ok := cmdBuilder.(command.LookupMessageBuilder)
 	if !ok {
 		return nil, ErrCommandNotFound
 	}

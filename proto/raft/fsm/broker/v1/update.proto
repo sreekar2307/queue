@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+import "buf/validate/validate.proto";
+import "types/v1/types.proto";
+import "google/protobuf/timestamp.proto";
+package raft.fsm.broker.v1;
+
+
+message CreateTopicInputs {
+  string topic = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
+  uint64 num_of_partitions = 2 [
+      (buf.validate.field).uint64.gt = 0,
+      (buf.validate.field).uint64.lt = 100
+  ];
+  uint64 shard_offset = 3 [
+      (buf.validate.field).uint64.gt = 0
+  ];
+}
+
+message CreateTopicOutputs {
+  types.v1.Topic topic =1;
+  bool is_created = 2;
+}
+
+message TopicForIDInputs {
+  string topic = 1 [
+      (buf.validate.field).string.min_len = 1,
+      (buf.validate.field).string.max_len = 50
+  ];
+}
+
+message ConnectInputs {
+    string consumer_group_id = 1 [
+        (buf.validate.field).string.min_len = 1,
+        (buf.validate.field).string.max_len = 50
+    ];
+    string consumer_id = 2 [
+        (buf.validate.field).string.min_len = 1,
+        (buf.validate.field).string.max_len = 50
+    ];
+    repeated string topics = 3 [
+        (buf.validate.field).repeated.min_items = 1,
+        (buf.validate.field).repeated.max_items = 10
+    ];
+}
+
+message ConnectOutputs {
+    types.v1.Consumer consumer = 1;
+    types.v1.ConsumerGroup consumer_group = 2;
+    bool topics_not_found = 3;
+}
+
+message DisconnectInputs {
+    string consumer_id = 1 [
+        (buf.validate.field).string.min_len = 1,
+        (buf.validate.field).string.max_len = 50
+    ];
+}
+
+
+message HealthCheckInputs {
+    string consumer_id = 1 [
+        (buf.validate.field).string.min_len = 1,
+        (buf.validate.field).string.max_len = 50
+    ];
+      google.protobuf.Timestamp ping_at = 2 [(buf.validate.field).cel = {
+         id: "ping_at.less_than_and_equal_to_now"
+         message: "Ping at must be less than or equal to now"
+         expression: "this <= now" 
+      }];
+}
+
+message HealthCheckOutputs {
+    types.v1.Consumer consumer = 1;
+}
+
+message UpdateConsumerInputs {
+    types.v1.Consumer consumer = 1;
+}
+
+message UpdateConsumerOutputs {
+    types.v1.Consumer consumer = 1;
+}
+
+message RegisterBrokerInputs {
+    types.v1.Broker broker = 1;
+}
+
+message PartitionAdddedInputs {
+    string partition_id = 1;
+    uint64 shard_id = 2;
+    map<uint64, string> members = 3;
+}

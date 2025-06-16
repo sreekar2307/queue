@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/golang/protobuf/proto"
-	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"io"
 	"os"
 	"path/filepath"
+
+	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/storage"
@@ -66,7 +67,7 @@ func (b *Bolt) GetBroker(
 	_ context.Context,
 	brokerID uint64,
 ) (*model.Broker, error) {
-	var broker = new(model.Broker)
+	broker := new(model.Broker)
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(brokersBucketKey))
 		if bucket == nil {
@@ -101,7 +102,7 @@ func (b *Bolt) GetBrokers(_ context.Context, brokerIDs map[uint64]bool) ([]*mode
 		}
 		cursor := bucket.Cursor()
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			var broker = new(model.Broker)
+			broker := new(model.Broker)
 			var pbBroker pbTypes.Broker
 			if err := proto.Unmarshal(v, &pbBroker); err != nil {
 				return fmt.Errorf("failed to unmarshal broker: %w", err)
@@ -239,7 +240,7 @@ func (b *Bolt) CreateTopicInTx(_ context.Context, tx storage.Transaction, topic 
 }
 
 func (b *Bolt) Topic(ctx context.Context, s string) (*model.Topic, error) {
-	var topic = new(model.Topic)
+	topic := new(model.Topic)
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(topicsBucketKey))
 		if bucket == nil {
@@ -386,7 +387,7 @@ func (b *Bolt) CreatePartitionsInTx(
 }
 
 func (b *Bolt) Partition(_ context.Context, s string) (*model.Partition, error) {
-	var partition = new(model.Partition)
+	partition := new(model.Partition)
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(partitionsBucketKey))
 		if bucket == nil {

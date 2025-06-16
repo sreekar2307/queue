@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "types/v1/types.proto";
+package raft.fsm.message.v1;
+
+
+
+message AppendInputs {
+	types.v1.Message message =1;
+} 
+
+
+message AppendOutputs {
+	types.v1.Message message = 1;
+}
+
+
+message AckInputs {
+	string consumer_group_id = 1; 
+	types.v1.Message message = 2;
+}

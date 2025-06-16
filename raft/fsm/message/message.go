@@ -2,65 +2,57 @@ package message
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/lni/dragonboat/v4/statemachine"
-	"github.com/sreekar2307/queue/config"
+	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	"github.com/sreekar2307/queue/model"
-	"github.com/sreekar2307/queue/raft/fsm/command"
+	"github.com/sreekar2307/queue/raft/fsm/command/factory"
 	"github.com/sreekar2307/queue/service"
-	messageServ "github.com/sreekar2307/queue/service/message"
-	"github.com/sreekar2307/queue/storage"
-	messageStorage "github.com/sreekar2307/queue/storage/message"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"log"
-	"path/filepath"
-	"slices"
-	"strconv"
 )
 
-type fsm struct {
+type FSM struct {
 	shardID        uint64
 	replicaID      uint64
 	messageService service.MessageService
 	broker         *model.Broker
 }
 
-func NewMessageFSM(
-	shardID, replicaID uint64,
-	broker *model.Broker,
-	mdStorage storage.MetadataStorage,
-) statemachine.IOnDiskStateMachine {
-	partitionsStorePath := filepath.Join(
-		config.Conf.PartitionsPath,
-		strconv.Itoa(int(shardID)),
-		strconv.Itoa(int(replicaID)),
-	)
-	return &fsm{
-		messageService: messageServ.NewDefaultMessageService(
-			messageStorage.NewBolt(
-				partitionsStorePath,
-			),
-			mdStorage,
-			partitionsStorePath,
-			broker,
-		),
-		broker:    broker,
-		shardID:   shardID,
-		replicaID: replicaID,
-	}
+func (f *FSM) ShardID() uint64 {
+	return f.shardID
 }
 
-func (f fsm) MessageService() service.MessageService {
+func (f *FSM) SetShardID(shardID uint64) {
+	f.shardID = shardID
+}
+
+func (f *FSM) ReplicaID() uint64 {
+	return f.replicaID
+}
+
+func (f *FSM) SetReplicaID(replicaID uint64) {
+	f.replicaID = replicaID
+}
+
+func (f *FSM) SetMessageService(messageService service.MessageService) {
+	f.messageService = messageService
+}
+
+func (f *FSM) SetBroker(broker *model.Broker) {
+	f.broker = broker
+}
+
+func (f *FSM) MessageService() service.MessageService {
 	return f.messageService
 }
 
-func (f fsm) Broker() *model.Broker {
+func (f *FSM) Broker() *model.Broker {
 	return f.broker
 }
 
-func (f fsm) Open(_ <-chan struct{}) (uint64, error) {
+func (f *FSM) Open(_ <-chan struct{}) (uint64, error) {
 	ctx := context.Background()
 	if err := f.messageService.Open(ctx); err != nil {
 		return 0, fmt.Errorf("open message service: %w", err)
@@ -72,131 +64,56 @@ func (f fsm) Open(_ <-chan struct{}) (uint64, error) {
 	return commandID, nil
 }
 
-func (f fsm) Update(entries []statemachine.Entry) (results []statemachine.Entry, _ error) {
+func (f *FSM) Update(entries []statemachine.Entry) (results []statemachine.Entry, _ error) {
 	ctx := context.Background()
 	for _, entry := range entries {
-		var cmd command.Cmd
-		if err := json.Unmarshal(entry.Cmd, &cmd); err != nil {
+		var cmd pbCommandTypes.Cmd
+		if err := proto.Unmarshal(entry.Cmd, &cmd); err != nil {
 			return nil, fmt.Errorf("unmarshing cmd: %w", err)
 		}
-		log.Println("Processing command", cmd.CommandType, "with args", cmd.Args,
-			"at index", entry.Index, "for message fsm")
-		if cmd.CommandType == command.MessageCommands.Append {
-			args := cmd.Args
-			if len(args) != 1 {
-				return nil, fmt.Errorf("invalid command args")
-			}
-			var msg model.Message
-			if err := json.Unmarshal(args[0], &msg); err != nil {
-				return nil, fmt.Errorf("unmarshing message: %w", err)
-			}
-			err := f.messageService.AppendMessage(ctx, entry.Index, &msg)
-			if err != nil {
-				if errors.Is(err, messageServ.ErrDuplicateCommand) {
-					results = append(results, statemachine.Entry{
-						Index: entry.Index,
-						Cmd:   slices.Clone(entry.Cmd),
-						Result: statemachine.Result{
-							Value: entry.Index,
-						},
-					})
-					continue
-				}
-				return nil, fmt.Errorf("append msg: %w", err)
-			}
-
-			msgBytes, err := json.Marshal(msg)
-			if err != nil {
-				return nil, fmt.Errorf("marshal msg: %w", err)
-			}
-			results = append(results, statemachine.Entry{
-				Index: entry.Index,
-				Cmd:   slices.Clone(entry.Cmd),
-				Result: statemachine.Result{
-					Value: entry.Index,
-					Data:  msgBytes,
-				},
-			})
-		} else if cmd.CommandType == command.MessageCommands.Ack {
-			args := cmd.Args
-			if len(args) != 2 {
-				return nil, fmt.Errorf("invalid command args")
-			}
-			var msg model.Message
-			if err := json.Unmarshal(args[1], &msg); err != nil {
-				return nil, fmt.Errorf("unmarshing message: %w", err)
-			}
-			err := f.messageService.AckMessage(ctx, entry.Index, string(args[0]), &msg)
-			if err != nil {
-				if errors.Is(err, messageServ.ErrDuplicateCommand) {
-					results = append(results, statemachine.Entry{
-						Index: entry.Index,
-						Cmd:   slices.Clone(entry.Cmd),
-						Result: statemachine.Result{
-							Value: entry.Index,
-						},
-					})
-					continue
-				}
-				return nil, fmt.Errorf("append msg: %w", err)
-			}
-			log.Println("acknowledging message", msg.ID, " to consumer group", string(args[0]),
-				" of partition ", msg.PartitionID)
-			results = append(results, statemachine.Entry{
-				Index: entry.Index,
-				Cmd:   slices.Clone(entry.Cmd),
-				Result: statemachine.Result{
-					Value: entry.Index,
-				},
-			})
-		} else {
-			return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
+		log.Println("Processing command", cmd.Cmd, "with args", cmd.Args,
+			"at index", entry.Index, "for broker fsm")
+		updator, err := factory.MessageExecuteUpdate(cmd.Cmd, f)
+		if err != nil {
+			return nil, fmt.Errorf("get update for command %s: %w", cmd.Cmd, err)
 		}
+		resEntry, err := updator.ExecuteUpdate(ctx, cmd.Args, entry)
+		if err != nil {
+			return nil, fmt.Errorf("execute update for command %s: %w", cmd.Cmd, err)
+		}
+		results = append(results, resEntry)
 	}
 	return results, nil
 }
 
-func (f fsm) Lookup(i any) (any, error) {
+func (f *FSM) Lookup(i any) (any, error) {
 	var (
-		cmd command.Cmd
+		cmd pbCommandTypes.Cmd
 		ctx = context.Background()
 	)
-	if err := json.Unmarshal(i.([]byte), &cmd); err != nil {
+	if err := proto.Unmarshal(i.([]byte), &cmd); err != nil {
 		return nil, fmt.Errorf("unmarshing cmd: %w", err)
 	}
-	if cmd.CommandType == command.MessageCommands.Poll {
-		args := cmd.Args
-		if len(args) != 2 {
-			return nil, fmt.Errorf("invalid command args")
-		}
-		msg, err := f.messageService.Poll(ctx, string(args[0]), string(args[1]))
-		if err != nil {
-			if errors.Is(err, messageServ.ErrNoNewMessages) {
-				log.Println("no messages for consumer group",
-					string(args[0]), " and partition ", string(args[1]))
-				return nil, nil
-			}
-			return nil, fmt.Errorf("get topic: %w", err)
-		}
-		log.Println("sending message", msg.ID, " to consumer group", string(args[0]), " of partition ", string(args[1]))
-		msgBytes, err := json.Marshal(msg)
-		if err != nil {
-			return nil, fmt.Errorf("marshal message: %w", err)
-		}
-		return msgBytes, nil
+	lookup, err := factory.MessageLookup(cmd.Cmd, f)
+	if err != nil {
+		return nil, fmt.Errorf("get lookup for command %s: %w", cmd.Cmd, err)
 	}
-	return nil, fmt.Errorf("invalid command type: %s", cmd.CommandType)
+	resEntry, err := lookup.Lookup(ctx, cmd.Args)
+	if err != nil {
+		return nil, fmt.Errorf("execute lookup for command %s: %w", cmd.Cmd, err)
+	}
+	return resEntry, nil
 }
 
-func (f fsm) Sync() error {
+func (f *FSM) Sync() error {
 	return nil
 }
 
-func (f fsm) PrepareSnapshot() (any, error) {
+func (f *FSM) PrepareSnapshot() (any, error) {
 	return nil, nil
 }
 
-func (f fsm) SaveSnapshot(_ any, writer io.Writer, i2 <-chan struct{}) error {
+func (f *FSM) SaveSnapshot(_ any, writer io.Writer, i2 <-chan struct{}) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan struct{})
@@ -213,7 +130,7 @@ func (f fsm) SaveSnapshot(_ any, writer io.Writer, i2 <-chan struct{}) error {
 	return err
 }
 
-func (f fsm) RecoverFromSnapshot(reader io.Reader, i <-chan struct{}) error {
+func (f *FSM) RecoverFromSnapshot(reader io.Reader, i <-chan struct{}) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan struct{})
@@ -230,7 +147,7 @@ func (f fsm) RecoverFromSnapshot(reader io.Reader, i <-chan struct{}) error {
 	return err
 }
 
-func (f fsm) Close() error {
+func (f *FSM) Close() error {
 	ctx := context.Background()
 	if err := f.messageService.Close(ctx); err != nil {
 		return fmt.Errorf("close message service: %w", err)

@@ -42,9 +42,7 @@ func NewDefaultMessageService(
 }
 
 var (
-	ErrNoNewMessages       = errors.New("no new messages")
 	ErrRebalanceInProgress = errors.New("rebalance in progress")
-	ErrDuplicateCommand    = errors.New("duplicate command")
 )
 
 func (d *messageService) LastAppliedCommandID(ctx context.Context, shardID uint64) (uint64, error) {
@@ -76,7 +74,7 @@ func (d *messageService) AppendMessage(ctx context.Context, commandID uint64, me
 	message.ID = msgID
 	if err := d.messageStorage.AppendMessage(ctx, commandID, message); err != nil {
 		if errors.Is(err, storageErrors.ErrDuplicateCommand) {
-			return errors.Join(err, ErrDuplicateCommand)
+			return storageErrors.ErrDuplicateCommand
 		}
 		return fmt.Errorf("failed to append message: %w", err)
 	}
@@ -110,7 +108,7 @@ func (d *messageService) Poll(
 	msgId, err := d.messageStorage.NextUnAckedMessageID(ctx, selectedPartition, consumerGroup)
 	if err != nil {
 		if errors.Is(err, storageErrors.ErrNoMessageFound) {
-			return nil, errors.Join(err, ErrNoNewMessages)
+			return nil, storageErrors.ErrNoMessageFound
 		}
 		return nil, fmt.Errorf("failed to get next message ID: %w", err)
 	}
@@ -138,7 +136,7 @@ func (d *messageService) AckMessage(
 	err = d.messageStorage.AckMessage(ctx, commandID, message, consumerGroup)
 	if err != nil {
 		if errors.Is(err, storageErrors.ErrDuplicateCommand) {
-			return errors.Join(err, ErrDuplicateCommand)
+			return storageErrors.ErrDuplicateCommand
 		}
 		return fmt.Errorf("failed to ack message: %w", err)
 	}
