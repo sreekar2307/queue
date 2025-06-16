@@ -18,7 +18,7 @@ message Consumer {
   string consumer_group = 3;
   repeated string topics = 4;
   bool is_active = 5;
-  google.protobuf.Timestamp LastHealthCheckAt = 6;
+  google.protobuf.Timestamp last_health_check_at = 6;
 }
 
 message ConsumerGroup {

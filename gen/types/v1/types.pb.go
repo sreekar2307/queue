@@ -146,7 +146,7 @@ type Consumer struct {
 	ConsumerGroup     string                 `protobuf:"bytes,3,opt,name=consumer_group,json=consumerGroup,proto3" json:"consumer_group,omitempty"`
 	Topics            []string               `protobuf:"bytes,4,rep,name=topics,proto3" json:"topics,omitempty"`
 	IsActive          bool                   `protobuf:"varint,5,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	LastHealthCheckAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=LastHealthCheckAt,proto3" json:"LastHealthCheckAt,omitempty"`
+	LastHealthCheckAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_health_check_at,json=lastHealthCheckAt,proto3" json:"last_health_check_at,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -564,7 +564,7 @@ const file_types_v1_types_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12!\n" +
 	"\fraft_address\x18\x02 \x01(\tR\vraftAddress\x12,\n" +
 	"\x12reach_grpc_address\x18\x03 \x01(\tR\x10reachGrpcAddress\x12,\n" +
-	"\x12reach_http_address\x18\x04 \x01(\tR\x10reachHttpAddress\"\xe0\x01\n" +
+	"\x12reach_http_address\x18\x04 \x01(\tR\x10reachHttpAddress\"\xe3\x01\n" +
 	"\bConsumer\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\n" +
@@ -572,8 +572,8 @@ const file_types_v1_types_proto_rawDesc = "" +
 	"partitions\x12%\n" +
 	"\x0econsumer_group\x18\x03 \x01(\tR\rconsumerGroup\x12\x16\n" +
 	"\x06topics\x18\x04 \x03(\tR\x06topics\x12\x1b\n" +
-	"\tis_active\x18\x05 \x01(\bR\bisActive\x12H\n" +
-	"\x11LastHealthCheckAt\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x11LastHealthCheckAt\"U\n" +
+	"\tis_active\x18\x05 \x01(\bR\bisActive\x12K\n" +
+	"\x14last_health_check_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x11lastHealthCheckAt\"U\n" +
 	"\rConsumerGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tconsumers\x18\x02 \x03(\tR\tconsumers\x12\x16\n" +
@@ -636,7 +636,7 @@ var file_types_v1_types_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
 }
 var file_types_v1_types_proto_depIdxs = []int32{
-	9, // 0: types.v1.Consumer.LastHealthCheckAt:type_name -> google.protobuf.Timestamp
+	9, // 0: types.v1.Consumer.last_health_check_at:type_name -> google.protobuf.Timestamp
 	8, // 1: types.v1.Partition.members:type_name -> types.v1.Partition.MembersEntry
 	0, // 2: types.v1.ShardInfo.shard_type:type_name -> types.v1.ShardType
 	1, // 3: types.v1.ShardInfo.brokers:type_name -> types.v1.Broker
