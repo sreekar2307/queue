@@ -301,7 +301,7 @@ func (q *Queue) SendMessage(
 	msg.PartitionID = partitionID
 	shardID, ok := q.broker.ShardForPartition(partitionID)
 	if !ok {
-		return nil, fmt.Errorf("failed to get shardID for partition: %w", err)
+		return nil, fmt.Errorf("failed to get shardID for partition: %s", partitionID)
 	}
 	if partition.ShardID != shardID {
 		return nil, fmt.Errorf("shardID mismatch: %d != %d", partition.ShardID, shardID)

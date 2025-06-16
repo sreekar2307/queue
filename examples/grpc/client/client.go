@@ -2,6 +2,7 @@ package main
 
 import (
 	pb "buf.build/gen/go/sreekar2307/queue/protocolbuffers/go/queue/v1"
+	pbTypes "buf.build/gen/go/sreekar2307/queue/protocolbuffers/go/types/v1"
 	"context"
 	"fmt"
 	"github.com/sreekar2307/queue/util"
@@ -23,7 +24,7 @@ type Client struct {
 	initialBrokerAddr string
 	brokerProxyClient queuev1grpc.QueueServiceClient
 	brokerProxyConn   *grpc.ClientConn
-	consumer          *pb.Consumer
+	consumer          *pbTypes.Consumer
 }
 
 func NewClient(_ context.Context, initialBrokerAddr string) (*Client, error) {
@@ -141,16 +142,15 @@ label:
 			if err != nil {
 				return err
 			}
-			log.Println(string(recvRes.GetData()), recvRes.PartitionId, recvRes.MessageId)
-			if recvRes.MessageId != nil {
-				// Ack the message
+			if recvRes.Message != nil {
+				log.Println(string(recvRes.Message.GetData()), recvRes.Message.PartitionId, recvRes.Message.Id)
 				ackReq := &pb.AckMessageRequest{
 					ConsumerId:  "node-1",
-					PartitionId: recvRes.PartitionId,
-					MessageId:   recvRes.MessageId,
+					PartitionId: recvRes.Message.PartitionId,
+					MessageId:   recvRes.Message.Id,
 				}
 				ctx, cancel = context.WithTimeout(pCtx, 10*time.Second)
-				ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("partition", recvRes.PartitionId))
+				ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("partition", recvRes.Message.PartitionId))
 				_, err = c.brokerProxyClient.AckMessage(ctx, ackReq)
 				cancel()
 				if err != nil {

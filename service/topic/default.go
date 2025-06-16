@@ -194,6 +194,7 @@ func (d *topicService) UpdatePartition(
 	if err := d.MetaDataStorage.UpdateCommandAppliedInTx(ctx, tx, commandID); err != nil {
 		return fmt.Errorf("failed to update command applied: %w", err)
 	}
+	*partitionUpdates = *partition
 	return tx.Commit()
 }
 
