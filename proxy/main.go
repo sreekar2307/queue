@@ -1,57 +1,67 @@
 package main
 
 import (
+	"buf.build/gen/go/sreekar2307/queue/grpc/go/queue/v1/queuev1grpc"
+	pb "buf.build/gen/go/sreekar2307/queue/protocolbuffers/go/queue/v1"
+	pbTypes "buf.build/gen/go/sreekar2307/queue/protocolbuffers/go/types/v1"
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
+	"github.com/mwitkow/grpc-proxy/proxy"
+	"github.com/spf13/pflag"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"log"
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"os/signal"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
-
-	pb "github.com/sreekar2307/queue/gen/queue/v1"
-	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
-	"github.com/sreekar2307/queue/util"
-
-	"github.com/mwitkow/grpc-proxy/proxy"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 )
 
 var (
-	brokerHttpAddr       = flag.String("broker", "http://0.0.0.0:8081", "http address of the broker")
-	brokerGrpcAddr       = flag.String("broker-grpc", "0.0.0.0:8001", "grpc address of the broker")
-	proxyAddr            = flag.String("proxy", "0.0.0.0:9000", "Address of the proxy server")
-	shardsInfoPath       = flag.String("shards-info-path", "/shards-info", "Path to fetch shard info from the broker")
-	shardsInfoReqTimeout = flag.Duration(
+	brokerHttpAddr       = pflag.String("broker", "http://0.0.0.0:8081", "http address of the broker")
+	brokerGrpcAddr       = pflag.String("broker_grpc", "0.0.0.0:8001", "grpc address of the broker")
+	proxyAddr            = pflag.String("proxy", "0.0.0.0:9000", "Address of the proxy server")
+	shardsInfoPath       = pflag.String("shards_info_path", "/shards-info", "Path to fetch shard info from the broker")
+	shardsInfoReqTimeout = pflag.Duration(
 		"shards_info_req_timeout",
 		5*time.Second,
 		"Timeout for fetching shard info from the broker eg (1s, 500ms)",
 	)
-	minDurationBtwLookups = flag.Duration(
+	minDurationBtwLookups = pflag.Duration(
 		"min_duration_btw_lookups",
 		5*time.Second,
 		"Minimum duration between consecutive lookups for shard info eg (5s, 1m)",
 	)
-	maxLookupRetries = flag.Int("max_lookup_retries", 5, "Maximum number of retries for lookup")
-
+	maxLookupRetries = pflag.Int("max_lookup_retries", 5, "Maximum number of retries for lookup")
+	version          = pflag.Bool("version", false, "Print version information")
+	help             = pflag.Bool("help", false, "Print help information")
+	versionNo        = "v0.1.0"
 	clusterD         atomic.Pointer[clusterDetails]
 	grpcClient       *grpc.ClientConn
-	transportClient  pb.QueueServiceClient
+	transportClient  queuev1grpc.QueueServiceClient
 	lc               = make(chan lookupResource)
 	lcRes            = make(chan *clusterDetails)
 	addrToGrpcClient sync.Map
 )
 
 func main() {
-	flag.Parse()
+	pflag.Parse()
+	if *version {
+		_, _ = fmt.Fprintf(os.Stderr, "Version: %s\n", versionNo)
+		return
+	}
+	if *help {
+		_, _ = fmt.Fprintf(os.Stderr, "Usage: [flags]\n")
+		pflag.PrintDefaults()
+		return
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGKILL)
 	defer cancel()
 
@@ -68,7 +78,7 @@ func main() {
 			log.Fatalf("failed to create grpc client: %v", err)
 		}
 		defer grpcClient.Close()
-		transportClient = pb.NewQueueServiceClient(grpcClient)
+		transportClient = queuev1grpc.NewQueueServiceClient(grpcClient)
 	}
 	go lookupRefresh(ctx)
 
@@ -311,7 +321,7 @@ func lookupGrpc(pCtx context.Context) (*clusterDetails, error) {
 		cd.BrokersForTopic[shardInfo.Topic] = brokers
 		cd.BrokersForPartition[partitionID] = brokers
 	}
-	cd.Brokers = util.Map(resp.Brokers, func(b *pbTypes.Broker) broker {
+	cd.Brokers = Map(resp.Brokers, func(b *pbTypes.Broker) broker {
 		return broker{
 			Id:          b.Id,
 			RaftAddress: b.RaftAddress,
@@ -369,18 +379,18 @@ func lookupHttp(pCtx context.Context) (*clusterDetails, error) {
 }
 
 func sanitizeClusterDetails(cd clusterDetails) clusterDetails {
-	cd.Brokers = util.UniqBy(cd.Brokers, func(b broker) uint64 {
+	cd.Brokers = UniqBy(cd.Brokers, func(b broker) uint64 {
 		return b.Id
 	})
 
 	// Ensure brokers for topics and partitions are unique
 	for topic, brokers := range cd.BrokersForTopic {
-		cd.BrokersForTopic[topic] = util.UniqBy(brokers, func(b broker) uint64 {
+		cd.BrokersForTopic[topic] = UniqBy(brokers, func(b broker) uint64 {
 			return b.Id
 		})
 	}
 	for partitionID, brokers := range cd.BrokersForPartition {
-		cd.BrokersForPartition[partitionID] = util.UniqBy(brokers, func(b broker) uint64 {
+		cd.BrokersForPartition[partitionID] = UniqBy(brokers, func(b broker) uint64 {
 			return b.Id
 		})
 	}

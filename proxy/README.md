@@ -58,5 +58,5 @@ Deduplicates brokers per topic and partition based on their ID.
 ### Run Proxy
 
 ```bash
-$ go build -o proxy cmd/proxy && ./proxy
+$ go build -o proxy . && ./proxy
 ```

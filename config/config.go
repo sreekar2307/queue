@@ -63,7 +63,7 @@ type (
 var (
 	Conf    *Config
 	once    sync.Once
-	version = "0.1.26"
+	version = "0.1.27"
 )
 
 func init() {

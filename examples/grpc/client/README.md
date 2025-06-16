@@ -22,8 +22,8 @@ This example demonstrates how to interact with a distributed queue system using 
 ### 1. Install the queue 
 
 ```bash
-go install github.com/sreekar2307/queue/cmd/queue && \
-go install github.com/sreekar2307/queue/cmd/proxy
+go install github.com/sreekar2307/queue && \
+go install github.com/sreekar2307/queue/proxy
 ```
 
 ### 2. Start the brokers, each one in a separate terminal
