@@ -219,7 +219,9 @@ func (q *Queue) CreateTopic(
 			ShardId:     partition.ShardId,
 			Members:     brokerTargets,
 		})
-
+		if err != nil {
+			return nil, fmt.Errorf("marshal cmd: %w", err)
+		}
 		ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
 		_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 		cancelFunc()
