@@ -67,6 +67,9 @@ func (d *messageService) AppendMessage(ctx context.Context, commandID uint64, me
 	if len(message.Data) == 0 {
 		return fmt.Errorf("message data is empty")
 	}
+	lock := d.lockForPartition(message.PartitionID)
+	lock.Lock()
+	defer lock.Unlock()
 	msgID, err := d.nextMessageID(ctx, message.PartitionID)
 	if err != nil {
 		return fmt.Errorf("failed to get next msgID: %w", err)
@@ -173,21 +176,9 @@ func (d *messageService) RecoverFromSnapshot(ctx context.Context, reader io.Read
 	return nil
 }
 
+// nextMessageID returns the next message ID for the given partition key. this method is expected to be called
+// under a lock for the partition to ensure that the message ID is unique and sequential.
 func (d *messageService) nextMessageID(ctx context.Context, partitionKey string) ([]byte, error) {
-	d.partitionsMutex.RLock()
-	mu, ok := d.partitionsLocks[partitionKey]
-	d.partitionsMutex.RUnlock()
-	if !ok {
-		d.partitionsMutex.Lock()
-		// double check
-		if mu, ok = d.partitionsLocks[partitionKey]; !ok {
-			mu = &sync.Mutex{}
-			d.partitionsLocks[partitionKey] = mu
-		}
-		d.partitionsMutex.Unlock()
-	}
-	mu.Lock()
-	defer mu.Unlock()
 	lastMsgID, err := d.messageStorage.LastMessageID(ctx, partitionKey)
 	if err != nil {
 		return nil, err
@@ -199,4 +190,22 @@ func (d *messageService) nextMessageID(ctx context.Context, partitionKey string)
 		binary.BigEndian.PutUint64(nextMsgID, binary.BigEndian.Uint64(lastMsgID)+1)
 	}
 	return nextMsgID, nil
+}
+
+func (d *messageService) lockForPartition(partitionID string) *sync.Mutex {
+	d.partitionsMutex.RLock()
+	mu, ok := d.partitionsLocks[partitionID]
+	d.partitionsMutex.RUnlock()
+	if !ok {
+		d.partitionsMutex.Lock()
+		// double check
+		if mu, ok = d.partitionsLocks[partitionID]; !ok {
+			mu = new(sync.Mutex)
+			d.partitionsLocks[partitionID] = mu
+		} else {
+			mu = d.partitionsLocks[partitionID]
+		}
+		d.partitionsMutex.Unlock()
+	}
+	return mu
 }
