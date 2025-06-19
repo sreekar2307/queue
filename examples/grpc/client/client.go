@@ -5,7 +5,6 @@ import (
 	pbTypes "buf.build/gen/go/sreekar2307/queue/protocolbuffers/go/types/v1"
 	"context"
 	"fmt"
-	"github.com/sreekar2307/queue/util"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"log"
 	"strconv"
@@ -94,7 +93,7 @@ func (c *Client) CreateTopic(
 }
 
 func (c *Client) WriteSomeMessages(pCtx context.Context, topic string) error {
-	if _, ok := util.FirstMatch(c.consumer.Topics, func(t string) bool {
+	if _, ok := FirstMatch(c.consumer.Topics, func(t string) bool {
 		return t == topic
 	}); !ok {
 		return fmt.Errorf("topic %s not found in consumer %s", topic, c.consumer.Id)
@@ -198,4 +197,14 @@ func (c *Client) runHealthCheck(pCtx context.Context) {
 			}
 		}
 	}()
+}
+
+func FirstMatch[T any](slice []T, predicate func(T) bool) (T, bool) {
+	for _, item := range slice {
+		if predicate(item) {
+			return item, true
+		}
+	}
+	var zero T
+	return zero, false
 }
