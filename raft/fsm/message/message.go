@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/lni/dragonboat/v4/statemachine"
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
+	"github.com/sreekar2307/queue/logger"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/raft/fsm/command/factory"
 	"github.com/sreekar2307/queue/service"
 	"google.golang.org/protobuf/proto"
 	"io"
-	"log"
 )
 
 type FSM struct {
@@ -18,6 +18,15 @@ type FSM struct {
 	replicaID      uint64
 	messageService service.MessageService
 	broker         *model.Broker
+	log            logger.Logger
+}
+
+func (f *FSM) Log() logger.Logger {
+	return f.log
+}
+
+func (f *FSM) SetLog(log logger.Logger) {
+	f.log = log
 }
 
 func (f *FSM) ShardID() uint64 {
@@ -71,9 +80,14 @@ func (f *FSM) Update(entries []statemachine.Entry) (results []statemachine.Entry
 		if err := proto.Unmarshal(entry.Cmd, &cmd); err != nil {
 			return nil, fmt.Errorf("unmarshing cmd: %w", err)
 		}
-		log.Println("Processing command", cmd.Cmd, "with args", cmd.Args,
-			"at index", entry.Index, "for broker fsm")
-		updator, err := factory.MessageExecuteUpdate(cmd.Cmd, f)
+		f.log.Debug(
+			ctx,
+			"Processing command for broker fsm",
+			logger.NewAttr("cmd", cmd.Cmd),
+			logger.NewAttr("args", cmd.Args),
+			logger.NewAttr("index", entry.Index),
+		)
+		updator, err := factory.MessageExecuteUpdate(cmd.Cmd, f, f.log)
 		if err != nil {
 			return nil, fmt.Errorf("get update for command %s: %w", cmd.Cmd, err)
 		}
@@ -94,7 +108,7 @@ func (f *FSM) Lookup(i any) (any, error) {
 	if err := proto.Unmarshal(i.([]byte), &cmd); err != nil {
 		return nil, fmt.Errorf("unmarshing cmd: %w", err)
 	}
-	lookup, err := factory.MessageLookup(cmd.Cmd, f)
+	lookup, err := factory.MessageLookup(cmd.Cmd, f, f.log)
 	if err != nil {
 		return nil, fmt.Errorf("get lookup for command %s: %w", cmd.Cmd, err)
 	}

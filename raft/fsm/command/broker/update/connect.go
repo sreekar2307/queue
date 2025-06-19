@@ -4,6 +4,7 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
 
@@ -23,9 +24,10 @@ type (
 
 var kindConnect = pbCommandTypes.Kind_KIND_CONNECT
 
-func (c connectBuilder) NewUpdate(fsm command.BrokerFSM) command.Update {
+func (c connectBuilder) NewUpdate(fsm command.BrokerFSM, log logger.Logger) command.Update {
 	return connect{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -43,6 +45,7 @@ func NewConnectBuilder() command.UpdateBrokerBuilder {
 
 type connect struct {
 	fsm command.BrokerFSM
+	log logger.Logger
 }
 
 func (c connectEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {

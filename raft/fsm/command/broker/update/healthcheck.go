@@ -4,6 +4,7 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
 
@@ -23,9 +24,10 @@ type (
 
 var kindhealthCheck = pbCommandTypes.Kind_KIND_HEALTH_CHECK
 
-func (c healthCheckBuilder) NewUpdate(fsm command.BrokerFSM) command.Update {
+func (c healthCheckBuilder) NewUpdate(fsm command.BrokerFSM, log logger.Logger) command.Update {
 	return healthCheck{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -43,6 +45,7 @@ func NewHealthCheckBuilder() command.UpdateBrokerBuilder {
 
 type healthCheck struct {
 	fsm command.BrokerFSM
+	log logger.Logger
 }
 
 func (c healthCheckEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {

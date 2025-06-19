@@ -5,12 +5,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service"
 	"github.com/sreekar2307/queue/storage"
 	storageErrors "github.com/sreekar2307/queue/storage/errors"
 	"io"
-	"log"
 	"os"
 	"sync"
 )
@@ -20,24 +20,25 @@ type messageService struct {
 	// Only read operations are allowed on metadata storage when using from message service
 	metadataStorage storage.MetadataStorage
 
-	partitionsMutex sync.RWMutex
-	partitionsLocks map[string]*sync.Mutex
+	partitionsLocks sync.Map
 	partitionsPath  string
 	broker          *model.Broker
+	log             logger.Logger
 }
 
-func NewDefaultMessageService(
+func NewMessageService(
 	messageStorage storage.MessageStorage,
 	metadata storage.MetadataStorage,
 	partitionsPath string,
 	broker *model.Broker,
+	log logger.Logger,
 ) service.MessageService {
 	return &messageService{
 		messageStorage:  messageStorage,
 		metadataStorage: metadata,
-		partitionsLocks: make(map[string]*sync.Mutex),
 		partitionsPath:  partitionsPath,
 		broker:          broker,
+		log:             log,
 	}
 }
 
@@ -115,7 +116,13 @@ func (d *messageService) Poll(
 		}
 		return nil, fmt.Errorf("failed to get next message ID: %w", err)
 	}
-	log.Println("receiving  messageID ", msgId, " from partition ", partitionID)
+	d.log.Info(
+		ctx,
+		"receiving",
+		logger.NewAttr("msgID", msgId),
+		logger.NewAttr("partitionID", partitionID),
+		logger.NewAttr("consumerGroupID", consumerGroupID),
+	)
 	message, err := d.messageStorage.MessageAtIndex(ctx, selectedPartition, msgId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get message: %w", err)
@@ -161,11 +168,9 @@ func (d *messageService) Open(_ context.Context) error {
 }
 
 func (d *messageService) Snapshot(ctx context.Context, writer io.Writer) error {
-	log.Println("taking snapshot of message storage")
 	if err := d.messageStorage.Snapshot(ctx, writer); err != nil {
 		return fmt.Errorf("failed to snapshot message storage: %w", err)
 	}
-	log.Println("snapshot of message storage taken")
 	return nil
 }
 
@@ -193,19 +198,6 @@ func (d *messageService) nextMessageID(ctx context.Context, partitionKey string)
 }
 
 func (d *messageService) lockForPartition(partitionID string) *sync.Mutex {
-	d.partitionsMutex.RLock()
-	mu, ok := d.partitionsLocks[partitionID]
-	d.partitionsMutex.RUnlock()
-	if !ok {
-		d.partitionsMutex.Lock()
-		// double check
-		if mu, ok = d.partitionsLocks[partitionID]; !ok {
-			mu = new(sync.Mutex)
-			d.partitionsLocks[partitionID] = mu
-		} else {
-			mu = d.partitionsLocks[partitionID]
-		}
-		d.partitionsMutex.Unlock()
-	}
-	return mu
+	mu, _ := d.partitionsLocks.LoadOrStore(partitionID, new(sync.Mutex))
+	return mu.(*sync.Mutex)
 }

@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"github.com/sreekar2307/queue/logger"
 
 	"github.com/lni/dragonboat/v4/statemachine"
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
@@ -23,11 +24,11 @@ type (
 
 	UpdateMessageBuilder interface {
 		Builder
-		NewUpdate(MessageFSM) Update
+		NewUpdate(MessageFSM, logger.Logger) Update
 	}
 	UpdateBrokerBuilder interface {
 		Builder
-		NewUpdate(BrokerFSM) Update
+		NewUpdate(BrokerFSM, logger.Logger) Update
 	}
 
 	Update interface {
@@ -36,12 +37,12 @@ type (
 
 	LookupBrokerBuilder interface {
 		Builder
-		NewLookup(BrokerFSM) Lookup
+		NewLookup(BrokerFSM, logger.Logger) Lookup
 	}
 
 	LookupMessageBuilder interface {
 		Builder
-		NewLookup(fsm MessageFSM) Lookup
+		NewLookup(MessageFSM, logger.Logger) Lookup
 	}
 
 	Lookup interface {

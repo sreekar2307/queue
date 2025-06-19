@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/sreekar2307/queue/logger/zerolog"
 	"log"
 	"os/signal"
 	"syscall"
@@ -24,7 +25,8 @@ func main() {
 		config.Conf.PrintUsage()
 		return
 	}
-	queue, err := controller.NewQueue(ctx)
+	logger := zerolog.NewLogger(config.Conf.Level)
+	queue, err := controller.NewQueue(ctx, logger)
 	if err != nil {
 		log.Fatalf("failed to create queue: %v", err)
 	}

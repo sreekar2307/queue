@@ -3,6 +3,7 @@ package lookup
 import (
 	"context"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 
 	pbBrokerCommand "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
@@ -17,9 +18,10 @@ type (
 
 var kindConsumers = pbCommandTypes.Kind_KIND_CONSUMERS
 
-func (c consumersBuilder) NewLookup(fsm command.BrokerFSM) command.Lookup {
+func (c consumersBuilder) NewLookup(fsm command.BrokerFSM, log logger.Logger) command.Lookup {
 	return consumers{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -37,6 +39,7 @@ func NewConsumersBuilder() command.LookupBrokerBuilder {
 
 type consumers struct {
 	fsm command.BrokerFSM
+	log logger.Logger
 }
 
 func (c consumersEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {

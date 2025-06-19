@@ -22,7 +22,7 @@ type consumerService struct {
 	mu sync.Mutex
 }
 
-func NewDefaultConsumerService(
+func NewConsumerService(
 	storage storage.MetadataStorage,
 	assignor assignor.PartitionAssignor,
 ) service.ConsumerService {

@@ -4,6 +4,7 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/service"
 	"github.com/sreekar2307/queue/storage"
@@ -14,11 +15,13 @@ import (
 
 type topicService struct {
 	MetaDataStorage storage.MetadataStorage
+	log             logger.Logger
 }
 
-func NewDefaultTopicService(metaDataStorage storage.MetadataStorage) service.TopicService {
+func NewTopicService(metaDataStorage storage.MetadataStorage, log logger.Logger) service.TopicService {
 	return &topicService{
 		MetaDataStorage: metaDataStorage,
+		log:             log,
 	}
 }
 

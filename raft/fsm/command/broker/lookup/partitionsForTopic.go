@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
+	"github.com/sreekar2307/queue/logger"
 	"github.com/sreekar2307/queue/util"
 
 	pbBrokerCommand "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
@@ -20,9 +21,10 @@ type (
 
 var kindPartitionsForTopic = pbCommandTypes.Kind_KIND_PARTITIONS_FOR_TOPIC
 
-func (c partitionsForTopicBuilder) NewLookup(fsm command.BrokerFSM) command.Lookup {
+func (c partitionsForTopicBuilder) NewLookup(fsm command.BrokerFSM, log logger.Logger) command.Lookup {
 	return partitionsForTopic{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -40,6 +42,7 @@ func NewPartitionsForTopicBuilder() command.LookupBrokerBuilder {
 
 type partitionsForTopic struct {
 	fsm command.BrokerFSM
+	log logger.Logger
 }
 
 func (c partitionsForTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {

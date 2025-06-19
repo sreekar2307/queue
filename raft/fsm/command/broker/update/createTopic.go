@@ -3,6 +3,7 @@ package update
 import (
 	"context"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
 
@@ -28,9 +29,10 @@ type (
 
 var kindCreateTopic = pbCommandTypes.Kind_KIND_CREATE_TOPIC
 
-func (c createTopicBuilder) NewUpdate(fsm command.BrokerFSM) command.Update {
+func (c createTopicBuilder) NewUpdate(fsm command.BrokerFSM, log logger.Logger) command.Update {
 	return createTopic{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -48,6 +50,7 @@ func NewCreateTopicBuilder() command.UpdateBrokerBuilder {
 
 type createTopic struct {
 	fsm command.BrokerFSM
+	log logger.Logger
 }
 
 func (c createTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {

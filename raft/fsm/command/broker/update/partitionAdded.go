@@ -4,6 +4,7 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
 
@@ -25,9 +26,10 @@ type (
 
 var kindPartitionAdded = pbCommandTypes.Kind_KIND_PARTITION_ADDED
 
-func (c partitionAddedBuilder) NewUpdate(fsm command.BrokerFSM) command.Update {
+func (c partitionAddedBuilder) NewUpdate(fsm command.BrokerFSM, log logger.Logger) command.Update {
 	return partitionAdded{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -45,6 +47,7 @@ func NewPartitionAddedBuilder() command.UpdateBrokerBuilder {
 
 type partitionAdded struct {
 	fsm command.BrokerFSM
+	log logger.Logger
 }
 
 func (c partitionAddedEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {

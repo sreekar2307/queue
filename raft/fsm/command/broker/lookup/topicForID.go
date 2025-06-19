@@ -3,6 +3,7 @@ package lookup
 import (
 	"context"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"reflect"
 
 	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
@@ -24,9 +25,10 @@ type (
 
 var kindTopicForID = pbCommandTypes.Kind_KIND_TOPIC_FOR_ID
 
-func (c topicForIDBuilder) NewLookup(fsm command.BrokerFSM) command.Lookup {
+func (c topicForIDBuilder) NewLookup(fsm command.BrokerFSM, log logger.Logger) command.Lookup {
 	return topicForID{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -44,6 +46,7 @@ func NewTopicForIDBuilder() command.LookupBrokerBuilder {
 
 type topicForID struct {
 	fsm command.BrokerFSM
+	log logger.Logger
 }
 
 func (c topicForIDEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {

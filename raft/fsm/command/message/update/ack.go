@@ -5,7 +5,7 @@ import (
 	"errors"
 	stdErrors "errors"
 	"fmt"
-	"log"
+	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
 
@@ -26,9 +26,10 @@ type (
 
 var kindack = pbCommandTypes.Kind_KIND_MESSAGE_ACK
 
-func (c ackBuilder) NewUpdate(fsm command.MessageFSM) command.Update {
+func (c ackBuilder) NewUpdate(fsm command.MessageFSM, log logger.Logger) command.Update {
 	return ack{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -46,6 +47,7 @@ func NewAckBuilder() command.UpdateMessageBuilder {
 
 type ack struct {
 	fsm command.MessageFSM
+	log logger.Logger
 }
 
 func (c ackEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
@@ -97,13 +99,12 @@ func (c ack) ExecuteUpdate(
 		}
 		return empty, fmt.Errorf("append msg: %w", err)
 	}
-	log.Println(
+	c.log.Info(
+		ctx,
 		"acknowledging message",
-		msg.ID,
-		" to consumer group",
-		ci.ConsumerGroupId,
-		" of partition ",
-		msg.PartitionID,
+		logger.NewAttr("msgID", msg.ID),
+		logger.NewAttr("consumerGroupID", ci.ConsumerGroupId),
+		logger.NewAttr("partitionID", msg.PartitionID),
 	)
 	return statemachine.Entry{
 		Index: entry.Index,

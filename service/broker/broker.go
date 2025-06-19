@@ -14,7 +14,7 @@ type broker struct {
 	MetaDataStorage storage.MetadataStorage
 }
 
-func NewDefaultBrokerService(metaDataStorage storage.MetadataStorage) service.BrokerService {
+func NewBrokerService(metaDataStorage storage.MetadataStorage) service.BrokerService {
 	return &broker{
 		MetaDataStorage: metaDataStorage,
 	}

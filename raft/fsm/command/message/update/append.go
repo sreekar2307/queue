@@ -5,6 +5,7 @@ import (
 	"errors"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
 
@@ -25,9 +26,10 @@ type (
 
 var kindappend = pbCommandTypes.Kind_KIND_MESSAGE_APPEND
 
-func (c appendBuilder) NewUpdate(fsm command.MessageFSM) command.Update {
-	return append{
+func (c appendBuilder) NewUpdate(fsm command.MessageFSM, log logger.Logger) command.Update {
+	return appendMsg{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -43,8 +45,9 @@ func NewAppendBuilder() command.UpdateMessageBuilder {
 	return appendBuilder{}
 }
 
-type append struct {
+type appendMsg struct {
 	fsm command.MessageFSM
+	log logger.Logger
 }
 
 func (c appendEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
@@ -72,7 +75,7 @@ func (c appendEncoderDecoder) DecodeResults(_ context.Context, bytes []byte) (an
 	return &co, nil
 }
 
-func (c append) ExecuteUpdate(
+func (c appendMsg) ExecuteUpdate(
 	ctx context.Context,
 	inputs []byte,
 	entry statemachine.Entry,

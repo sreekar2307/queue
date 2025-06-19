@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -26,12 +26,14 @@ type Bolt struct {
 	PartitionsPath string
 	mu             sync.RWMutex
 	dbs            map[string]*boltDB.DB
+	log            logger.Logger
 }
 
-func NewBolt(partitionPath string) *Bolt {
+func NewBolt(partitionPath string, log logger.Logger) *Bolt {
 	return &Bolt{
 		PartitionsPath: partitionPath,
 		dbs:            make(map[string]*boltDB.DB),
+		log:            log,
 	}
 }
 
@@ -55,12 +57,12 @@ func (b *Bolt) Close(context.Context) error {
 }
 
 func (b *Bolt) LastAppliedCommandID(
-	_ context.Context,
+	ctx context.Context,
 	partitions []string,
 ) (uint64, error) {
 	var maxLastAppliedCommandID uint64
 	for _, partitionID := range partitions {
-		db, err := b.getDBForPartition(partitionID)
+		db, err := b.getDBForPartition(ctx, partitionID)
 		if err != nil {
 			return 0, fmt.Errorf("failed to get database for partition: %w", err)
 		}
@@ -85,11 +87,11 @@ func (b *Bolt) LastAppliedCommandID(
 }
 
 func (b *Bolt) AppendMessage(
-	_ context.Context,
+	ctx context.Context,
 	commandID uint64,
 	message *model.Message,
 ) error {
-	db, err := b.getDBForPartition(message.PartitionID)
+	db, err := b.getDBForPartition(ctx, message.PartitionID)
 	if err != nil {
 		return fmt.Errorf("failed to get database for partition: %w", err)
 	}
@@ -126,8 +128,8 @@ func (b *Bolt) AppendMessage(
 	})
 }
 
-func (b *Bolt) MessageAtIndex(_ context.Context, partition *model.Partition, messageID []byte) (*model.Message, error) {
-	db, err := b.getDBForPartition(partition.ID)
+func (b *Bolt) MessageAtIndex(ctx context.Context, partition *model.Partition, messageID []byte) (*model.Message, error) {
+	db, err := b.getDBForPartition(ctx, partition.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database for partition: %w", err)
 	}
@@ -154,7 +156,7 @@ func (b *Bolt) MessageAtIndex(_ context.Context, partition *model.Partition, mes
 	return message, nil
 }
 
-func (b *Bolt) getDBForPartition(partitionKey string) (*boltDB.DB, error) {
+func (b *Bolt) getDBForPartition(ctx context.Context, partitionKey string) (*boltDB.DB, error) {
 	b.mu.RLock()
 	messagesDB, ok := b.dbs[partitionKey]
 	b.mu.RUnlock()
@@ -168,7 +170,7 @@ func (b *Bolt) getDBForPartition(partitionKey string) (*boltDB.DB, error) {
 		return db, nil
 	}
 	path := filepath.Join(b.PartitionsPath, partitionKey)
-	log.Println("opening database ", path)
+	b.log.Info(ctx, "opening database", logger.NewAttr("path", path))
 	newDB, err := boltDB.Open(path, 0777, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -178,12 +180,12 @@ func (b *Bolt) getDBForPartition(partitionKey string) (*boltDB.DB, error) {
 }
 
 func (b *Bolt) AckMessage(
-	_ context.Context,
+	ctx context.Context,
 	commandID uint64,
 	message *model.Message,
 	group *model.ConsumerGroup,
 ) error {
-	db, err := b.getDBForPartition(message.PartitionID)
+	db, err := b.getDBForPartition(ctx, message.PartitionID)
 	if err != nil {
 		return fmt.Errorf("failed to get database for partition: %w", err)
 	}
@@ -220,8 +222,8 @@ func (b *Bolt) AckMessage(
 	})
 }
 
-func (b *Bolt) LastMessageID(_ context.Context, partitionKey string) ([]byte, error) {
-	db, err := b.getDBForPartition(partitionKey)
+func (b *Bolt) LastMessageID(ctx context.Context, partitionKey string) ([]byte, error) {
+	db, err := b.getDBForPartition(ctx, partitionKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database for partition: %w", err)
 	}
@@ -240,8 +242,8 @@ func (b *Bolt) LastMessageID(_ context.Context, partitionKey string) ([]byte, er
 	return lastMessageID, nil
 }
 
-func (b *Bolt) NextUnAckedMessageID(_ context.Context, partition *model.Partition, group *model.ConsumerGroup) ([]byte, error) {
-	db, err := b.getDBForPartition(partition.ID)
+func (b *Bolt) NextUnAckedMessageID(ctx context.Context, partition *model.Partition, group *model.ConsumerGroup) ([]byte, error) {
+	db, err := b.getDBForPartition(ctx, partition.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database for partition: %w", err)
 	}

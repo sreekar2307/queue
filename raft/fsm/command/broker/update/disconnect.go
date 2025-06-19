@@ -4,6 +4,7 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
 
@@ -23,9 +24,10 @@ type (
 
 var kindDisconnect = pbCommandTypes.Kind_KIND_DISCONNECT
 
-func (c DisconnectBuilder) NewUpdate(fsm command.BrokerFSM) command.Update {
+func (c DisconnectBuilder) NewUpdate(fsm command.BrokerFSM, log logger.Logger) command.Update {
 	return Disconnect{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -43,6 +45,7 @@ func NewDisconnectBuilder() command.UpdateBrokerBuilder {
 
 type Disconnect struct {
 	fsm command.BrokerFSM
+	log logger.Logger
 }
 
 func (c DisconnectEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {

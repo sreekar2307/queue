@@ -4,6 +4,7 @@ import (
 	stdErrors "errors"
 	"flag"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 	"os"
 	"path/filepath"
 	"sync"
@@ -24,6 +25,7 @@ type (
 		ConsumerLostTime              time.Duration `mapstructure:"consumer_lost_time"`
 		ConsumerHealthCheckInterval   time.Duration `mapstructure:"consumer_health_check_interval"`
 		ShutdownTimeout               time.Duration `mapstructure:"shutdown_timeout"`
+		Level                         logger.Level  `mapstructure:"level"`
 
 		GRPC    GRPC `mapstructure:"grpc"`
 		HTTP    HTTP `mapstructure:"http"`

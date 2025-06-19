@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/sreekar2307/queue/logger"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -31,6 +31,7 @@ import (
 
 	"github.com/lni/dragonboat/v4"
 	drConfig "github.com/lni/dragonboat/v4/config"
+	dragonLogger "github.com/lni/dragonboat/v4/logger"
 	pbBrokerCommands "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
@@ -51,10 +52,12 @@ type Queue struct {
 	mu                       sync.Mutex
 	deactivateConsumerCancel context.CancelFunc
 	prevBrokerShardLeaderID  uint64
+	log                      logger.Logger
 }
 
 func NewQueue(
 	pCtx context.Context,
+	log logger.Logger,
 ) (*Queue, error) {
 	conf := config.Conf
 	raftConfig := conf.RaftConfig
@@ -80,9 +83,13 @@ func NewQueue(
 	q := &Queue{
 		broker:       broker,
 		mdStorage:    mdStorage,
-		topicService: topicServ.NewDefaultTopicService(mdStorage),
+		topicService: topicServ.NewTopicService(mdStorage, log),
 		pCtx:         pCtx,
+		log:          log,
 	}
+	dragonLogger.SetLoggerFactory(func(pgk string) dragonLogger.ILogger {
+		return log.WithFields(logger.NewAttr("package", pgk))
+	})
 	go q.listenForJoinShard(pCtx)
 	nh, err := dragonboat.NewNodeHost(drConfig.NodeHostConfig{
 		RaftAddress:       raftConfig.Addr,
@@ -97,7 +104,7 @@ func NewQueue(
 	broker.SetBrokerShardId(brokerSharID)
 
 	f := func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
-		return fsmFactory.NewBrokerFSM(shardID, replicaID, broker, mdStorage)
+		return fsmFactory.NewBrokerFSM(shardID, replicaID, broker, log, mdStorage)
 	}
 	inviteMembers := raftConfig.InviteMembers
 	if raftConfig.Join {
@@ -243,12 +250,12 @@ func (q *Queue) disconnectInActiveConsumers(pCtx context.Context) {
 		case <-ticker.C:
 			encoderDecoder, err := factory.EncoderDecoder(pbCommandTypes.Kind_KIND_CONSUMERS)
 			if err != nil {
-				log.Println("failed to get encoder decoder for consumers: ", err)
+				q.log.Error(pCtx, "failed to get encoder decoder for consumers: ", logger.NewAttr("error", err))
 				return
 			}
 			cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, nil)
 			if err != nil {
-				log.Println("failed to marshal cmd: ", err)
+				q.log.Error(pCtx, "failed to marshal cmd", logger.NewAttr("error", err))
 				return
 			}
 			nh := q.broker.NodeHost()
@@ -256,7 +263,7 @@ func (q *Queue) disconnectInActiveConsumers(pCtx context.Context) {
 			res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
 			cancelFunc()
 			if err != nil {
-				log.Println("failed to propose health check: ", err)
+				q.log.Error(pCtx, "failed to propose health check: ", logger.NewAttr("error", err))
 				return
 			}
 			select {
@@ -266,20 +273,21 @@ func (q *Queue) disconnectInActiveConsumers(pCtx context.Context) {
 			}
 			results, err := encoderDecoder.DecodeResults(pCtx, res.([]byte))
 			if err != nil {
-				log.Println("failed to decode results for consumers: ", err)
+				q.log.Error(pCtx, "failed to decode results for consumers: ", logger.NewAttr("error", err))
 				return
 			}
 			consumersResults, ok := results.(*pbBrokerCommands.ConsumersOutputs)
 			if !ok {
-				log.Println("unexpected result type for consumers: ", results)
+				q.log.Errorf("unexpected result type for consumers: %T", results)
 				return
 			}
 			for _, consumerPb := range consumersResults.Consumers {
 				if consumerPb.LastHealthCheckAt.Seconds < time.Now().Add(-config.Conf.ConsumerLostTime).Unix() {
 					if err := q.disconnect(pCtx, consumerPb.Id); err != nil {
-						log.Println("failed to disconnect consumer: ", consumerPb.Id)
+						q.log.Error(pCtx, "failed to disconnect consumer",
+							logger.NewAttr("consumerID", consumerPb.Id), logger.NewAttr("error", err))
 					} else {
-						log.Println("disconnected consumer: ", consumerPb.Id)
+						q.log.Warn(pCtx, "disconnected consumer", logger.NewAttr("consumerID", consumerPb.Id))
 					}
 				}
 			}
@@ -308,7 +316,8 @@ func (q *Queue) SendMessage(
 	if partition.ShardID != shardID {
 		return nil, fmt.Errorf("shardID mismatch: %d != %d", partition.ShardID, shardID)
 	}
-	log.Println("selected shard", shardID, " for partition ", partitionID)
+	q.log.Info(pCtx, "sending message to", logger.NewAttr("selectedShard", shardID),
+		logger.NewAttr("partition", partitionID))
 	encoderDecoder, err := factory.EncoderDecoder(pbCommandTypes.Kind_KIND_MESSAGE_APPEND)
 	if err != nil {
 		return nil, fmt.Errorf("get encoder decoder for append message: %w", err)
@@ -441,7 +450,12 @@ func (q *Queue) ReceiveMessageForPartition(
 	if !ok {
 		return nil, fmt.Errorf("broker does not have partition: %s", partitionId)
 	}
-	log.Println("consumer polling shardID", shardID, " for partition ID ", partitionId)
+	q.log.Info(
+		pCtx,
+		"consumer polling",
+		logger.NewAttr("shardID", shardID),
+		logger.NewAttr("partitionId", partitionId),
+	)
 	encoderDecoder, err = factory.EncoderDecoder(pbCommandTypes.Kind_KIND_MESSAGE_POLL)
 	if err != nil {
 		return nil, fmt.Errorf("marshal cmd: %w", err)
@@ -506,7 +520,6 @@ func (q *Queue) AckMessage(
 	if !ok {
 		return fmt.Errorf("broker does not have partition: %s", msg.PartitionID)
 	}
-	log.Println("sending ACK command to shardID", shardID, " for partition ID ", msg.PartitionID)
 	encoderDecoder, err = factory.EncoderDecoder(pbCommandTypes.Kind_KIND_MESSAGE_ACK)
 	if err != nil {
 		return fmt.Errorf("get encoder decoder for ack message: %w", err)
@@ -725,7 +738,7 @@ func (q *Queue) blockTillLeaderSet(
 	}
 	ctx, cancelFunc := context.WithTimeout(pCtx, config.Conf.ShardLeaderWaitTime)
 	ticker := time.NewTicker(config.Conf.ShardLeaderSetReCheckInterval)
-	log.Println("finding leader for shardID: ", shardID)
+	q.log.Info(pCtx, "finding leader", logger.NewAttr("shardID", shardID))
 	defer ticker.Stop()
 	defer cancelFunc()
 	for {
@@ -778,13 +791,14 @@ func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 			continue
 		}
 		q.broker.JoinShard(model.FromProtoBufPartition(partition))
-		log.Println(
-			"Starting partition: ",
-			partition.Id,
-			" with shardID: ",
-			shardID,
-			"replicaID: ",
-			q.broker.ID,
+		q.log.Info(
+			pCtx,
+			"Starting partition",
+			logger.NewAttr("partitionID",
+				partition.Id,
+			),
+			logger.NewAttr("shardID", shardID),
+			logger.NewAttr("replicaID", q.broker.ID),
 		)
 	}
 
@@ -838,7 +852,7 @@ func (q *Queue) listenForJoinShard(pCtx context.Context) {
 		case <-pCtx.Done():
 			return
 		case partition := <-q.broker.StartMsgFSM:
-			log.Println("starting message FSM for partition: ", partition.ID)
+			q.log.Info(pCtx, "starting message FSM for partition", logger.NewAttr("partitionID", partition.ID))
 			nh := q.broker.NodeHost()
 			err := nh.StartOnDiskReplica(
 				partition.Members,
@@ -848,6 +862,7 @@ func (q *Queue) listenForJoinShard(pCtx context.Context) {
 						shardID,
 						replicaID,
 						q.broker,
+						q.log,
 						q.mdStorage,
 					)
 				},
@@ -862,7 +877,12 @@ func (q *Queue) listenForJoinShard(pCtx context.Context) {
 				},
 			)
 			if err != nil {
-				log.Println("failed to start message FSM for partition: ", partition.ID, " error: ", err)
+				q.log.Error(
+					pCtx,
+					"ailed to start message FSM for partition",
+					logger.NewAttr("partitionID", partition.ID),
+					logger.NewAttr("error", err),
+				)
 				continue
 			}
 		}

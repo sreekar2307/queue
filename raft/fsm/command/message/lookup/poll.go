@@ -3,6 +3,7 @@ package update
 import (
 	"context"
 	"fmt"
+	"github.com/sreekar2307/queue/logger"
 
 	stdErrors "errors"
 	pbMessageCommand "github.com/sreekar2307/queue/gen/raft/fsm/message/v1"
@@ -19,9 +20,10 @@ type (
 
 var kindPoll = pbCommandTypes.Kind_KIND_MESSAGE_POLL
 
-func (c pollBuilder) NewLookup(fsm command.MessageFSM) command.Lookup {
+func (c pollBuilder) NewLookup(fsm command.MessageFSM, log logger.Logger) command.Lookup {
 	return poll{
 		fsm: fsm,
+		log: log,
 	}
 }
 
@@ -39,6 +41,7 @@ func NewPollBuilder() command.LookupMessageBuilder {
 
 type poll struct {
 	fsm command.MessageFSM
+	log logger.Logger
 }
 
 func (c pollEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
