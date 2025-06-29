@@ -14,6 +14,7 @@ import (
 	topicServ "github.com/sreekar2307/queue/service/topic"
 	"github.com/sreekar2307/queue/storage"
 	messageStorage "github.com/sreekar2307/queue/storage/message"
+	"go.opentelemetry.io/otel/trace"
 	"path/filepath"
 	"strconv"
 )
@@ -21,6 +22,7 @@ import (
 func NewMessageFSM(
 	shardID, replicaID uint64,
 	broker *model.Broker,
+	tracer trace.Tracer,
 	log logger.Logger,
 	mdStorage storage.MetadataStorage,
 ) statemachine.IOnDiskStateMachine {
@@ -33,6 +35,7 @@ func NewMessageFSM(
 		messageService = messageServ.NewMessageService(
 			messageStorage.NewBolt(
 				partitionsStorePath,
+				tracer,
 				log,
 			),
 			mdStorage,
@@ -47,12 +50,14 @@ func NewMessageFSM(
 	fsm.SetBroker(broker)
 	fsm.SetShardID(shardID)
 	fsm.SetReplicaID(replicaID)
+	fsm.SetTracer(tracer)
 	return fsm
 }
 
 func NewBrokerFSM(
 	shardID, replicaID uint64,
 	broker *model.Broker,
+	tracer trace.Tracer,
 	log logger.Logger,
 	mdStorage storage.MetadataStorage,
 ) statemachine.IOnDiskStateMachine {
@@ -78,5 +83,6 @@ func NewBrokerFSM(
 	fsm.SetTopicService(topicService)
 	fsm.SetConsumerService(consumerService)
 	fsm.SetBrokerService(brokerService)
+	fsm.SetTracer(tracer)
 	return fsm
 }

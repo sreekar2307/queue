@@ -9,6 +9,7 @@ import (
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/raft/fsm/command/factory"
 	"github.com/sreekar2307/queue/service"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 	"io"
 )
@@ -19,6 +20,15 @@ type FSM struct {
 	messageService service.MessageService
 	broker         *model.Broker
 	log            logger.Logger
+	tracer         trace.Tracer
+}
+
+func (f *FSM) Tracer() trace.Tracer {
+	return f.tracer
+}
+
+func (f *FSM) SetTracer(tracer trace.Tracer) {
+	f.tracer = tracer
 }
 
 func (f *FSM) Log() logger.Logger {

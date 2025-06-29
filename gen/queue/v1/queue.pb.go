@@ -984,12 +984,11 @@ var File_queue_v1_queue_proto protoreflect.FileDescriptor
 
 const file_queue_v1_queue_proto_rawDesc = "" +
 	"\n" +
-	"\x14queue/v1/queue.proto\x12\bqueue.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x14types/v1/types.proto\"\xda\x01\n" +
+	"\x14queue/v1/queue.proto\x12\bqueue.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x14types/v1/types.proto\"u\n" +
 	"\x12HealthCheckRequest\x12*\n" +
 	"\vconsumer_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\n" +
-	"consumerId\x12\x97\x01\n" +
-	"\aping_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampBb\xbaH_\xba\x01\\\n" +
-	"\"ping_at.less_than_and_equal_to_now\x12)Ping at must be less than or equal to now\x1a\vthis <= nowR\x06pingAt\"/\n" +
+	"consumerId\x123\n" +
+	"\aping_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06pingAt\"/\n" +
 	"\x13HealthCheckResponse\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\"\x81\x01\n" +
 	"\x11AckMessageRequest\x12*\n" +

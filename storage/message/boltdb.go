@@ -6,12 +6,16 @@ import (
 	"encoding/binary"
 	stdErrors "errors"
 	"fmt"
-	"github.com/sreekar2307/queue/logger"
 	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"sync"
+
+	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
+
+	"github.com/sreekar2307/queue/logger"
+	"go.opentelemetry.io/otel/trace"
 
 	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"google.golang.org/protobuf/proto"
@@ -27,13 +31,15 @@ type Bolt struct {
 	mu             sync.RWMutex
 	dbs            map[string]*boltDB.DB
 	log            logger.Logger
+	tracer         trace.Tracer
 }
 
-func NewBolt(partitionPath string, log logger.Logger) *Bolt {
+func NewBolt(partitionPath string, tracer trace.Tracer, log logger.Logger) *Bolt {
 	return &Bolt{
 		PartitionsPath: partitionPath,
 		dbs:            make(map[string]*boltDB.DB),
 		log:            log,
+		tracer:         tracer,
 	}
 }
 
@@ -45,12 +51,24 @@ const (
 	appliedCommandKey               = "applied_command"
 )
 
-func (b *Bolt) Close(context.Context) error {
+func (b *Bolt) Close(ctx context.Context) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"Close BoltDB",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.PartitionsPath),
+		),
+	)
+	defer span.End()
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	for _, db := range b.dbs {
 		if err := db.Close(); err != nil {
-			return fmt.Errorf("failed to close database: %w", err)
+			err = fmt.Errorf("failed to close database: %w", err)
+			span.RecordError(err)
+			return err
 		}
 	}
 	return nil
@@ -61,9 +79,22 @@ func (b *Bolt) LastAppliedCommandID(
 	partitions []string,
 ) (uint64, error) {
 	var maxLastAppliedCommandID uint64
+	ctx, span := b.tracer.Start(
+		ctx,
+		"LastAppliedCommandID commands",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.PartitionsPath),
+			semconv.DBCollectionNameKey.String(commandsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	for _, partitionID := range partitions {
 		db, err := b.getDBForPartition(ctx, partitionID)
 		if err != nil {
+			span.RecordError(err)
 			return 0, fmt.Errorf("failed to get database for partition: %w", err)
 		}
 		err = db.View(func(tx *boltDB.Tx) error {
@@ -80,6 +111,7 @@ func (b *Bolt) LastAppliedCommandID(
 			return nil
 		})
 		if err != nil {
+			span.RecordError(err)
 			return 0, fmt.Errorf("failed to get last applied command ID: %w", err)
 		}
 	}
@@ -91,14 +123,30 @@ func (b *Bolt) AppendMessage(
 	commandID uint64,
 	message *model.Message,
 ) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"AppendMessage messages",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.PartitionsPath),
+			semconv.DBCollectionNameKey.String(messagesBucketKey),
+			semconv.DBOperationNameKey.String("PUT"),
+		),
+	)
+	defer span.End()
 	db, err := b.getDBForPartition(ctx, message.PartitionID)
 	if err != nil {
-		return fmt.Errorf("failed to get database for partition: %w", err)
+		err = fmt.Errorf("failed to get database for partition: %w", err)
+		span.RecordError(err)
+		return err
 	}
 	if len(message.ID) == 0 {
-		return fmt.Errorf("message id is not set")
+		err = fmt.Errorf("message id is not set")
+		span.RecordError(err)
+		return err
 	}
-	return db.Update(func(tx *boltDB.Tx) error {
+	err = db.Update(func(tx *boltDB.Tx) error {
 		commandsBucket, err := tx.CreateBucketIfNotExists([]byte(commandsBucketKey))
 		if err != nil {
 			return fmt.Errorf("failed to create commands bucket: %w", err)
@@ -126,12 +174,28 @@ func (b *Bolt) AppendMessage(
 		}
 		return nil
 	})
+	span.RecordError(err)
+	return err
 }
 
 func (b *Bolt) MessageAtIndex(ctx context.Context, partition *model.Partition, messageID []byte) (*model.Message, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"MessageAtIndex messages",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.PartitionsPath),
+			semconv.DBCollectionNameKey.String(messagesBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	db, err := b.getDBForPartition(ctx, partition.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get database for partition: %w", err)
+		err = fmt.Errorf("failed to get database for partition: %w", err)
+		span.RecordError(err)
+		return nil, err
 	}
 	message := new(model.Message)
 	err = db.View(func(tx *boltDB.Tx) error {
@@ -151,7 +215,9 @@ func (b *Bolt) MessageAtIndex(ctx context.Context, partition *model.Partition, m
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get message: %w", err)
+		err = fmt.Errorf("failed to get message: %w", err)
+		span.RecordError(err)
+		return nil, err
 	}
 	return message, nil
 }
@@ -185,11 +251,25 @@ func (b *Bolt) AckMessage(
 	message *model.Message,
 	group *model.ConsumerGroup,
 ) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"AckMessage messages",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.PartitionsPath),
+			semconv.DBCollectionNameKey.String(messageStatsBucketKey),
+			semconv.DBOperationNameKey.String("PUT"),
+		),
+	)
+	defer span.End()
 	db, err := b.getDBForPartition(ctx, message.PartitionID)
 	if err != nil {
-		return fmt.Errorf("failed to get database for partition: %w", err)
+		err = fmt.Errorf("failed to get database for partition: %w", err)
+		span.RecordError(err)
+		return err
 	}
-	return db.Update(func(tx *boltDB.Tx) error {
+	err = db.Update(func(tx *boltDB.Tx) error {
 		if err != nil {
 			return fmt.Errorf("failed to begin transaction: %w", err)
 		}
@@ -220,12 +300,28 @@ func (b *Bolt) AckMessage(
 		}
 		return nil
 	})
+	span.RecordError(err)
+	return err
 }
 
 func (b *Bolt) LastMessageID(ctx context.Context, partitionKey string) ([]byte, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"LastMessageID messages",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.PartitionsPath),
+			semconv.DBCollectionNameKey.String(messagesBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	db, err := b.getDBForPartition(ctx, partitionKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get database for partition: %w", err)
+		err = fmt.Errorf("failed to get database for partition: %w", err)
+		span.RecordError(err)
+		return nil, err
 	}
 	var lastMessageID []byte
 	db.View(func(tx *boltDB.Tx) error {
@@ -243,9 +339,23 @@ func (b *Bolt) LastMessageID(ctx context.Context, partitionKey string) ([]byte, 
 }
 
 func (b *Bolt) NextUnAckedMessageID(ctx context.Context, partition *model.Partition, group *model.ConsumerGroup) ([]byte, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"NextUnAckedMessageID messages",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.PartitionsPath),
+			semconv.DBCollectionNameKey.String(messagesBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	db, err := b.getDBForPartition(ctx, partition.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get database for partition: %w", err)
+		err = fmt.Errorf("failed to get database for partition: %w", err)
+		span.RecordError(err)
+		return nil, err
 	}
 	var nextMesssageID []byte
 	err = db.Update(func(tx *boltDB.Tx) error {
@@ -275,15 +385,29 @@ func (b *Bolt) NextUnAckedMessageID(ctx context.Context, partition *model.Partit
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get next unacked message ID: %w", err)
+		err = fmt.Errorf("failed to get next unacked message ID: %w", err)
+		span.RecordError(err)
+		return nil, err
 	}
 	if nextMesssageID == nil {
-		return nil, errors.ErrNoMessageFound
+		err = errors.ErrNoMessageFound
+		span.RecordError(err)
+		return nil, err
 	}
 	return nextMesssageID, nil
 }
 
 func (b *Bolt) Snapshot(ctx context.Context, w io.Writer) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"Snapshot BoltDB",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.PartitionsPath),
+		),
+	)
+	defer span.End()
 	writeBytes := func(w io.Writer, data []byte) error {
 		n, err := w.Write(data)
 		if err != nil {
@@ -298,22 +422,30 @@ func (b *Bolt) Snapshot(ctx context.Context, w io.Writer) error {
 	for partitionID, db := range b.dbs {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			err := ctx.Err()
+			span.RecordError(err)
+			return err
 		default:
 			partition := []byte(partitionID)
 			partitionIDSize := make([]byte, 8)
 			binary.BigEndian.PutUint64(partitionIDSize, uint64(len(partition)))
 
 			if err := writeBytes(w, partitionIDSize); err != nil {
-				return fmt.Errorf("failed to write partition ID size: %w", err)
+				err = fmt.Errorf("failed to write partition ID size: %w", err)
+				span.RecordError(err)
+				return err
 			}
 			if err := writeBytes(w, partition); err != nil {
-				return fmt.Errorf("failed to write partition ID: %w", err)
+				err = fmt.Errorf("failed to write partition ID: %w", err)
+				span.RecordError(err)
+				return err
 			}
 
 			tx, err := db.Begin(false)
 			if err != nil {
-				return fmt.Errorf("failed to begin transaction: %w", err)
+				err = fmt.Errorf("failed to begin transaction: %w", err)
+				span.RecordError(err)
+				return err
 			}
 			defer tx.Rollback()
 
@@ -322,10 +454,14 @@ func (b *Bolt) Snapshot(ctx context.Context, w io.Writer) error {
 			binary.BigEndian.PutUint64(dbSize, uint64(size))
 
 			if err := writeBytes(w, dbSize); err != nil {
-				return fmt.Errorf("failed to write db size: %w", err)
+				err = fmt.Errorf("failed to write db size: %w", err)
+				span.RecordError(err)
+				return err
 			}
 			if _, err := tx.WriteTo(w); err != nil {
-				return fmt.Errorf("failed to write db to snapshot: %w", err)
+				err = fmt.Errorf("failed to write db to snapshot: %w", err)
+				span.RecordError(err)
+				return err
 			}
 
 		}
@@ -334,10 +470,22 @@ func (b *Bolt) Snapshot(ctx context.Context, w io.Writer) error {
 }
 
 func (b *Bolt) RecoverFromSnapshot(ctx context.Context, r io.Reader) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"RecoverFromSnapshot BoltDB",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.PartitionsPath),
+		),
+	)
+	defer span.End()
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			err := ctx.Err()
+			span.RecordError(err)
+			return err
 		default:
 			partitionIDNameSize := make([]byte, 8)
 			_, err := io.ReadFull(r, partitionIDNameSize)
@@ -345,20 +493,26 @@ func (b *Bolt) RecoverFromSnapshot(ctx context.Context, r io.Reader) error {
 				return nil
 			}
 			if err != nil {
-				return fmt.Errorf("failed to read partition ID size from snapshot: %w", err)
+				err = fmt.Errorf("failed to read partition ID size from snapshot: %w", err)
+				span.RecordError(err)
+				return err
 			}
 
 			partitionIDSize := binary.BigEndian.Uint64(partitionIDNameSize)
 			partitionID := make([]byte, int(partitionIDSize))
 			_, err = io.ReadFull(r, partitionID)
 			if err != nil {
-				return fmt.Errorf("failed to read partition ID from snapshot: %w", err)
+				err = fmt.Errorf("failed to read partition ID from snapshot: %w", err)
+				span.RecordError(err)
+				return err
 			}
 
 			dbSize := make([]byte, 8)
 			_, err = io.ReadFull(r, dbSize)
 			if err != nil {
-				return fmt.Errorf("failed to read size of db: %w", err)
+				err = fmt.Errorf("failed to read size of db: %w", err)
+				span.RecordError(err)
+				return err
 			}
 			dbFileSize := binary.BigEndian.Uint64(dbSize)
 
@@ -366,25 +520,35 @@ func (b *Bolt) RecoverFromSnapshot(ctx context.Context, r io.Reader) error {
 			tempDirPath := filepath.Join(os.TempDir(), "queue", "messages", fileDir)
 			tempDbFilePath := filepath.Join(tempDirPath, string(partitionID)+".tmp")
 			if err := os.MkdirAll(tempDirPath, 0777); err != nil {
-				return fmt.Errorf("failed to create temp db file directory: %w", err)
+				err = fmt.Errorf("failed to create temp db file directory: %w", err)
+				span.RecordError(err)
+				return err
 			}
 			file, err := os.Create(tempDbFilePath)
 			if err != nil {
-				return fmt.Errorf("failed to create temp db file: %w", err)
+				err = fmt.Errorf("failed to create temp db file: %w", err)
+				span.RecordError(err)
+				return err
 			}
 
 			_, err = io.Copy(file, io.LimitReader(r, int64(dbFileSize)))
 			if err != nil {
 				file.Close()
-				return fmt.Errorf("failed to copy db file: %w", err)
+				err = fmt.Errorf("failed to copy db file: %w", err)
+				span.RecordError(err)
+				return err
 			}
 			if err := file.Close(); err != nil {
-				return fmt.Errorf("failed to close temp db file: %w", err)
+				err = fmt.Errorf("failed to close temp db file: %w", err)
+				span.RecordError(err)
+				return err
 			}
 
 			dbFilePath := filepath.Join(b.PartitionsPath, string(partitionID))
 			if err := os.Rename(tempDbFilePath, dbFilePath); err != nil {
-				return fmt.Errorf("failed to rename temp db file: %w", err)
+				err = fmt.Errorf("failed to rename temp db file: %w", err)
+				span.RecordError(err)
+				return err
 			}
 		}
 	}

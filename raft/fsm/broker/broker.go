@@ -5,6 +5,7 @@ import (
 	"fmt"
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	"github.com/sreekar2307/queue/logger"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 	"io"
 
@@ -26,8 +27,17 @@ type (
 		brokerService   service.BrokerService
 		broker          *model.Broker
 		log             logger.Logger
+		tracer          trace.Tracer
 	}
 )
+
+func (f *FSM) Tracer() trace.Tracer {
+	return f.tracer
+}
+
+func (f *FSM) SetTracer(tracer trace.Tracer) {
+	f.tracer = tracer
+}
 
 func (f *FSM) ShardID() uint64 {
 	return f.shardID

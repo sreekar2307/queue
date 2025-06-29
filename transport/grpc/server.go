@@ -4,11 +4,12 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
-	"github.com/sreekar2307/queue/controller"
 	"io"
 	"log"
 	"net"
 
+	"github.com/sreekar2307/queue/controller"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc/reflection"
 
 	"google.golang.org/grpc/codes"
@@ -36,7 +37,7 @@ type GRPC struct {
 }
 
 func NewTransport(
-	_ context.Context,
+	ctx context.Context,
 	config config.GRPC,
 	queue *controller.Queue,
 ) (*GRPC, error) {
@@ -49,10 +50,14 @@ func NewTransport(
 	if err != nil {
 		return nil, fmt.Errorf("create protovalidate validator: %w", err)
 	}
-
-	interceptor := provalidateInterceptor.UnaryServerInterceptor(pv)
 	server := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.ChainUnaryInterceptor(
+			provalidateInterceptor.UnaryServerInterceptor(pv),
+		),
+		grpc.ChainStreamInterceptor(
+			provalidateInterceptor.StreamServerInterceptor(pv),
+		),
 	)
 	server.RegisterService(&pb.QueueService_ServiceDesc, g)
 	g.server = server

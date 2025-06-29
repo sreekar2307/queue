@@ -17,16 +17,20 @@ import (
 	"github.com/sreekar2307/queue/util"
 
 	boltDB "go.etcd.io/bbolt"
+	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Bolt struct {
 	db     *boltDB.DB
 	dbPath string
+	tracer trace.Tracer
 }
 
-func NewBolt(dbPath string) *Bolt {
+func NewBolt(dbPath string, tracer trace.Tracer) *Bolt {
 	return &Bolt{
 		dbPath: dbPath,
+		tracer: tracer,
 	}
 }
 
@@ -40,33 +44,55 @@ const (
 	appliedCommandKey       = "applied_command"
 )
 
-func (b *Bolt) CreateBrokerInTx(
-	_ context.Context,
-	tx storage.Transaction,
-	broker *model.Broker,
-) error {
+func (b *Bolt) CreateBrokerInTx(ctx context.Context, tx storage.Transaction, broker *model.Broker) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"CreateBrokerInTx",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(brokersBucketKey),
+			semconv.DBOperationNameKey.String("PUT"),
+		),
+	)
+	defer span.End()
 	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
-		return fmt.Errorf("invalid transaction type")
+		err := fmt.Errorf("invalid transaction type")
+		span.RecordError(err)
+		return err
 	}
 	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(brokersBucketKey))
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 	brokerData, err := proto.Marshal(broker.ToProtoBuf())
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to marshal broker: %w", err)
 	}
 	if err := bucket.Put(binary.BigEndian.AppendUint64(nil, broker.ID), brokerData); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to put broker: %w", err)
 	}
 	return nil
 }
 
-func (b *Bolt) GetBroker(
-	_ context.Context,
-	brokerID uint64,
-) (*model.Broker, error) {
+func (b *Bolt) GetBroker(ctx context.Context, brokerID uint64) (*model.Broker, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"GetBroker",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(brokersBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	broker := new(model.Broker)
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(brokersBucketKey))
@@ -85,15 +111,30 @@ func (b *Bolt) GetBroker(
 		return nil
 	})
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get broker: %w", err)
 	}
 	if broker.ID == 0 {
-		return nil, errors.ErrBrokerNotFound
+		err := errors.ErrBrokerNotFound
+		span.RecordError(err)
+		return nil, err
 	}
 	return broker, nil
 }
 
-func (b *Bolt) GetBrokers(_ context.Context, brokerIDs map[uint64]bool) ([]*model.Broker, error) {
+func (b *Bolt) GetBrokers(ctx context.Context, brokerIDs map[uint64]bool) ([]*model.Broker, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"GetBrokers",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(brokersBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	var brokers []*model.Broker
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(brokersBucketKey))
@@ -115,12 +156,25 @@ func (b *Bolt) GetBrokers(_ context.Context, brokerIDs map[uint64]bool) ([]*mode
 		return nil
 	})
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get brokers: %w", err)
 	}
 	return brokers, nil
 }
 
 func (b *Bolt) GetAllBrokers(ctx context.Context) ([]*model.Broker, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"GetAllBrokers",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(brokersBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	var brokers []*model.Broker
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(brokersBucketKey))
@@ -138,6 +192,7 @@ func (b *Bolt) GetAllBrokers(ctx context.Context) ([]*model.Broker, error) {
 		return nil
 	})
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get brokers: %w", err)
 	}
 	return brokers, nil
@@ -240,6 +295,18 @@ func (b *Bolt) CreateTopicInTx(_ context.Context, tx storage.Transaction, topic 
 }
 
 func (b *Bolt) Topic(ctx context.Context, s string) (*model.Topic, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"Topic",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(topicsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	topic := new(model.Topic)
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(topicsBucketKey))
@@ -258,9 +325,12 @@ func (b *Bolt) Topic(ctx context.Context, s string) (*model.Topic, error) {
 		return nil
 	})
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get topic: %w", err)
 	}
-	if len(topic.Name) == 0 {
+	if topic.Name == "" {
+		err := errors.ErrTopicNotFound
+		span.RecordError(err)
 		return nil, errors.ErrTopicNotFound
 	}
 	partitions, err := b.PartitionsForTopic(ctx, topic.Name)
@@ -292,7 +362,7 @@ func (b *Bolt) TopicInTx(ctx context.Context, tx storage.Transaction, s string) 
 		return nil, fmt.Errorf("failed to unmarshal topic: %w", err)
 	}
 	topic = model.FromProtoBufTopic(&pbTopic)
-	partitions, err := b.PartitionsInTx(ctx, tx, map[string]bool{topic.Name: true})
+	partitions, err := b.PartitionsInTx(ctx, tx, map[string]bool{s: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
@@ -301,38 +371,18 @@ func (b *Bolt) TopicInTx(ctx context.Context, tx storage.Transaction, s string) 
 }
 
 func (b *Bolt) Topics(ctx context.Context, topicNames []string) ([]*model.Topic, error) {
-	var topics []*model.Topic
-	err := b.db.View(func(tx *boltDB.Tx) error {
-		bucket := tx.Bucket([]byte(topicsBucketKey))
-		if bucket == nil {
-			return nil
-		}
-		for _, s := range topicNames {
-			data := bucket.Get([]byte(s))
-			if data == nil {
-				continue
-			}
-			var pbTopic pbTypes.Topic
-			if err := proto.Unmarshal(data, &pbTopic); err != nil {
-				return fmt.Errorf("failed to unmarshal topic: %w", err)
-			}
-			topic := model.FromProtoBufTopic(&pbTopic)
-			partitions, err := b.PartitionsForTopic(ctx, topic.Name)
-			if err != nil {
-				return fmt.Errorf("failed to get partitions: %w", err)
-			}
-			topic.NumberOfPartitions = uint64(len(partitions))
-			topics = append(topics, topic)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get topics: %w", err)
-	}
-	return topics, nil
-}
-
-func (b *Bolt) AllTopics(ctx context.Context) ([]*model.Topic, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"Topics",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(topicsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	var topics []*model.Topic
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(topicsBucketKey))
@@ -346,16 +396,57 @@ func (b *Bolt) AllTopics(ctx context.Context) ([]*model.Topic, error) {
 				return fmt.Errorf("failed to unmarshal topic: %w", err)
 			}
 			topic := model.FromProtoBufTopic(&pbTopic)
-			partitions, err := b.PartitionsForTopic(ctx, topic.Name)
-			if err != nil {
-				return fmt.Errorf("failed to get partitions: %w", err)
+			found := false
+			for _, name := range topicNames {
+				if name == topic.Name {
+					found = true
+					break
+				}
 			}
-			topic.NumberOfPartitions = uint64(len(partitions))
-			topics = append(topics, topic)
+			if found {
+				topics = append(topics, topic)
+			}
 		}
 		return nil
 	})
 	if err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("failed to get topics: %w", err)
+	}
+	return topics, nil
+}
+
+func (b *Bolt) AllTopics(ctx context.Context) ([]*model.Topic, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"AllTopics",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(topicsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
+	var topics []*model.Topic
+	err := b.db.View(func(tx *boltDB.Tx) error {
+		bucket := tx.Bucket([]byte(topicsBucketKey))
+		if bucket == nil {
+			return nil
+		}
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			var pbTopic pbTypes.Topic
+			if err := proto.Unmarshal(v, &pbTopic); err != nil {
+				return fmt.Errorf("failed to unmarshal topic: %w", err)
+			}
+			topics = append(topics, model.FromProtoBufTopic(&pbTopic))
+		}
+		return nil
+	})
+	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get topics: %w", err)
 	}
 	return topics, nil
@@ -414,17 +505,39 @@ func (b *Bolt) Partition(_ context.Context, s string) (*model.Partition, error) 
 }
 
 func (b *Bolt) AllPartitions(ctx context.Context) ([]*model.Partition, error) {
-	boltTx, err := b.db.Begin(false)
+	ctx, span := b.tracer.Start(
+		ctx,
+		"AllPartitions",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(partitionsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
+	var partitions []*model.Partition
+	err := b.db.View(func(tx *boltDB.Tx) error {
+		bucket := tx.Bucket([]byte(partitionsBucketKey))
+		if bucket == nil {
+			return nil
+		}
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			var pbPartition pbTypes.Partition
+			if err := proto.Unmarshal(v, &pbPartition); err != nil {
+				return fmt.Errorf("failed to unmarshal partition: %w", err)
+			}
+			partitions = append(partitions, model.FromProtoBufPartition(&pbPartition))
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+		span.RecordError(err)
+		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
-	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
-	defer tx.BoltTx.Rollback()
-	partitions, err := b.AllPartitionsInTx(ctx, tx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all partitions: %w", err)
-	}
-	return partitions, tx.Commit()
+	return partitions, nil
 }
 
 func (b *Bolt) AllPartitionsInTx(_ context.Context, tx storage.Transaction) ([]*model.Partition, error) {
@@ -472,31 +585,75 @@ func (b *Bolt) UpdatePartitionInTx(
 }
 
 func (b *Bolt) PartitionsForTopic(ctx context.Context, topicName string) ([]*model.Partition, error) {
-	boltTx, err := b.db.Begin(false)
+	ctx, span := b.tracer.Start(
+		ctx,
+		"PartitionsForTopic",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(partitionsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
+	var partitions []*model.Partition
+	err := b.db.View(func(tx *boltDB.Tx) error {
+		bucket := tx.Bucket([]byte(partitionsBucketKey))
+		if bucket == nil {
+			return nil
+		}
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			var pbPartition pbTypes.Partition
+			if err := proto.Unmarshal(v, &pbPartition); err != nil {
+				return fmt.Errorf("failed to unmarshal partition: %w", err)
+			}
+			partition := model.FromProtoBufPartition(&pbPartition)
+			if partition.TopicName == topicName {
+				partitions = append(partitions, partition)
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
-	defer tx.BoltTx.Rollback()
-	partitions, err := b.PartitionsInTx(ctx, tx, map[string]bool{topicName: true})
-	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
-	return partitions, tx.Commit()
+	return partitions, nil
 }
 
 func (b *Bolt) PartitionsForTopics(ctx context.Context, topicNames []string) ([]*model.Partition, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"PartitionsForTopics",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(partitionsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	boltTx, err := b.db.Begin(false)
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
 	defer tx.BoltTx.Rollback()
 	partitions, err := b.PartitionsInTx(ctx, tx, util.ToSet(topicNames))
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get partitions: %w", err)
 	}
-	return partitions, tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	return partitions, nil
 }
 
 func (b *Bolt) PartitionsInTx(
@@ -550,45 +707,80 @@ func (b *Bolt) CreateConsumerGroupInTx(
 }
 
 func (b *Bolt) ConsumerGroup(ctx context.Context, consumerGroupID string) (*model.ConsumerGroup, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"ConsumerGroup",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(consumerGroupsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	boltTx, err := b.db.Begin(false)
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
 	defer tx.BoltTx.Rollback()
 	consumerGroup, err := b.ConsumerGroupInTx(ctx, tx, consumerGroupID)
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get consumer group: %w", err)
 	}
-	return consumerGroup, tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	return consumerGroup, nil
 }
 
-func (b *Bolt) PartitionAssignmentsInTx(
-	_ context.Context,
-	tx storage.Transaction,
-	consumerGroupID string,
-) (map[string][]string, error) {
+func (b *Bolt) PartitionAssignmentsInTx(ctx context.Context, tx storage.Transaction, consumerGroupID string) (map[string][]string, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"PartitionAssignmentsInTx",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(consumerGroupsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
-		return nil, fmt.Errorf("invalid transaction type")
+		err := fmt.Errorf("invalid transaction type")
+		span.RecordError(err)
+		return nil, err
 	}
 	bucket := boltTx.BoltTx.Bucket([]byte(consumerGroupsBucketKey))
 	if bucket == nil {
-		return nil, fmt.Errorf("bucket not found")
+		err := fmt.Errorf("bucket not found")
+		span.RecordError(err)
+		return nil, err
 	}
 	data := bucket.Get([]byte(consumerGroupID))
 	if data == nil {
-		return nil, fmt.Errorf("consumer group not found")
+		err := fmt.Errorf("consumer group not found")
+		span.RecordError(err)
+		return nil, err
 	}
 	var pbGroup pbTypes.ConsumerGroup
 	if err := proto.Unmarshal(data, &pbGroup); err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to unmarshal consumer group: %w", err)
 	}
 	group := model.FromProtoBufConsumerGroup(&pbGroup)
 	assignments := make(map[string][]string)
 	for _, consumerID := range util.Keys(group.Consumers) {
-		consumer, err := b.ConsumerInTx(context.Background(), tx, consumerID)
+		consumer, err := b.ConsumerInTx(ctx, tx, consumerID)
 		if err != nil {
+			span.RecordError(err)
 			return nil, fmt.Errorf("failed to get consumer %s: %w", consumerID, err)
 		}
 		assignments[consumerID] = consumer.Partitions
@@ -596,121 +788,194 @@ func (b *Bolt) PartitionAssignmentsInTx(
 	return assignments, nil
 }
 
-func (b *Bolt) ConsumerGroupInTx(
-	_ context.Context,
-	tx storage.Transaction,
-	consumerGroupID string,
-) (*model.ConsumerGroup, error) {
+func (b *Bolt) ConsumerGroupInTx(ctx context.Context, tx storage.Transaction, consumerGroupID string) (*model.ConsumerGroup, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"ConsumerGroupInTx",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(consumerGroupsBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
-		return nil, fmt.Errorf("invalid transaction type")
+		err := fmt.Errorf("invalid transaction type")
+		span.RecordError(err)
+		return nil, err
 	}
 	bucket := boltTx.BoltTx.Bucket([]byte(consumerGroupsBucketKey))
 	if bucket == nil {
-		return nil, errors.ErrConsumerGroupNotFound
+		err := errors.ErrConsumerGroupNotFound
+		span.RecordError(err)
+		return nil, err
 	}
 	data := bucket.Get([]byte(consumerGroupID))
 	if data == nil {
-		return nil, errors.ErrConsumerGroupNotFound
+		err := errors.ErrConsumerGroupNotFound
+		span.RecordError(err)
+		return nil, err
 	}
 	var pbGroup pbTypes.ConsumerGroup
 	if err := proto.Unmarshal(data, &pbGroup); err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to unmarshal consumer group: %w", err)
 	}
 	return model.FromProtoBufConsumerGroup(&pbGroup), nil
 }
 
-func (b *Bolt) AddConsumerToGroupInTx(
-	_ context.Context,
-	tx storage.Transaction,
-	group *model.ConsumerGroup,
-	consumer *model.Consumer,
-) error {
+func (b *Bolt) AddConsumerToGroupInTx(ctx context.Context, tx storage.Transaction, group *model.ConsumerGroup, consumer *model.Consumer) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"AddConsumerToGroupInTx",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(consumerGroupsBucketKey),
+			semconv.DBOperationNameKey.String("PUT"),
+		),
+	)
+	defer span.End()
 	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
-		return fmt.Errorf("invalid transaction type")
+		err := fmt.Errorf("invalid transaction type")
+		span.RecordError(err)
+		return err
 	}
 	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucketKey))
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 	group.AddConsumer(consumer.ID)
 	groupData, err := proto.Marshal(group.ToProtoBuf())
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
 	}
 	if err := bucket.Put([]byte(group.ID), groupData); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to put consumer group: %w", err)
 	}
 	return nil
 }
 
-func (b *Bolt) UpdateConsumerGroupInTx(
-	_ context.Context,
-	tx storage.Transaction,
-	group *model.ConsumerGroup,
-) error {
+func (b *Bolt) UpdateConsumerGroupInTx(ctx context.Context, tx storage.Transaction, group *model.ConsumerGroup) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"UpdateConsumerGroupInTx",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(consumerGroupsBucketKey),
+			semconv.DBOperationNameKey.String("PUT"),
+		),
+	)
+	defer span.End()
 	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
-		return fmt.Errorf("invalid transaction type")
+		err := fmt.Errorf("invalid transaction type")
+		span.RecordError(err)
+		return err
 	}
 	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucketKey))
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 	groupData, err := proto.Marshal(group.ToProtoBuf())
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
 	}
 	if err := bucket.Put([]byte(group.ID), groupData); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to put consumer group: %w", err)
 	}
 	return nil
 }
 
-func (b *Bolt) RemoveConsumerFromGroupInTx(
-	_ context.Context,
-	tx storage.Transaction,
-	group *model.ConsumerGroup,
-	consumer *model.Consumer,
-) error {
+func (b *Bolt) RemoveConsumerFromGroupInTx(ctx context.Context, tx storage.Transaction, group *model.ConsumerGroup, consumer *model.Consumer) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"RemoveConsumerFromGroupInTx",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(consumerGroupsBucketKey),
+			semconv.DBOperationNameKey.String("PUT"),
+		),
+	)
+	defer span.End()
 	boltTx, ok := tx.(*storage.BoltDbTransactionWrapper)
 	if !ok {
-		return fmt.Errorf("invalid transaction type")
+		err := fmt.Errorf("invalid transaction type")
+		span.RecordError(err)
+		return err
 	}
 	bucket, err := boltTx.BoltTx.CreateBucketIfNotExists([]byte(consumerGroupsBucketKey))
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 	delete(group.Consumers, consumer.ID)
 	groupData, err := proto.Marshal(group.ToProtoBuf())
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to marshal consumer group: %w", err)
 	}
 	if err := bucket.Put([]byte(group.ID), groupData); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to put consumer group: %w", err)
 	}
 	return nil
 }
 
 func (b *Bolt) UpdateConsumer(ctx context.Context, commandID uint64, consumer *model.Consumer) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"UpdateConsumer",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(consumersBucketKey),
+			semconv.DBOperationNameKey.String("PUT"),
+		),
+	)
+	defer span.End()
 	boltTx, err := b.db.Begin(true)
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
 	defer tx.BoltTx.Rollback()
 	if err := b.CheckCommandAppliedInTx(ctx, tx, commandID); err != nil {
+		span.RecordError(err)
 		return err
 	}
 	err = b.UpdateConsumerInTx(ctx, tx, consumer)
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to update consumer: %w", err)
 	}
 	if err := b.UpdateCommandAppliedInTx(ctx, tx, commandID); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to update command applied: %w", err)
 	}
-	return tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+	return nil
 }
 
 func (b *Bolt) UpdateConsumerInTx(_ context.Context, tx storage.Transaction, consumer *model.Consumer) error {
@@ -751,7 +1016,19 @@ func (b *Bolt) CreateConsumerInTx(_ context.Context, tx storage.Transaction, con
 	return nil
 }
 
-func (b *Bolt) AllConsumers(_ context.Context) ([]*model.Consumer, error) {
+func (b *Bolt) AllConsumers(ctx context.Context) ([]*model.Consumer, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"AllConsumers",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(consumersBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	var consumers []*model.Consumer
 	err := b.db.View(func(tx *boltDB.Tx) error {
 		bucket := tx.Bucket([]byte(consumersBucketKey))
@@ -772,23 +1049,43 @@ func (b *Bolt) AllConsumers(_ context.Context) ([]*model.Consumer, error) {
 		return nil
 	})
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get consumers: %w", err)
 	}
 	return consumers, nil
 }
 
 func (b *Bolt) Consumer(ctx context.Context, s string) (*model.Consumer, error) {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"Consumer",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+			semconv.DBCollectionNameKey.String(consumersBucketKey),
+			semconv.DBOperationNameKey.String("GET"),
+		),
+	)
+	defer span.End()
 	boltTx, err := b.db.Begin(true)
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	tx := &storage.BoltDbTransactionWrapper{BoltTx: boltTx}
 	defer tx.BoltTx.Rollback()
 	consumer, err := b.ConsumerInTx(ctx, tx, s)
 	if err != nil {
+		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get consumer: %w", err)
 	}
-	return consumer, tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	return consumer, nil
 }
 
 func (b *Bolt) ConsumerInTx(_ context.Context, tx storage.Transaction, s string) (*model.Consumer, error) {
@@ -811,7 +1108,17 @@ func (b *Bolt) ConsumerInTx(_ context.Context, tx storage.Transaction, s string)
 	return model.FromProtoBufConsumer(&pbConsumer), nil
 }
 
-func (b *Bolt) Snapshot(_ context.Context, w io.Writer) error {
+func (b *Bolt) Snapshot(ctx context.Context, w io.Writer) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"Snapshot metadata",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+		),
+	)
+	defer span.End()
 	writeBytes := func(w io.Writer, data []byte) error {
 		n, err := w.Write(data)
 		if err != nil {
@@ -825,6 +1132,7 @@ func (b *Bolt) Snapshot(_ context.Context, w io.Writer) error {
 
 	tx, err := b.db.Begin(false)
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
@@ -834,19 +1142,32 @@ func (b *Bolt) Snapshot(_ context.Context, w io.Writer) error {
 	binary.BigEndian.PutUint64(dbSize, uint64(size))
 
 	if err := writeBytes(w, dbSize); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to write db size: %w", err)
 	}
 	if _, err := tx.WriteTo(w); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to write db to snapshot: %w", err)
 	}
 
 	return nil
 }
 
-func (b *Bolt) RecoverFromSnapshot(_ context.Context, r io.Reader) error {
+func (b *Bolt) RecoverFromSnapshot(ctx context.Context, r io.Reader) error {
+	ctx, span := b.tracer.Start(
+		ctx,
+		"RecoverFromSnapshot metadata",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			semconv.DBSystemNameKey.String("boltdb"),
+			semconv.DBNamespaceKey.String(b.dbPath),
+		),
+	)
+	defer span.End()
 	dbSize := make([]byte, 8)
 	_, err := io.ReadFull(r, dbSize)
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to read size of db: %w", err)
 	}
 	dbFileSize := binary.BigEndian.Uint64(dbSize)
@@ -855,23 +1176,28 @@ func (b *Bolt) RecoverFromSnapshot(_ context.Context, r io.Reader) error {
 	tempDirPath := filepath.Join(os.TempDir(), "queue", "metadata", fileDir)
 	tempDbFilePath := filepath.Join(tempDirPath, "metadata.tmp")
 	if err := os.MkdirAll(tempDirPath, 0755); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to create temp db file directory: %w", err)
 	}
 	file, err := os.Create(tempDbFilePath)
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to create temp db file: %w", err)
 	}
 
 	_, err = io.Copy(file, io.LimitReader(r, int64(dbFileSize)))
 	if err != nil {
 		file.Close()
+		span.RecordError(err)
 		return fmt.Errorf("failed to copy db file: %w", err)
 	}
 	if err := file.Close(); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to close temp db file: %w", err)
 	}
 
 	if err := os.Rename(tempDbFilePath, b.dbPath); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to rename temp db file: %w", err)
 	}
 	return nil

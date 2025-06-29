@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/sreekar2307/queue/logger"
+	"go.opentelemetry.io/otel/trace"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -43,6 +44,7 @@ const (
 
 type Queue struct {
 	broker *model.Broker
+	tracer trace.Tracer
 
 	mdStorage      storage.MetadataStorage
 	topicService   service.TopicService
@@ -57,6 +59,7 @@ type Queue struct {
 
 func NewQueue(
 	pCtx context.Context,
+	tracer trace.Tracer,
 	log logger.Logger,
 ) (*Queue, error) {
 	conf := config.Conf
@@ -69,7 +72,7 @@ func NewQueue(
 	if err := os.MkdirAll(metadataPath, 0777); err != nil {
 		return nil, fmt.Errorf("failed to create metadata path: %w", err)
 	}
-	mdStorage := metadataStorage.NewBolt(filepath.Join(metadataPath, "metadata.db"))
+	mdStorage := metadataStorage.NewBolt(filepath.Join(metadataPath, "metadata.db"), tracer)
 	if err := mdStorage.Open(pCtx); err != nil {
 		return nil, fmt.Errorf("failed to open metadata storage: %w", err)
 	}
@@ -86,6 +89,7 @@ func NewQueue(
 		topicService: topicServ.NewTopicService(mdStorage, log),
 		pCtx:         pCtx,
 		log:          log,
+		tracer:       tracer,
 	}
 	dragonLogger.SetLoggerFactory(func(pgk string) dragonLogger.ILogger {
 		return log.WithFields(logger.NewAttr("package", pgk))
@@ -104,7 +108,7 @@ func NewQueue(
 	broker.SetBrokerShardId(brokerSharID)
 
 	f := func(shardID uint64, replicaID uint64) statemachine.IOnDiskStateMachine {
-		return fsmFactory.NewBrokerFSM(shardID, replicaID, broker, log, mdStorage)
+		return fsmFactory.NewBrokerFSM(shardID, replicaID, broker, tracer, log, mdStorage)
 	}
 	inviteMembers := raftConfig.InviteMembers
 	if raftConfig.Join {
@@ -862,6 +866,7 @@ func (q *Queue) listenForJoinShard(pCtx context.Context) {
 						shardID,
 						replicaID,
 						q.broker,
+						q.tracer,
 						q.log,
 						q.mdStorage,
 					)

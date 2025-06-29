@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"github.com/sreekar2307/queue/logger/zerolog"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"log"
 	"os/signal"
 	"syscall"
@@ -18,19 +20,25 @@ func main() {
 	ctx := context.Background()
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGKILL, syscall.SIGTERM)
 	defer cancel()
-	if config.Conf.Version {
+	if config.Conf.ShowVersion {
 		config.Conf.PrintVersion()
 		return
 	} else if config.Conf.Help {
 		config.Conf.PrintUsage()
 		return
 	}
+
+	tracer := otel.GetTracerProvider().Tracer(
+		config.Conf.Scope(),
+		trace.WithInstrumentationVersion(config.Conf.Version()),
+	)
+
 	logger := zerolog.NewLogger(config.Conf.Level)
-	queue, err := controller.NewQueue(ctx, logger)
+	queue, err := controller.NewQueue(ctx, tracer, logger)
 	if err != nil {
 		log.Fatalf("failed to create queue: %v", err)
 	}
-	transporters := startTransporters(ctx, queue)
+	transporters := startTransporters(ctx, tracer, queue)
 	<-ctx.Done()
 	for _, transporter := range transporters {
 		ctx, cancel = context.WithTimeout(context.Background(), config.Conf.ShutdownTimeout)
@@ -41,7 +49,7 @@ func main() {
 	}
 }
 
-func startTransporters(ctx context.Context, queue *controller.Queue) []transport.Transport {
+func startTransporters(ctx context.Context, tracer trace.Tracer, queue *controller.Queue) []transport.Transport {
 	// Start the transporters
 	transporters := make([]transport.Transport, 0)
 	if config.Conf.GRPC.ListenerAddr != "" {

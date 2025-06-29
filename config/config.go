@@ -27,10 +27,10 @@ type (
 		ShutdownTimeout               time.Duration `mapstructure:"shutdown_timeout"`
 		Level                         logger.Level  `mapstructure:"level"`
 
-		GRPC    GRPC `mapstructure:"grpc"`
-		HTTP    HTTP `mapstructure:"http"`
-		Version bool `mapstructure:"version"`
-		Help    bool `mapstructure:"help"`
+		GRPC        GRPC `mapstructure:"grpc"`
+		HTTP        HTTP `mapstructure:"http"`
+		ShowVersion bool `mapstructure:"version"`
+		Help        bool `mapstructure:"help"`
 	}
 
 	GRPC struct {
@@ -66,6 +66,7 @@ var (
 	Conf    *Config
 	once    sync.Once
 	version = "0.1.27"
+	scope   = "github.com/sreekar2307/queue"
 )
 
 func init() {
@@ -137,4 +138,12 @@ func (c *Config) PrintUsage() {
 
 func (c *Config) PrintVersion() {
 	_, _ = fmt.Fprintf(os.Stderr, "Version: %s\n", version)
+}
+
+func (c *Config) Scope() string {
+	return scope
+}
+
+func (c *Config) Version() string {
+	return version
 }
