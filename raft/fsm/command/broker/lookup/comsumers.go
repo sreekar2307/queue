@@ -3,6 +3,7 @@ package lookup
 import (
 	"context"
 	"fmt"
+
 	"github.com/sreekar2307/queue/logger"
 
 	pbBrokerCommand "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
@@ -42,9 +43,10 @@ type consumers struct {
 	log logger.Logger
 }
 
-func (c consumersEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c consumersEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	cmd := pbCommandTypes.Cmd{
-		Cmd: kindConsumers,
+		Cmd:     kindConsumers,
+		Headers: headers,
 	}
 	cmdBytes, err := proto.Marshal(&cmd)
 	if err != nil {

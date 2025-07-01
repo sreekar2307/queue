@@ -3,6 +3,7 @@ package lookup
 import (
 	"context"
 	"fmt"
+
 	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"github.com/sreekar2307/queue/logger"
 	"github.com/sreekar2307/queue/util"
@@ -45,7 +46,7 @@ type partitionsForTopic struct {
 	log logger.Logger
 }
 
-func (c partitionsForTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c partitionsForTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbBrokerCommand.PartitionsForTopicInputs)
 	if !ok {
 		return nil, fmt.Errorf("expected command.partitionsForTopicInputs, got %T", arg)
@@ -55,8 +56,9 @@ func (c partitionsForTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any)
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
 	cmd := pbCommandTypes.Cmd{
-		Cmd:  kindPartitionsForTopic,
-		Args: args,
+		Cmd:     kindPartitionsForTopic,
+		Args:    args,
+		Headers: headers,
 	}
 	cmdBytes, err := proto.Marshal(&cmd)
 	if err != nil {

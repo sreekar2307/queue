@@ -3,13 +3,20 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/sreekar2307/queue/logger"
-	"go.opentelemetry.io/otel/trace"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
+
+	"github.com/sreekar2307/queue/logger"
+	"go.opentelemetry.io/otel/trace"
 
 	pbMessageCommand "github.com/sreekar2307/queue/gen/raft/fsm/message/v1"
 
@@ -157,64 +164,131 @@ func (q *Queue) CreateTopic(
 	if err != nil {
 		return nil, fmt.Errorf("get encoder decoder for create topic: %w", err)
 	}
-	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.CreateTopicInputs{
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "createTopic"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("createTopic"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
+	cmdBytes, err := encoderDecoder.EncodeArgs(ctx, &pbBrokerCommands.CreateTopicInputs{
 		Topic:           name,
 		NumOfPartitions: numberOfPartitions,
 		ShardOffset:     q.broker.BrokerShardId() + 1,
-	})
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to propose create topic")
+		span.End()
 		return nil, fmt.Errorf("encode args for create topic: %w", err)
 	}
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFunc()
-	nh := q.broker.NodeHost()
-	res, err := nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	res, err := q.broker.NodeHost().SyncPropose(ctxTimeout, q.broker.NodeHost().GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to propose create topic")
+		span.End()
 		return nil, fmt.Errorf("propose create topic: %w", err)
 	}
 	results, err := encoderDecoder.DecodeResults(pCtx, res.Data)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to propose create topic")
+		span.End()
 		return nil, fmt.Errorf("decode results for create topic: %w", err)
 	}
 	createTopicResult, ok := results.(*pbBrokerCommands.CreateTopicOutputs)
 	if !ok {
-		return nil, fmt.Errorf("unexpected result type for create topic: %T", results)
+		err := fmt.Errorf("unexpected result type for create topic: %T", results)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to propose create topic")
+		span.End()
+		return nil, err
 	}
 	if !createTopicResult.IsCreated {
+		span.RecordError(errors.ErrTopicAlreadyExists)
+		span.SetStatus(codes.Error, "failed to propose create topic")
+		span.End()
 		return nil, errors.ErrTopicAlreadyExists
 	}
 	topic := createTopicResult.Topic
 	// get all the partitions of the topic, create a shard per partition, randomly add 3 nodes per partition
 	encoderDecoder, err = factory.EncoderDecoder(pbCommandTypes.Kind_KIND_PARTITIONS_FOR_TOPIC)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to propose create topic")
+		span.End()
 		return nil, fmt.Errorf("get encoder decoder for get partitions: %w", err)
 	}
+	span.End()
+	ctx, span = q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "partitionsForTopic"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("partitionsForTopic"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	headers = make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
 	cmdBytes, err = encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.PartitionsForTopicInputs{
 		Topic: topic.Topic,
-	})
+	}, headers)
 	if err != nil {
 		return nil, fmt.Errorf("marshal cmd: %w", err)
 	}
-	ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
+	ctxTimeout, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
-	numPartitionsRes, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+	numPartitionsRes, err := q.broker.NodeHost().SyncRead(ctxTimeout, q.broker.BrokerShardId(), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read get partitions")
+		span.End()
 		return nil, fmt.Errorf("sync read get partitions: %w", err)
 	}
 	results, err = encoderDecoder.DecodeResults(pCtx, numPartitionsRes.([]byte))
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read get partitions")
+		span.End()
 		return nil, fmt.Errorf("decode results for get partitions: %w", err)
 	}
 	partitionsForTopicOutputs, ok := results.(*pbBrokerCommands.PartitionsForTopicOutputs)
 	if !ok {
-		return nil, fmt.Errorf("unexpected result type for get partitions: %T", results)
+		err := fmt.Errorf("unexpected result type for get partitions: %T", results)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read get partitions")
+		span.End()
+		return nil, err
 	}
-	ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
+	span.End()
+	ctx, span = q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "syncGetShardMembership"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("syncGetShardMembership"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	headers = make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
+	ctxTimeout, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
 	defer cancelFunc()
-	membership, err := nh.SyncGetShardMembership(ctx, q.broker.BrokerShardId())
+	membership, err := q.broker.NodeHost().SyncGetShardMembership(ctxTimeout, q.broker.BrokerShardId())
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to read get shard membership")
+		span.End()
 		return nil, fmt.Errorf("get shard membership: %w", err)
 	}
+	span.End()
 	for _, partition := range partitionsForTopicOutputs.Partitions {
 		brokers := util.Sample(util.Keys(membership.Nodes), int(replicationFactor))
 		brokerTargets := make(map[uint64]string)
@@ -225,20 +299,36 @@ func (q *Queue) CreateTopic(
 		if err != nil {
 			return nil, fmt.Errorf("get encoder decoder for partition added: %w", err)
 		}
+
+		ctx, span = q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "partitionAdded"),
+			trace.WithSpanKind(trace.SpanKindClient),
+			trace.WithAttributes(
+				semconv.RPCSystemKey.String("raft"),
+				semconv.ServerAddressKey.String(q.broker.RaftAddress),
+				semconv.RPCMethodKey.String("partitionAdded"),
+				semconv.RPCServiceKey.String("raft.broker.FSM"),
+			),
+		)
+		headers = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(ctx, &headers)
 		cmdBytes, err = encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.PartitionAdddedInputs{
 			PartitionId: partition.Id,
 			ShardId:     partition.ShardId,
 			Members:     brokerTargets,
-		})
+		}, headers)
 		if err != nil {
 			return nil, fmt.Errorf("marshal cmd: %w", err)
 		}
-		ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
-		_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+		ctxTimeout, cancelFunc = context.WithTimeout(ctx, 15*time.Second)
+		_, err = q.broker.NodeHost().SyncPropose(ctxTimeout, q.broker.NodeHost().GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 		cancelFunc()
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to propose partition added")
+			span.End()
 			return nil, fmt.Errorf("propose partition added: %w", err)
 		}
+		span.End()
 	}
 
 	return topic, nil
@@ -257,19 +347,34 @@ func (q *Queue) disconnectInActiveConsumers(pCtx context.Context) {
 				q.log.Error(pCtx, "failed to get encoder decoder for consumers: ", logger.NewAttr("error", err))
 				return
 			}
-			cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, nil)
+			ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "allConsumers"),
+				trace.WithSpanKind(trace.SpanKindClient),
+				trace.WithAttributes(
+					semconv.RPCSystemKey.String("raft"),
+					semconv.ServerAddressKey.String(q.broker.RaftAddress),
+					semconv.RPCMethodKey.String("allConsumers"),
+					semconv.RPCServiceKey.String("raft.broker.FSM"),
+				),
+			)
+			headers := make(propagation.MapCarrier)
+			otel.GetTextMapPropagator().Inject(ctx, &headers)
+			nh := q.broker.NodeHost()
+			cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, nil, headers)
 			if err != nil {
 				q.log.Error(pCtx, "failed to marshal cmd", logger.NewAttr("error", err))
 				return
 			}
-			nh := q.broker.NodeHost()
-			ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+			ctx, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
 			res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
 			cancelFunc()
 			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "failed to propose health check")
+				span.End()
 				q.log.Error(pCtx, "failed to propose health check: ", logger.NewAttr("error", err))
 				return
 			}
+			span.End()
 			select {
 			case <-pCtx.Done():
 				return
@@ -329,23 +434,44 @@ func (q *Queue) SendMessage(
 	ci := &pbMessageCommand.AppendInputs{
 		Message: msg.ToProtoBuf(),
 	}
-	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, ci)
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/message/FSM", "appendMessage"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("appendMessage"),
+			semconv.RPCServiceKey.String("raft.message.FSM"),
+		),
+	)
+	defer span.End()
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
+	cmdBytes, err := encoderDecoder.EncodeArgs(ctx, ci, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "marshal cmd")
 		return nil, fmt.Errorf("marshal cmd: %w", err)
 	}
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFunc()
-	res, err := nh.SyncPropose(ctx, nh.GetNoOPSession(partition.ShardID), cmdBytes)
+	res, err := nh.SyncPropose(ctxTimeout, nh.GetNoOPSession(partition.ShardID), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "propose append messages")
 		return nil, fmt.Errorf("propose append messages: %w", err)
 	}
-	results, err := encoderDecoder.DecodeResults(ctx, res.Data)
+	results, err := encoderDecoder.DecodeResults(ctxTimeout, res.Data)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "decode results for append messages")
 		return nil, fmt.Errorf("decode results for append messages: %w", err)
 	}
 	appendMessageOutputs, ok := results.(*pbMessageCommand.AppendOutputs)
 	if !ok {
-		return nil, fmt.Errorf("unexpected result type for append messages: %T", results)
+		err := fmt.Errorf("unexpected result type for append messages: %T", results)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected result type")
+		return nil, err
 	}
 	return model.FromProtoBufMessage(appendMessageOutputs.Message), nil
 }
@@ -359,30 +485,53 @@ func (q *Queue) Connect(
 	if err != nil {
 		return nil, nil, fmt.Errorf("get encoder decoder for connect: %w", err)
 	}
-	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.ConnectInputs{
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "connect"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("connect"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	defer span.End()
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
+	cmdBytes, err := encoderDecoder.EncodeArgs(ctx, &pbBrokerCommands.ConnectInputs{
 		ConsumerGroupId: consumerGroupID,
 		ConsumerId:      consumerID,
 		Topics:          topics,
-	})
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "encode args for connect")
 		return nil, nil, fmt.Errorf("encode args for connect: %w", err)
 	}
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
-	res, err := nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	res, err := nh.SyncPropose(ctxTimeout, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "propose connect")
 		return nil, nil, fmt.Errorf("propose connect: %w", err)
 	}
-	results, err := encoderDecoder.DecodeResults(pCtx, res.Data)
+	results, err := encoderDecoder.DecodeResults(ctxTimeout, res.Data)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "decode results for connect")
 		return nil, nil, fmt.Errorf("decode results for connect: %w", err)
 	}
 	connectResults, ok := results.(*pbBrokerCommands.ConnectOutputs)
 	if !ok {
-		return nil, nil, fmt.Errorf("unexpected result type for connect: %T", results)
+		err := fmt.Errorf("unexpected result type for connect: %T", results)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected result type")
+		return nil, nil, err
 	}
 	if connectResults.TopicsNotFound {
+		span.RecordError(errors.ErrTopicNotFound)
+		span.SetStatus(codes.Error, "topics not found")
 		return nil, nil, errors.ErrTopicNotFound
 	}
 	return connectResults.Consumer, connectResults.ConsumerGroup, nil
@@ -396,17 +545,33 @@ func (q *Queue) disconnect(
 	if err != nil {
 		return fmt.Errorf("get encoder decoder for disconnect: %w", err)
 	}
-	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.DisconnectInputs{
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "disconnect"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("disconnect"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	defer span.End()
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
+	cmdBytes, err := encoderDecoder.EncodeArgs(ctx, &pbBrokerCommands.DisconnectInputs{
 		ConsumerId: consumerID,
-	})
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "encode args for disconnect")
 		return fmt.Errorf("encode args for disconnect: %w", err)
 	}
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
-	_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	_, err = nh.SyncPropose(ctxTimeout, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "propose disconnect")
 		return fmt.Errorf("propose disconnect: %w", err)
 	}
 	return nil
@@ -417,31 +582,59 @@ func (q *Queue) ReceiveMessageForPartition(
 	consumerID string,
 	partitionId string,
 ) (*model.Message, error) {
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "consumerForID"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("consumerForID"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
 	encoderDecoder, err := factory.EncoderDecoder(pbCommandTypes.Kind_KIND_CONSUMER_FOR_ID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get encoder decoder for consumer for ID")
+		span.End()
 		return nil, fmt.Errorf("get encoder decoder for consumer for ID: %w", err)
 	}
 	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.ConsumerForIDInputs{
 		ConsumerId: consumerID,
-	})
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "marshal cmd")
+		span.End()
 		return nil, fmt.Errorf("marshal cmd: %w", err)
 	}
-	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+	res, err := nh.SyncRead(ctxTimeout, q.broker.BrokerShardId(), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "propose get consumer for ID")
+		span.End()
 		return nil, fmt.Errorf("propose get consumer for ID: %w", err)
 	}
 	results, err := encoderDecoder.DecodeResults(pCtx, res.([]byte))
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "decode results for get consumer for ID")
+		span.End()
 		return nil, fmt.Errorf("decode results for get consumer for ID: %w", err)
 	}
 	output, ok := results.(*pbBrokerCommands.ConsumerForIDOutputs)
 	if !ok {
-		return nil, fmt.Errorf("unexpected result type for get consumer for ID: %T", results)
+		err := fmt.Errorf("unexpected result type for get consumer for ID: %T", results)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected result type")
+		span.End()
+		return nil, err
 	}
+	span.End()
 	consumer := model.FromProtoBufConsumer(output.Consumer)
 	_, ok = util.FirstMatch(consumer.Partitions, func(p string) bool {
 		return p == partitionId
@@ -449,7 +642,6 @@ func (q *Queue) ReceiveMessageForPartition(
 	if !ok {
 		return nil, fmt.Errorf("consumer %s is not subscribed to partition %s", consumerID, partitionId)
 	}
-
 	shardID, ok := q.broker.ShardForPartition(partitionId)
 	if !ok {
 		return nil, fmt.Errorf("broker does not have partition: %s", partitionId)
@@ -460,29 +652,57 @@ func (q *Queue) ReceiveMessageForPartition(
 		logger.NewAttr("shardID", shardID),
 		logger.NewAttr("partitionId", partitionId),
 	)
+	ctx, span = q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/message/FSM", "pollMessage"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("pollMessage"),
+			semconv.RPCServiceKey.String("raft.message.FSM"),
+		),
+	)
+	headers = make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
 	encoderDecoder, err = factory.EncoderDecoder(pbCommandTypes.Kind_KIND_MESSAGE_POLL)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get encoder decoder for poll message")
+		span.End()
 		return nil, fmt.Errorf("marshal cmd: %w", err)
 	}
 	cmdBytes, err = encoderDecoder.EncodeArgs(pCtx, &pbMessageCommand.PollInputs{
 		ConsumerGroupId: consumer.ConsumerGroup,
 		PartitionId:     partitionId,
-	})
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "marshal cmd")
+		span.End()
 		return nil, fmt.Errorf("marshal cmd: %w", err)
 	}
-	result, err := nh.SyncRead(ctx, shardID, cmdBytes)
+	result, err := nh.SyncRead(ctxTimeout, shardID, cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "sync read get message")
+		span.End()
 		return nil, fmt.Errorf("sync read get message: %w", err)
 	}
 	outputs, err := encoderDecoder.DecodeResults(ctx, result.([]byte))
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "decode results for get message")
+		span.End()
 		return nil, fmt.Errorf("decode results for get message: %w", err)
 	}
 	msgOutputs, ok := outputs.(*pbMessageCommand.PollOutputs)
 	if !ok {
-		return nil, fmt.Errorf("unexpected result type for get message: %T", outputs)
+		err := fmt.Errorf("unexpected result type for get message: %T", outputs)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected result type")
+		span.End()
+		return nil, err
 	}
+	span.End()
 	if msgOutputs.Message == nil {
 		return nil, nil
 	}
@@ -494,51 +714,114 @@ func (q *Queue) AckMessage(
 	consumerID string,
 	msg *model.Message,
 ) error {
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "consumerForID"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("consumerForID"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
 	encoderDecoder, err := factory.EncoderDecoder(pbCommandTypes.Kind_KIND_CONSUMER_FOR_ID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get encoder decoder for consumer for ID")
+		span.End()
 		return fmt.Errorf("get encoder decoder for consumer for ID: %w", err)
 	}
 	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.ConsumerForIDInputs{
 		ConsumerId: consumerID,
-	})
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "marshal cmd")
+		span.End()
 		return fmt.Errorf("marshal cmd: %w", err)
 	}
-	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+	res, err := nh.SyncRead(ctxTimeout, q.broker.BrokerShardId(), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "propose get consumer for ID")
+		span.End()
 		return fmt.Errorf("propose get consumer for ID: %w", err)
 	}
 	results, err := encoderDecoder.DecodeResults(pCtx, res.([]byte))
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "decode results for get consumer for ID")
+		span.End()
 		return fmt.Errorf("decode results for get consumer for ID: %w", err)
 	}
 	output, ok := results.(*pbBrokerCommands.ConsumerForIDOutputs)
 	if !ok {
-		return fmt.Errorf("unexpected result type for get consumer for ID: %T", results)
+		err := fmt.Errorf("unexpected result type for get consumer for ID: %T", results)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected result type")
+		span.End()
+		return err
 	}
+	span.End()
 	consumer := model.FromProtoBufConsumer(output.Consumer)
 	shardID, ok := q.broker.ShardForPartition(msg.PartitionID)
 	if !ok {
 		return fmt.Errorf("broker does not have partition: %s", msg.PartitionID)
 	}
+	ctx, span = q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/message/FSM", "ackMessage"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("ackMessage"),
+			semconv.RPCServiceKey.String("raft.message.FSM"),
+		),
+	)
+	headers = make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
 	encoderDecoder, err = factory.EncoderDecoder(pbCommandTypes.Kind_KIND_MESSAGE_ACK)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get encoder decoder for ack message")
+		span.End()
 		return fmt.Errorf("get encoder decoder for ack message: %w", err)
 	}
 	cmdBytes, err = encoderDecoder.EncodeArgs(ctx, &pbMessageCommand.AckInputs{
 		ConsumerGroupId: consumer.ConsumerGroup,
 		Message:         msg.ToProtoBuf(),
-	})
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "marshal cmd")
+		span.End()
 		return fmt.Errorf("marshal cmd: %w", err)
 	}
-	_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(shardID), cmdBytes)
+	headers = make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, headers)
+	cmdBytes, err = encoderDecoder.EncodeArgs(ctx, &pbMessageCommand.AckInputs{
+		ConsumerGroupId: consumer.ConsumerGroup,
+		Message:         msg.ToProtoBuf(),
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "marshal cmd")
+		span.End()
+		return fmt.Errorf("marshal cmd: %w", err)
+	}
+	ctxTimeout, cancelFunc = context.WithTimeout(ctx, 15*time.Second)
+	defer cancelFunc()
+	_, err = nh.SyncPropose(ctxTimeout, nh.GetNoOPSession(shardID), cmdBytes)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "sync read get message")
+		span.End()
 		return fmt.Errorf("sync read get message: %w", err)
 	}
+	span.End()
 	return nil
 }
 
@@ -547,31 +830,51 @@ func (q *Queue) HealthCheck(
 	consumerID string,
 	healthCheckAt time.Time,
 ) (*model.Consumer, error) {
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
-	defer cancelFunc()
-	nh := q.broker.NodeHost()
 	encoderDecoder, err := factory.EncoderDecoder(pbCommandTypes.Kind_KIND_HEALTH_CHECK)
 	if err != nil {
 		return nil, fmt.Errorf("get encoder decoder for health check: %w", err)
 	}
-	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.HealthCheckInputs{
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "healthCheck"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("healthCheck"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	defer span.End()
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
+	cmdBytes, err := encoderDecoder.EncodeArgs(ctx, &pbBrokerCommands.HealthCheckInputs{
 		ConsumerId: consumerID,
 		PingAt:     timestamppb.New(healthCheckAt),
-	})
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "marshal cmd")
 		return nil, fmt.Errorf("marshal cmd: %w", err)
 	}
-	res, err := nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
+	defer cancelFunc()
+	res, err := q.broker.NodeHost().SyncPropose(ctxTimeout, q.broker.NodeHost().GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "propose health check")
 		return nil, fmt.Errorf("propose health check: %w", err)
 	}
-	output, err := encoderDecoder.DecodeResults(pCtx, res.Data)
+	output, err := encoderDecoder.DecodeResults(ctxTimeout, res.Data)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "decode results for health check")
 		return nil, fmt.Errorf("decode results for health check: %w", err)
 	}
 	healthCheckOutputs, ok := output.(*pbBrokerCommands.HealthCheckOutputs)
 	if !ok {
-		return nil, fmt.Errorf("unexpected result type for health check: %T", output)
+		err := fmt.Errorf("unexpected result type for health check: %T", output)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected result type")
+		return nil, err
 	}
 	return model.FromProtoBufConsumer(healthCheckOutputs.Consumer), nil
 }
@@ -580,29 +883,57 @@ func (q *Queue) ShardsInfo(
 	pCtx context.Context,
 	topics []string,
 ) (map[string]*model.ShardInfo, []*model.Broker, *model.Broker, error) {
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "allPartitions"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("allPartitions"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
 	encoderDecoder, err := factory.EncoderDecoder(pbCommandTypes.Kind_KIND_ALL_PARTITIONS)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get encoder decoder for all partitions")
+		span.End()
 		return nil, nil, nil, fmt.Errorf("get encoder decoder for all partitions: %w", err)
 	}
-	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, nil)
+	cmdBytes, err := encoderDecoder.EncodeArgs(ctx, nil, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "marshal cmd")
+		span.End()
 		return nil, nil, nil, fmt.Errorf("marshal cmd: %w", err)
 	}
 	nh := q.broker.NodeHost()
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
-	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
+	res, err := nh.SyncRead(ctxTimeout, q.broker.BrokerShardId(), cmdBytes)
 	cancelFunc()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "propose get consumer for ID")
+		span.End()
 		return nil, nil, nil, fmt.Errorf("propose get consumer for ID: %w", err)
 	}
-	results, err := encoderDecoder.DecodeResults(pCtx, res.([]byte))
+	results, err := encoderDecoder.DecodeResults(ctx, res.([]byte))
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "decode results for all partitions")
+		span.End()
 		return nil, nil, nil, fmt.Errorf("decode results for all partitions: %w", err)
 	}
 	allPartitionsOutputs, ok := results.(*pbBrokerCommands.AllPartitionsOutputs)
 	if !ok {
-		return nil, nil, nil, fmt.Errorf("unexpected result type for all partitions: %T", results)
+		err := fmt.Errorf("unexpected result type for all partitions: %T", results)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected result type")
+		span.End()
+		return nil, nil, nil, err
 	}
+	span.End()
 	partitions := allPartitionsOutputs.Partitions
 	if len(topics) != 0 {
 		topicsSet := util.ToSet(topics)
@@ -627,33 +958,56 @@ func (q *Queue) ShardsInfo(
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		encoderDecoder, err := factory.EncoderDecoder(pbCommandTypes.Kind_KIND_SHARD_INFO_FOR_PARTITIONS)
+		ctx, span = q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "shardInfoForPartitions"),
+			trace.WithSpanKind(trace.SpanKindClient),
+			trace.WithAttributes(
+				semconv.RPCSystemKey.String("raft"),
+				semconv.ServerAddressKey.String(q.broker.RaftAddress),
+				semconv.RPCMethodKey.String("shardInfoForPartitions"),
+				semconv.RPCServiceKey.String("raft.broker.FSM"),
+			),
+		)
+		defer span.End()
+		headers = make(propagation.MapCarrier)
+		otel.GetTextMapPropagator().Inject(ctx, &headers)
+		encoderDecoder, err = factory.EncoderDecoder(pbCommandTypes.Kind_KIND_SHARD_INFO_FOR_PARTITIONS)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "get encoder decoder for shard info")
 			shardInfoErr = fmt.Errorf("get encoder decoder for shard info: %w", err)
 			return
 		}
-		cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.ShardInfoForPartitionsInputs{
+		cmdBytes, err = encoderDecoder.EncodeArgs(ctx, &pbBrokerCommands.ShardInfoForPartitionsInputs{
 			Partitions: partitions,
-		})
+		}, headers)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "marshal cmd")
 			shardInfoErr = fmt.Errorf("marshal cmd: %w", err)
 			return
 		}
-		ctx, cancelFunc = context.WithTimeout(pCtx, 15*time.Second)
+		ctxTimeout, cancelFunc = context.WithTimeout(ctx, 15*time.Second)
 		defer cancelFunc()
-		res, err = nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+		res, err = nh.SyncRead(ctxTimeout, q.broker.BrokerShardId(), cmdBytes)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "propose get consumer for ID")
 			shardInfoErr = fmt.Errorf("propose get consumer for ID: %w", err)
 			return
 		}
-		co, err := encoderDecoder.DecodeResults(pCtx, res.([]byte))
+		co, err := encoderDecoder.DecodeResults(ctx, res.([]byte))
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "decode results for shard info")
 			shardInfoErr = fmt.Errorf("decode results for shard info: %w", err)
 			return
 		}
 		shardInfoOutputs, ok := co.(*pbBrokerCommands.ShardInfoForPartitionsOutputs)
 		if !ok {
-			shardInfoErr = fmt.Errorf("unexpected result type for shard info: %T", co)
+			err := fmt.Errorf("unexpected result type for shard info: %T", co)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "unexpected result type")
+			shardInfoErr = err
 			return
 		}
 		clusterDetails.ShardInfo = make(map[string]*model.ShardInfo)
@@ -665,7 +1019,6 @@ func (q *Queue) ShardsInfo(
 		}
 		return
 	}()
-
 	go func() {
 		defer wg.Done()
 		leaderID, err := q.blockTillLeaderSet(pCtx, q.broker.BrokerShardId())
@@ -763,30 +1116,57 @@ func (q *Queue) blockTillLeaderSet(
 
 func (q *Queue) reShardExistingPartitions(pCtx context.Context) error {
 	nh := q.broker.NodeHost()
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
-	defer cancelFunc()
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "allPartitions"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("allPartitions"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
 	encoderDecoder, err := factory.EncoderDecoder(pbCommandTypes.Kind_KIND_ALL_PARTITIONS)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get encoder decoder for all partitions")
+		span.End()
 		return fmt.Errorf("get encoder decoder for all partitions: %w", err)
 	}
-	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, nil)
+	cmdBytes, err := encoderDecoder.EncodeArgs(ctx, nil, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "marshal cmd")
+		span.End()
 		return fmt.Errorf("marshal cmd: %w", err)
 	}
-	res, err := nh.SyncRead(ctx, q.broker.BrokerShardId(), cmdBytes)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
+	defer cancelFunc()
+	res, err := nh.SyncRead(ctxTimeout, q.broker.BrokerShardId(), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "sync read all partitions")
+		span.End()
 		return fmt.Errorf("sync read all partitions: %w", err)
 	}
 	results, err := encoderDecoder.DecodeResults(pCtx, res.([]byte))
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "decode results for all partitions")
+		span.End()
 		return fmt.Errorf("decode results for all partitions: %w", err)
 	}
 	allPartitionsOutputs, ok := results.(*pbBrokerCommands.AllPartitionsOutputs)
 	if !ok {
-		return fmt.Errorf("unexpected result type for all partitions: %T", results)
+		err := fmt.Errorf("unexpected result type for all partitions: %T", results)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected result type")
+		span.End()
+		return err
 	}
+	span.End()
 	for _, partition := range allPartitionsOutputs.Partitions {
-
 		if partition.ShardId == 0 || len(partition.Members) == 0 {
 			continue
 		}
@@ -814,17 +1194,33 @@ func (q *Queue) registerBroker(pCtx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("get encoder decoder for register broker: %w", err)
 	}
-	cmdBytes, err := encoderDecoder.EncodeArgs(pCtx, &pbBrokerCommands.RegisterBrokerInputs{
+	ctx, span := q.tracer.Start(pCtx, fmt.Sprintf("%s/%s/%s", config.Conf.Scope(), "raft/fsm/broker/FSM", "registerBroker"),
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			semconv.RPCSystemKey.String("raft"),
+			semconv.ServerAddressKey.String(q.broker.RaftAddress),
+			semconv.RPCMethodKey.String("registerBroker"),
+			semconv.RPCServiceKey.String("raft.broker.FSM"),
+		),
+	)
+	defer span.End()
+	headers := make(propagation.MapCarrier)
+	otel.GetTextMapPropagator().Inject(ctx, &headers)
+	cmdBytes, err := encoderDecoder.EncodeArgs(ctx, &pbBrokerCommands.RegisterBrokerInputs{
 		Broker: q.broker.ToProtoBuf(),
-	})
+	}, headers)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "encode args for register broker")
 		return fmt.Errorf("encode args for register broker: %w", err)
 	}
-	ctx, cancelFunc := context.WithTimeout(pCtx, 15*time.Second)
+	ctxTimeout, cancelFunc := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelFunc()
 	nh := q.broker.NodeHost()
-	_, err = nh.SyncPropose(ctx, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
+	_, err = nh.SyncPropose(ctxTimeout, nh.GetNoOPSession(q.broker.BrokerShardId()), cmdBytes)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "propose register broker")
 		return fmt.Errorf("propose register broker: %w", err)
 	}
 	return nil

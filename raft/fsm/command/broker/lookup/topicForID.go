@@ -3,8 +3,9 @@ package lookup
 import (
 	"context"
 	"fmt"
-	"github.com/sreekar2307/queue/logger"
 	"reflect"
+
+	"github.com/sreekar2307/queue/logger"
 
 	pbTypes "github.com/sreekar2307/queue/gen/types/v1"
 	"github.com/sreekar2307/queue/model"
@@ -49,7 +50,7 @@ type topicForID struct {
 	log logger.Logger
 }
 
-func (c topicForIDEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c topicForIDEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbBrokerCommand.TopicForIDInputs)
 	if !ok {
 		return nil, stdErrors.Join(cmdErrors.ErrInvalidCommandArgs,
@@ -60,8 +61,9 @@ func (c topicForIDEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
 	cmd := pbCommandTypes.Cmd{
-		Cmd:  pbCommandTypes.Kind_KIND_CREATE_TOPIC,
-		Args: args,
+		Cmd:     pbCommandTypes.Kind_KIND_CREATE_TOPIC,
+		Args:    args,
+		Headers: headers,
 	}
 	return proto.Marshal(&cmd)
 }

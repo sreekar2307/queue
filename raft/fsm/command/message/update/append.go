@@ -5,9 +5,10 @@ import (
 	"errors"
 	stdErrors "errors"
 	"fmt"
-	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
+
+	"github.com/sreekar2307/queue/logger"
 
 	"github.com/lni/dragonboat/v4/statemachine"
 	pbMessageCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/message/v1"
@@ -50,7 +51,7 @@ type appendMsg struct {
 	log logger.Logger
 }
 
-func (c appendEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c appendEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbMessageCommandTypes.AppendInputs)
 	if !ok {
 		return nil, stdErrors.Join(cmdErrors.ErrInvalidCommandArgs,
@@ -61,8 +62,9 @@ func (c appendEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, er
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
 	cmd := pbCommandTypes.Cmd{
-		Cmd:  kindappend,
-		Args: args,
+		Cmd:     kindappend,
+		Args:    args,
+		Headers: headers,
 	}
 	return proto.Marshal(&cmd)
 }

@@ -3,9 +3,11 @@ package update
 import (
 	"context"
 	"fmt"
+
 	"github.com/sreekar2307/queue/logger"
 
 	stdErrors "errors"
+
 	pbMessageCommand "github.com/sreekar2307/queue/gen/raft/fsm/message/v1"
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	"github.com/sreekar2307/queue/raft/fsm/command"
@@ -44,7 +46,7 @@ type poll struct {
 	log logger.Logger
 }
 
-func (c pollEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c pollEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbMessageCommand.PollInputs)
 	if !ok {
 		return nil, fmt.Errorf("expected command.PollInputs, got %T", arg)
@@ -54,8 +56,9 @@ func (c pollEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, erro
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
 	cmd := pbCommandTypes.Cmd{
-		Cmd:  kindPoll,
-		Args: caBytes,
+		Cmd:     kindPoll,
+		Args:    caBytes,
+		Headers: headers,
 	}
 	return proto.Marshal(&cmd)
 }

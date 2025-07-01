@@ -5,6 +5,7 @@ package raft.fsm.v1;
 message Cmd {
   Kind cmd = 1;
   bytes args = 2;
+  map<string, string> headers = 3;
 }
 
 enum Kind {
@@ -18,13 +19,13 @@ enum Kind {
   KIND_HEALTH_CHECK = 7;
   KIND_PARTITION_ADDED = 8;
   KIND_PARTITIONS_FOR_TOPIC = 9;
-  KIND_PARTITION_ID_FOR_MESSAGE= 10;
+  KIND_PARTITION_ID_FOR_MESSAGE = 10;
   KIND_ALL_PARTITIONS = 11;
   KIND_CONSUMER_FOR_ID = 12;
   KIND_CONSUMERS = 13;
   KIND_SHARD_INFO_FOR_PARTITIONS = 14;
   KIND_BROKER_FOR_ID = 15;
-  KIND_MESSAGE_ACK= 16;
+  KIND_MESSAGE_ACK = 16;
   KIND_MESSAGE_APPEND = 17;
   KIND_MESSAGE_POLL = 18;
 }

@@ -50,7 +50,7 @@ type ack struct {
 	log logger.Logger
 }
 
-func (c ackEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c ackEncoderDecoder) EncodeArgs(_ context.Context, arg any, m map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbMessageCommandTypes.AckInputs)
 	if !ok {
 		return nil, stdErrors.Join(cmdErrors.ErrInvalidCommandArgs,

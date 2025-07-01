@@ -4,9 +4,10 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
-	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
+
+	"github.com/sreekar2307/queue/logger"
 
 	"github.com/lni/dragonboat/v4/statemachine"
 	pbBrokerCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
@@ -48,7 +49,7 @@ type connect struct {
 	log logger.Logger
 }
 
-func (c connectEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c connectEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbBrokerCommandTypes.ConnectInputs)
 	if !ok {
 		return nil, stdErrors.Join(cmdErrors.ErrInvalidCommandArgs,
@@ -59,8 +60,9 @@ func (c connectEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, e
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
 	cmd := pbCommandTypes.Cmd{
-		Cmd:  kindConnect,
-		Args: args,
+		Cmd:     kindConnect,
+		Args:    args,
+		Headers: headers,
 	}
 	return proto.Marshal(&cmd)
 }

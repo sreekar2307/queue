@@ -3,6 +3,7 @@ package lookup
 import (
 	"context"
 	"fmt"
+
 	"github.com/sreekar2307/queue/logger"
 
 	pbBrokerCommand "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
@@ -44,7 +45,7 @@ type shardInfoForPartitions struct {
 	log logger.Logger
 }
 
-func (c shardInfoForPartitionsEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c shardInfoForPartitionsEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbBrokerCommand.ShardInfoForPartitionsInputs)
 	if !ok {
 		return nil, fmt.Errorf("expected command.shardInfoForPartitionsInputs, got %T", arg)
@@ -54,8 +55,9 @@ func (c shardInfoForPartitionsEncoderDecoder) EncodeArgs(_ context.Context, arg 
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
 	cmd := pbCommandTypes.Cmd{
-		Cmd:  kindShardInfoForPartitions,
-		Args: args,
+		Cmd:     kindShardInfoForPartitions,
+		Args:    args,
+		Headers: headers,
 	}
 	cmdBytes, err := proto.Marshal(&cmd)
 	if err != nil {

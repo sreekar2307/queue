@@ -3,10 +3,10 @@ package lookup
 import (
 	"context"
 	"fmt"
-	"github.com/sreekar2307/queue/logger"
 
 	pbBrokerCommand "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
+	"github.com/sreekar2307/queue/logger"
 	"github.com/sreekar2307/queue/raft/fsm/command"
 	"google.golang.org/protobuf/proto"
 )
@@ -42,9 +42,10 @@ type allPartitions struct {
 	log logger.Logger
 }
 
-func (c allPartitionsEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c allPartitionsEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	cmd := pbCommandTypes.Cmd{
-		Cmd: kindAllPartitions,
+		Cmd:     kindAllPartitions,
+		Headers: headers,
 	}
 	return proto.Marshal(&cmd)
 }

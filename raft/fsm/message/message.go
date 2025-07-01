@@ -9,6 +9,8 @@ import (
 	"github.com/sreekar2307/queue/model"
 	"github.com/sreekar2307/queue/raft/fsm/command/factory"
 	"github.com/sreekar2307/queue/service"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 	"io"
@@ -101,6 +103,8 @@ func (f *FSM) Update(entries []statemachine.Entry) (results []statemachine.Entry
 		if err != nil {
 			return nil, fmt.Errorf("get update for command %s: %w", cmd.Cmd, err)
 		}
+		headers := propagation.MapCarrier(cmd.Headers)
+		ctx = otel.GetTextMapPropagator().Extract(ctx, &headers)
 		resEntry, err := updator.ExecuteUpdate(ctx, cmd.Args, entry)
 		if err != nil {
 			return nil, fmt.Errorf("execute update for command %s: %w", cmd.Cmd, err)
@@ -122,6 +126,8 @@ func (f *FSM) Lookup(i any) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get lookup for command %s: %w", cmd.Cmd, err)
 	}
+	headers := propagation.MapCarrier(cmd.Headers)
+	ctx = otel.GetTextMapPropagator().Extract(ctx, &headers)
 	resEntry, err := lookup.Lookup(ctx, cmd.Args)
 	if err != nil {
 		return nil, fmt.Errorf("execute lookup for command %s: %w", cmd.Cmd, err)

@@ -4,9 +4,10 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
-	"github.com/sreekar2307/queue/logger"
 	"reflect"
 	"slices"
+
+	"github.com/sreekar2307/queue/logger"
 
 	"github.com/lni/dragonboat/v4/statemachine"
 	pbBrokerCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
@@ -49,7 +50,7 @@ type updateConsumer struct {
 	log logger.Logger
 }
 
-func (c updateConsumerEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c updateConsumerEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbBrokerCommandTypes.UpdateConsumerInputs)
 	if !ok {
 		return nil, stdErrors.Join(cmdErrors.ErrInvalidCommandArgs,
@@ -60,8 +61,9 @@ func (c updateConsumerEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
 	cmd := pbCommandTypes.Cmd{
-		Cmd:  kindupdateConsumer,
-		Args: args,
+		Cmd:     kindupdateConsumer,
+		Args:    args,
+		Headers: headers,
 	}
 	return proto.Marshal(&cmd)
 }

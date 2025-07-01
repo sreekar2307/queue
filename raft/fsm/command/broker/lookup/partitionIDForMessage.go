@@ -3,6 +3,7 @@ package lookup
 import (
 	"context"
 	"fmt"
+
 	"github.com/sreekar2307/queue/logger"
 
 	pbBrokerCommand "github.com/sreekar2307/queue/gen/raft/fsm/broker/v1"
@@ -43,7 +44,7 @@ type partitionIDForMessage struct {
 	log logger.Logger
 }
 
-func (c partitionIDForMessageEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c partitionIDForMessageEncoderDecoder) EncodeArgs(_ context.Context, arg any, m map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbBrokerCommand.PartitionIDForMessageInputs)
 	if !ok {
 		return nil, fmt.Errorf("expected command.paritionIDForMessageInputs, got %T", arg)

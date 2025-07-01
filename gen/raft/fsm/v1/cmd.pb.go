@@ -122,6 +122,7 @@ type Cmd struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cmd           Kind                   `protobuf:"varint,1,opt,name=cmd,proto3,enum=raft.fsm.v1.Kind" json:"cmd,omitempty"`
 	Args          []byte                 `protobuf:"bytes,2,opt,name=args,proto3" json:"args,omitempty"`
+	Headers       map[string]string      `protobuf:"bytes,3,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -170,14 +171,25 @@ func (x *Cmd) GetArgs() []byte {
 	return nil
 }
 
+func (x *Cmd) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
+}
+
 var File_raft_fsm_v1_cmd_proto protoreflect.FileDescriptor
 
 const file_raft_fsm_v1_cmd_proto_rawDesc = "" +
 	"\n" +
-	"\x15raft/fsm/v1/cmd.proto\x12\vraft.fsm.v1\">\n" +
+	"\x15raft/fsm/v1/cmd.proto\x12\vraft.fsm.v1\"\xb3\x01\n" +
 	"\x03Cmd\x12#\n" +
 	"\x03cmd\x18\x01 \x01(\x0e2\x11.raft.fsm.v1.KindR\x03cmd\x12\x12\n" +
-	"\x04args\x18\x02 \x01(\fR\x04args*\xe1\x03\n" +
+	"\x04args\x18\x02 \x01(\fR\x04args\x127\n" +
+	"\aheaders\x18\x03 \x03(\v2\x1d.raft.fsm.v1.Cmd.HeadersEntryR\aheaders\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\xe1\x03\n" +
 	"\x04Kind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11KIND_CREATE_TOPIC\x10\x01\x12\x15\n" +
@@ -214,18 +226,20 @@ func file_raft_fsm_v1_cmd_proto_rawDescGZIP() []byte {
 }
 
 var file_raft_fsm_v1_cmd_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_raft_fsm_v1_cmd_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_raft_fsm_v1_cmd_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_raft_fsm_v1_cmd_proto_goTypes = []any{
 	(Kind)(0),   // 0: raft.fsm.v1.Kind
 	(*Cmd)(nil), // 1: raft.fsm.v1.Cmd
+	nil,         // 2: raft.fsm.v1.Cmd.HeadersEntry
 }
 var file_raft_fsm_v1_cmd_proto_depIdxs = []int32{
 	0, // 0: raft.fsm.v1.Cmd.cmd:type_name -> raft.fsm.v1.Kind
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 1: raft.fsm.v1.Cmd.headers:type_name -> raft.fsm.v1.Cmd.HeadersEntry
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_raft_fsm_v1_cmd_proto_init() }
@@ -239,7 +253,7 @@ func file_raft_fsm_v1_cmd_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_raft_fsm_v1_cmd_proto_rawDesc), len(file_raft_fsm_v1_cmd_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

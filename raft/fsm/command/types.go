@@ -18,7 +18,7 @@ type (
 	}
 
 	EncoderDecoder interface {
-		EncodeArgs(context.Context, any) ([]byte, error)
+		EncodeArgs(context.Context, any, map[string]string) ([]byte, error)
 		DecodeResults(context.Context, []byte) (any, error)
 	}
 

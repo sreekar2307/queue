@@ -5,6 +5,8 @@ import (
 	"fmt"
 	pbCommandTypes "github.com/sreekar2307/queue/gen/raft/fsm/v1"
 	"github.com/sreekar2307/queue/logger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 	"io"
@@ -130,6 +132,8 @@ func (f *FSM) Update(entries []statemachine.Entry) (results []statemachine.Entry
 		if err != nil {
 			return nil, fmt.Errorf("get update for command %s: %w", cmd.Cmd, err)
 		}
+		headers := propagation.MapCarrier(cmd.Headers)
+		ctx = otel.GetTextMapPropagator().Extract(ctx, &headers)
 		resEntry, err := updator.ExecuteUpdate(ctx, cmd.Args, entry)
 		if err != nil {
 			return nil, fmt.Errorf("execute update for command %s: %w", cmd.Cmd, err)
@@ -147,6 +151,8 @@ func (f *FSM) Lookup(i any) (any, error) {
 	if err := proto.Unmarshal(i.([]byte), &cmd); err != nil {
 		return nil, fmt.Errorf("unmarshing cmd: %w", err)
 	}
+	headers := propagation.MapCarrier(cmd.Headers)
+	ctx = otel.GetTextMapPropagator().Extract(ctx, &headers)
 	lookup, err := factory.BrokerLookup(cmd.Cmd, f, f.log)
 	if err != nil {
 		return nil, fmt.Errorf("get lookup for command %s: %w", cmd.Cmd, err)

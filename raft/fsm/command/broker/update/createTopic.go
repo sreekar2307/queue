@@ -53,7 +53,7 @@ type createTopic struct {
 	log logger.Logger
 }
 
-func (c createTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byte, error) {
+func (c createTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any, headers map[string]string) ([]byte, error) {
 	ca, ok := arg.(*pbBrokerCommandTypes.CreateTopicInputs)
 	if !ok {
 		return nil, stdErrors.Join(cmdErrors.ErrInvalidCommandArgs,
@@ -64,8 +64,9 @@ func (c createTopicEncoderDecoder) EncodeArgs(_ context.Context, arg any) ([]byt
 		return nil, fmt.Errorf("marshal command args: %w", err)
 	}
 	cmd := pbCommandTypes.Cmd{
-		Cmd:  kindCreateTopic,
-		Args: args,
+		Cmd:     kindCreateTopic,
+		Args:    args,
+		Headers: headers,
 	}
 	return proto.Marshal(&cmd)
 }
